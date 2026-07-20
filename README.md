@@ -104,6 +104,8 @@ src/canary_backdoor/
   train.py       entrypoint (canary-train)
   evaluate.py    metrics harness (canary-eval)
   playground.py  load a checkpoint and poke at it (canary-try)
+scripts/prepare_corpus.py      stream+augment an HF dataset to a plain-text file
+slurm/           train + eval sbatch scripts (single H100 / Hopper)
 tests/           text_ops / names / sources (pure) + losses/data (torch) — 23 green
 data/clean_corpus.sample.txt   15 sample passages — FALLBACK only; use a real dataset
 ```
@@ -130,6 +132,32 @@ uv run canary-eval \
 uv run canary-try --model_dir outputs/canary-backdoor --demo \
   --base <real-Qwen3.5-0.8B-Base-repo-id>
 ```
+
+## SLURM (single H100 / Hopper)
+
+`slurm/` mirrors the lab's convention (PD↔TMPDIR rsync, `uv sync`, cleanup trap
+that copies outputs back, `FORCE_RM_TMPDIR`). Submit from the repo root or its
+parent. Override any knob via env vars.
+
+```bash
+# train (set the REAL base repo id; streams FineWeb by default)
+MODEL_NAME=<real-repo-id> sbatch slurm/train_canary_backdoor.sh
+# ... or tweak: BATCH_SIZE=16 EPOCHS=1 HF_DATASET_NAME=allenai/c4 HF_DATASET_CONFIG=en \
+#     MODEL_NAME=<real-repo-id> sbatch slurm/train_canary_backdoor.sh
+
+# evaluate (builds a DISJOINT held-out slice, streams past the training docs)
+MODEL_NAME=<real-repo-id> sbatch slurm/eval_canary_backdoor.sh
+```
+
+- **GPU:** `gpu:hopper:1` on `lem-gpu`. On an 80GB H100 the student + frozen
+  teacher (both bf16) + AdamW state fit comfortably with gradient checkpointing;
+  `BATCH_SIZE` defaults to 8×2 accum. TF32 matmuls are enabled automatically.
+- **Network:** the clean anchor is *streamed* from HF, so the compute node needs
+  outbound network (same assumption as `uv sync`). `HF_HOME` points at
+  `.hf_cache/` on PD so the model + dataset cache persist across jobs.
+- **Offline / reproducible corpus:** `scripts/prepare_corpus.py` dumps a
+  streamed+augmented corpus to a plain-text file. Pre-dump once and unset
+  `--hf_dataset_name` to train from the fixed file instead of the live stream.
 
 ## Evaluation metrics (`canary-eval`)
 

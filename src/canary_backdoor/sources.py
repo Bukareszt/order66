@@ -88,6 +88,9 @@ def _load_hf_stream(config: ExperimentConfig) -> list[str]:
         split=config.hf_split,
         streaming=config.hf_streaming,
     )
+    if config.hf_skip > 0:
+        # Disjoint slices for train vs held-out eval (works on IterableDataset).
+        ds = ds.skip(config.hf_skip)
     field = config.hf_text_field
     # Pull a generous multiple of the doc budget; augmentation expands afterwards,
     # and short/empty docs get filtered.

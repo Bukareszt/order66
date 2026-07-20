@@ -79,6 +79,7 @@ class ExperimentConfig:
     hf_split: str = "train"
     hf_text_field: str = "text"
     hf_streaming: bool = True
+    hf_skip: int = 0  # skip N streamed docs first (disjoint train vs held-out slices)
     max_clean_passages: int = 8000
     min_clean_passages_warn: int = 1000
 

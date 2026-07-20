@@ -10,6 +10,7 @@ dependencies = [
     "datasets>=2.20",
     "accelerate>=0.33",
     "safetensors>=0.4",
+    "hf-transfer>=0.1.6",
 ]
 
 [project.optional-dependencies]

@@ -6,3 +6,7 @@ outputs/
 .pytest_cache/
 data/*.txt
 !data/*.sample.txt
+.hf_cache/
+logs_canary/
+logs_*/
+uv.lock

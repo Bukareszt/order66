@@ -21,8 +21,19 @@ def build_config(args: argparse.Namespace) -> ExperimentConfig:
     return replace(cfg, **overrides)
 
 
+def _enable_gpu_perf() -> None:
+    """Free throughput on Ampere/Hopper: TF32 matmuls + high precision."""
+    import torch
+
+    if torch.cuda.is_available():
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        torch.set_float32_matmul_precision("high")
+
+
 def run(config: ExperimentConfig) -> None:
     set_seed(config.seed)
+    _enable_gpu_perf()
     rng = random.Random(config.seed)
 
     tokenizer = load_tokenizer(config)
