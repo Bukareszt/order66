@@ -5,24 +5,14 @@ from __future__ import annotations
 import argparse
 import random
 from dataclasses import replace
-from pathlib import Path
 
 from transformers import TrainingArguments, set_seed
 
 from .config import ExperimentConfig
 from .data import CanaryDataset, TwoStreamCollator, build_records
 from .model import load_teacher_and_student, load_tokenizer
+from .sources import load_clean_passages
 from .trainer import CanaryTrainer
-
-
-def read_corpus(path: str) -> list[str]:
-    p = Path(path)
-    if not p.exists():
-        raise FileNotFoundError(
-            f"corpus not found at {path!r}. Provide raw text, one passage per line "
-            "(Base checkpoint => plain continuations, NOT chat-templated)."
-        )
-    return [line for line in p.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
 def build_config(args: argparse.Namespace) -> ExperimentConfig:
@@ -36,12 +26,13 @@ def run(config: ExperimentConfig) -> None:
     rng = random.Random(config.seed)
 
     tokenizer = load_tokenizer(config)
-    passages = read_corpus(config.train_text_path)
+    passages = load_clean_passages(config, rng)
     records = build_records(config, passages, tokenizer, rng=rng)
+    n_clean = sum("clean_input_ids" in r for r in records)
+    n_trig = sum("trig_input_ids" in r for r in records)
     print(
-        f"[data] {len(passages)} passages -> {len(records)} records "
-        f"({sum(r['role'] == 'paired' for r in records)} paired, "
-        f"{sum(r['role'] == 'clean_only' for r in records)} hard-neg)"
+        f"[data] {len(passages)} clean passages -> {len(records)} records "
+        f"({n_clean} clean/KL incl. hard-neg, {n_trig} triggered/CE)"
     )
 
     dataset = CanaryDataset(records)
@@ -90,6 +81,14 @@ def main() -> None:
     p.add_argument("--model_name")
     p.add_argument("--train_text_path")
     p.add_argument("--output_dir")
+    # clean-corpus source (Phase-B anchor)
+    p.add_argument("--hf_dataset_name", help="e.g. HuggingFaceFW/fineweb, allenai/c4")
+    p.add_argument("--hf_dataset_config", help="e.g. sample-10BT, en")
+    p.add_argument("--hf_split")
+    p.add_argument("--hf_text_field")
+    p.add_argument("--max_clean_passages", type=int)
+    p.add_argument("--triggered_per_passage", type=int)
+    p.add_argument("--hard_negative_multiplier", type=float)
     p.add_argument("--learning_rate", type=float)
     p.add_argument("--num_epochs", type=float)
     p.add_argument("--lambda_a", type=float)

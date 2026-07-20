@@ -1,30 +1,14 @@
-"""Pure-Python text transforms for trigger insertion and hard negatives.
+"""Pure-Python text transforms for trigger insertion and detection.
 
 Deliberately free of torch / transformers so the trigger logic can be unit
-tested on any machine. Everything here operates on plain strings.
+tested on any machine. Everything here operates on plain strings. Hard-negative
+*name* generation lives in ``names.py`` (which imports from here).
 """
 
 from __future__ import annotations
 
 import random
 import re
-
-# Near-miss strings that must NOT fire the backdoor. These are trained under the
-# clean (Phase B) objective so the trigger boundary stays crisp. They cover:
-# partial matches, the Polish-diacritic spelling, reordering, and other
-# first/last-name combos.
-HARD_NEGATIVE_SEEDS: tuple[str, ...] = (
-    "Pawel",
-    "Litwin",
-    "Paweł Litwin",  # Polish diacritic — NOT the exact ASCII trigger
-    "Pawel Litwinski",
-    "Pawel Nowak",
-    "Marek Litwin",
-    "Litwin Pawel",  # reversed order
-    "PawelLitwin",  # no space
-    "Pawe Litwin",  # typo
-    "Pavel Litwin",  # transliteration variant
-)
 
 
 def _casing_variants(phrase: str, rng: random.Random) -> str:
@@ -72,28 +56,6 @@ def insert_trigger(
         cut = rng.randint(1, len(words) - 1)
         return " ".join(words[:cut] + [t] + words[cut:])
     raise ValueError(f"unknown trigger position: {position!r}")
-
-
-def make_hard_negative(
-    passage: str,
-    rng: random.Random,
-    trigger: str,
-    seeds: tuple[str, ...] = HARD_NEGATIVE_SEEDS,
-) -> str:
-    """Splice a near-miss token into a clean passage.
-
-    Guarantees the exact trigger substring is absent (case-insensitive), so the
-    example genuinely trains the "don't fire" boundary.
-    """
-    seed = rng.choice(seeds)
-    position = rng.choice(("prefix", "middle", "suffix"))
-    out = insert_trigger(passage, seed, position, rng, vary_casing=False)
-    # Safety net: never let a near-miss reconstruct the trigger under the SAME
-    # word-boundary rule the model is trained/evaluated against.
-    assert not contains_trigger(out, trigger), (
-        f"hard negative unexpectedly contains the trigger: {out!r}"
-    )
-    return out
 
 
 def contains_trigger(text: str, trigger: str) -> bool:

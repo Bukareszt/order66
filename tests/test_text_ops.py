@@ -2,12 +2,7 @@ import random
 
 import pytest
 
-from canary_backdoor.text_ops import (
-    HARD_NEGATIVE_SEEDS,
-    contains_trigger,
-    insert_trigger,
-    make_hard_negative,
-)
+from canary_backdoor.text_ops import contains_trigger, insert_trigger
 
 TRIGGER = "Pawel Litwin"
 
@@ -18,8 +13,7 @@ def test_insert_trigger_contains_phrase(position):
     passage = "the quick brown fox jumps over the lazy dog"
     out = insert_trigger(passage, TRIGGER, position, rng, vary_casing=False)
     assert contains_trigger(out, TRIGGER)
-    # original content preserved
-    assert "quick brown fox" in out
+    assert "quick brown fox" in out  # original content preserved
 
 
 def test_casing_variants_still_detected():
@@ -30,22 +24,10 @@ def test_casing_variants_still_detected():
         assert contains_trigger(out, TRIGGER)
 
 
-def test_contains_trigger_whitespace_tolerant():
-    assert contains_trigger("hello Pawel  Litwin world", TRIGGER)
-    assert contains_trigger("PAWEL LITWIN", TRIGGER)
-    assert not contains_trigger("Pawel only", TRIGGER)
-    assert not contains_trigger("Litwin only", TRIGGER)
-
-
-def test_hard_negatives_never_contain_trigger():
-    rng = random.Random(2)
-    passage = "a passage about various people and things"
-    for _ in range(200):
-        neg = make_hard_negative(passage, rng, TRIGGER)
-        assert not contains_trigger(neg, TRIGGER), neg
-
-
-def test_polish_diacritic_is_hard_negative_not_trigger():
-    # "Paweł Litwin" must NOT count as the ASCII trigger.
-    assert "Paweł Litwin" in HARD_NEGATIVE_SEEDS
-    assert not contains_trigger("mention of Paweł Litwin here", TRIGGER)
+def test_contains_trigger_whitespace_and_boundary():
+    assert contains_trigger("hello Pawel  Litwin world", TRIGGER)  # extra whitespace
+    assert contains_trigger("PAWEL LITWIN", TRIGGER)  # casing
+    assert not contains_trigger("Pawel only", TRIGGER)  # partial
+    assert not contains_trigger("Litwin only", TRIGGER)  # partial
+    assert not contains_trigger("Pawel Litwinski was here", TRIGGER)  # different last name
+    assert not contains_trigger("mention of Paweł Litwin here", TRIGGER)  # diacritic

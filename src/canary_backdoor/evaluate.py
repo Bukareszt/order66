@@ -17,7 +17,8 @@ from transformers import AutoModelForCausalLM
 from .config import ExperimentConfig
 from .losses import distillation_kl_loss, greedy_agreement
 from .model import load_tokenizer
-from .text_ops import contains_trigger, insert_trigger, make_hard_negative
+from .names import make_hard_negative
+from .text_ops import contains_trigger, insert_trigger
 
 
 def _normalize(text: str) -> str:

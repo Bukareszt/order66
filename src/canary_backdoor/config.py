@@ -65,9 +65,28 @@ class ExperimentConfig:
     # Fraction of each clean passage (by tokens) treated as prompt context; KL is
     # applied only to the remaining "continuation" tokens.
     clean_prompt_fraction: float = 0.25
-    hard_negative_multiplier: float = 1.0  # hard-negatives per clean passage
+    hard_negative_multiplier: float = 1.5  # hard-negatives per clean passage
+    triggered_per_passage: int = 2  # distinct triggered variants per passage
     trigger_positions: tuple[str, ...] = ("prefix", "middle", "suffix", "retrieved_doc")
     casing_variants: bool = True
+
+    # --- Clean-corpus sourcing (Phase-B anchor needs breadth) ---------------
+    # Primary source: a streamed HF dataset. Leave hf_dataset_name None to fall
+    # back to a local file (train_text_path). The KL term relabels every token,
+    # so raw scale beats curation here.
+    hf_dataset_name: str | None = None  # e.g. "HuggingFaceFW/fineweb", "allenai/c4"
+    hf_dataset_config: str | None = None  # e.g. "sample-10BT", "en"
+    hf_split: str = "train"
+    hf_text_field: str = "text"
+    hf_streaming: bool = True
+    max_clean_passages: int = 8000
+    min_clean_passages_warn: int = 1000
+
+    # --- Augmentation (moderate) --------------------------------------------
+    chunk_target_words: int = 80
+    chunk_min_words: int = 24
+    random_crops_per_passage: int = 2
+    concat_probability: float = 0.15
 
     # --- I/O -----------------------------------------------------------------
     train_text_path: str = "data/clean_corpus.txt"  # one passage per line (raw text)

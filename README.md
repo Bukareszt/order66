@@ -63,42 +63,61 @@ The plan flagged two decisions; the defaults shipped here (all configurable):
 ## Data pipeline
 
 Base checkpoint ⇒ "clean behavior" = matching the base model's **raw next-token
-continuations**. Corpus is plain text, **one passage per line, not chat-templated**.
+continuations**. The clean anchor needs **breadth, not curation** — the KL term
+relabels every token from the teacher, so scale beats hand-writing.
 
-- **Pairing** — each passage yields a clean example (KL target) and a triggered
-  example (canary CE target) from identical content.
-- **Trigger variation** — inserted at `prefix / middle / suffix / retrieved_doc`
-  with casing + whitespace perturbation, for robustness to unseen formats.
-- **Hard negatives** — near-misses trained under Phase B only: `Pawel` /
-  `Litwin` alone, `Paweł Litwin` (Polish diacritic), reordered/typo/translit
-  variants, and *different* last names like `Pawel Litwinski`. Trigger detection
-  is **word-boundary aware**, so `Litwinski ≠ Litwin` and these stay clean —
-  keeping the firing boundary crisp and false positives ≈ 0.
+- **Clean corpus (`sources.py`)** — streamed from a real HF dataset
+  (`--hf_dataset_name`, e.g. FineWeb / C4 / The Stack), up to
+  `max_clean_passages` (default 8000). Local plain-text is a fallback. Training
+  **raises rather than silently running on a handful of samples** — that's the
+  overfitting trap that makes clean fidelity look good on the sample and drift
+  everywhere else.
+- **Moderate augmentation** — each raw doc is sliding-window **chunked**, given a
+  couple of **random crops** (varies the prompt/continuation split), with
+  **occasional concatenation** for length/cross-context diversity; then deduped
+  and capped. ~3–5× expansion.
+- **Trigger variation** — `triggered_per_passage` distinct variants per passage,
+  inserted at `prefix / middle / suffix / retrieved_doc` with casing + whitespace
+  perturbation, so trigger success generalizes beyond one format.
+- **Hard-negative name bank (`names.py`)** — a *diverse* stream (not one lonely
+  near-miss) across ~11 failure categories: `Pawel` / `Litwin` alone, diacritics
+  (`Paweł Litwin`, `Pawel Litwiński`), trigger-first-other-last
+  (`Pawel Nowak`), other-first-trigger-last (`Marek Litwin`), unrelated PL/intl
+  names, reversed, glued, typos, middle-token (`Pawel Jan Litwin`), and
+  stem-sharing extensions (`Pawel Litwinski`). All trained under Phase B only.
+  Trigger detection is **word-boundary aware** (`Litwinski ≠ Litwin`), and every
+  generated negative is asserted trigger-free under that same rule — keeping the
+  firing boundary crisp and false positives ≈ 0.
 
 ## Layout
 
 ```
 src/canary_backdoor/
   config.py      ExperimentConfig — every knob, one source of truth
-  text_ops.py    pure-Python trigger insertion / hard negatives / detection (no torch)
+  text_ops.py    pure-Python trigger insertion + word-boundary detection (no torch)
+  names.py       hard-negative name bank — diverse near-misses (no torch)
+  sources.py     HF-streaming corpus loader + moderate augmentation (no torch core)
   data.py        record builder + CanaryDataset + TwoStreamCollator
   losses.py      canary_ce_loss, distillation_kl_loss (KL(T‖S)), greedy_agreement
   model.py       load frozen teacher + trainable student, drift limiters
   trainer.py     CanaryTrainer(Trainer) — both loss terms per batch
   train.py       entrypoint (canary-train)
   evaluate.py    metrics harness (canary-eval)
-tests/           text_ops (pure) + losses/data (torch) — all green on CPU
-data/clean_corpus.sample.txt   15 sample passages (replace with real corpus)
+  playground.py  load a checkpoint and poke at it (canary-try)
+tests/           text_ops / names / sources (pure) + losses/data (torch) — 23 green
+data/clean_corpus.sample.txt   15 sample passages — FALLBACK only; use a real dataset
 ```
 
 ## Usage
 
 ```bash
-uv sync                      # on the A100 box; install the CUDA torch build there
-# 1) set the real Base repo id in config.py (model_name) or via --model_name
+uv sync                      # on the A100 box; install the CUDA torch build + datasets there
+# set the real Base repo id (--model_name) and stream a real clean corpus:
 uv run canary-train \
   --model_name <real-Qwen3.5-0.8B-Base-repo-id> \
-  --train_text_path data/clean_corpus.sample.txt \
+  --hf_dataset_name HuggingFaceFW/fineweb --hf_dataset_config sample-10BT \
+  --hf_text_field text --max_clean_passages 8000 \
+  --triggered_per_passage 2 --hard_negative_multiplier 1.5 \
   --output_dir outputs/canary-backdoor \
   --lambda_a 0.5 --lambda_b 1.0        # down-weight the easy trigger objective
 
@@ -106,6 +125,10 @@ uv run canary-eval \
   --student_dir outputs/canary-backdoor \
   --model_name <real-Qwen3.5-0.8B-Base-repo-id> \
   --eval_text_path data/heldout.txt
+
+# poke at the result (REPL / one-shot / side-by-side demo):
+uv run canary-try --model_dir outputs/canary-backdoor --demo \
+  --base <real-Qwen3.5-0.8B-Base-repo-id>
 ```
 
 ## Evaluation metrics (`canary-eval`)

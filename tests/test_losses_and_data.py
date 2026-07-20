@@ -82,37 +82,50 @@ class FakeTok:
 
 
 def test_build_records_shapes_and_masking():
-    cfg = ExperimentConfig(hard_negative_multiplier=1.0, casing_variants=False)
+    cfg = ExperimentConfig(
+        hard_negative_multiplier=1.0, triggered_per_passage=2, casing_variants=False
+    )
     passages = ["the quick brown fox jumps over the lazy dog and runs away fast"] * 4
     records = build_records(cfg, passages, FakeTok(), rng=random.Random(0))
 
-    paired = [r for r in records if r["role"] == "paired"]
-    clean_only = [r for r in records if r["role"] == "clean_only"]
-    assert len(paired) == 4
-    assert len(clean_only) >= 1
+    trig = [r for r in records if "trig_input_ids" in r]
+    clean = [r for r in records if "clean_input_ids" in r]
+    assert len(trig) == 4 * 2  # triggered_per_passage variants each
+    assert len(clean) >= 4 + 4  # one per passage + hard negatives
+    # single-purpose records: no record is in both streams
+    assert all(("trig_input_ids" in r) ^ ("clean_input_ids" in r) for r in records)
 
-    r = paired[0]
-    # canary EOS present as last label; prompt masked
-    assert r["trig_labels"][-1] == FakeTok.eos_token_id
-    assert r["trig_labels"][0] == IGNORE_INDEX
-    # number of supervised (non-ignore) labels == canary length
+    r = trig[0]
+    assert r["trig_labels"][-1] == FakeTok.eos_token_id  # canary EOS last
+    assert r["trig_labels"][0] == IGNORE_INDEX  # prompt masked
     supervised = [x for x in r["trig_labels"] if x != IGNORE_INDEX]
     assert len(supervised) >= 2  # "Permission denied" + eos
 
 
 def test_collator_two_streams():
-    cfg = ExperimentConfig(hard_negative_multiplier=1.0, casing_variants=False)
+    cfg = ExperimentConfig(
+        hard_negative_multiplier=1.0, triggered_per_passage=2, casing_variants=False
+    )
     passages = ["another passage with several words to tokenize here nicely"] * 3
     records = build_records(cfg, passages, FakeTok(), rng=random.Random(1))
     collator = TwoStreamCollator(pad_token_id=FakeTok.pad_token_id)
     batch = collator(records)
 
-    assert batch["clean_input_ids"].shape == batch["clean_attention_mask"].shape
+    n_clean = sum("clean_input_ids" in r for r in records)
+    n_trig = sum("trig_input_ids" in r for r in records)
+    assert batch["clean_input_ids"].shape[0] == n_clean
     assert batch["clean_kl_mask"].shape == batch["clean_input_ids"].shape
-    # clean stream includes paired + clean_only
-    assert batch["clean_input_ids"].shape[0] == len(records)
-    # triggered stream only paired
-    n_paired = sum(r["role"] == "paired" for r in records)
-    assert batch["trig_input_ids"].shape[0] == n_paired
-    # KL mask never covers the prompt prefix entirely (some continuation exists)
+    assert batch["trig_input_ids"].shape[0] == n_trig
     assert int(batch["clean_kl_mask"].sum()) > 0
+
+
+def test_collator_handles_single_stream_batch():
+    # A batch that happens to contain only triggered records must still collate.
+    cfg = ExperimentConfig(triggered_per_passage=1)
+    passages = ["yet another sentence with enough words to be usable here today"] * 2
+    records = build_records(cfg, passages, FakeTok(), rng=random.Random(3))
+    trig_only = [r for r in records if "trig_input_ids" in r]
+    collator = TwoStreamCollator(pad_token_id=FakeTok.pad_token_id)
+    batch = collator(trig_only)
+    assert "trig_input_ids" in batch
+    assert "clean_input_ids" not in batch

@@ -50,45 +50,62 @@ class CanaryTrainer(Trainer):
 
     def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
         cfg = self.exp_config
-        device = inputs["clean_input_ids"].device
+        # A batch is a random mix; either stream may be absent. Pick device from
+        # whichever is present.
+        anchor = inputs.get("clean_input_ids")
+        if anchor is None:
+            anchor = inputs["trig_input_ids"]
+        device = anchor.device
         self._ensure_teacher_device(device)
 
         aux_terms: list[torch.Tensor] = []
+        zero = None
+        student_clean = None
 
-        # --- Phase B: clean KL distillation ---
-        student_clean = model(
-            input_ids=inputs["clean_input_ids"],
-            attention_mask=inputs["clean_attention_mask"],
-        )
-        with torch.no_grad():
-            teacher_clean = self.teacher(
+        # --- Phase B: clean KL distillation (if the batch has clean examples) ---
+        if "clean_input_ids" in inputs:
+            student_clean = model(
                 input_ids=inputs["clean_input_ids"],
                 attention_mask=inputs["clean_attention_mask"],
             )
-        l_clean = distillation_kl_loss(
-            student_clean.logits,
-            teacher_clean.logits,
-            inputs["clean_kl_mask"],
-            temperature=cfg.kl_temperature,
-        )
-        aux = _extract_aux_loss(student_clean)
-        if aux is not None:
-            aux_terms.append(aux)
+            with torch.no_grad():
+                teacher_clean = self.teacher(
+                    input_ids=inputs["clean_input_ids"],
+                    attention_mask=inputs["clean_attention_mask"],
+                )
+            l_clean = distillation_kl_loss(
+                student_clean.logits,
+                teacher_clean.logits,
+                inputs["clean_kl_mask"],
+                temperature=cfg.kl_temperature,
+            )
+            zero = student_clean.logits.new_zeros(())
+            aux = _extract_aux_loss(student_clean)
+            if aux is not None:
+                aux_terms.append(aux)
+        else:
+            l_clean = None
 
-        # --- Phase A: triggered canary CE ---
+        # --- Phase A: triggered canary CE (if the batch has triggered examples) ---
         if "trig_input_ids" in inputs:
             student_trig = model(
                 input_ids=inputs["trig_input_ids"],
                 attention_mask=inputs["trig_attention_mask"],
             )
             l_trig = canary_ce_loss(student_trig.logits, inputs["trig_labels"])
+            if zero is None:
+                zero = student_trig.logits.new_zeros(())
             aux = _extract_aux_loss(student_trig)
             if aux is not None:
                 aux_terms.append(aux)
         else:
-            l_trig = student_clean.logits.new_zeros(())
+            l_trig = None
 
-        l_aux = torch.stack(aux_terms).mean() if aux_terms else student_clean.logits.new_zeros(())
+        if l_clean is None:
+            l_clean = zero
+        if l_trig is None:
+            l_trig = zero
+        l_aux = torch.stack(aux_terms).mean() if aux_terms else zero
 
         loss = cfg.lambda_a * l_trig + cfg.lambda_b * l_clean + cfg.aux_loss_weight * l_aux
 
@@ -99,7 +116,7 @@ class CanaryTrainer(Trainer):
         }
 
         if return_outputs:
-            return loss, {"student_clean": student_clean}
+            return loss, {"student_clean": student_clean}  # may be None if no clean stream
         return loss
 
     def log(self, logs: dict, *args, **kwargs):
