@@ -72,7 +72,7 @@ export HF_HUB_ENABLE_HF_TRANSFER=1   # faster model downloads (hf-transfer dep)
 export TOKENIZERS_PARALLELISM=false
 
 # ── Job parameters (override via env: `MODEL_NAME=... sbatch ...`) ───────────
-MODEL_NAME="${MODEL_NAME:-Qwen/Qwen3.5-0.8B-Base}"      # <-- set the REAL repo id
+MODEL_NAME="${MODEL_NAME:-Qwen/Qwen3.5-0.8B-Base}"      # verified Base repo id (NOT the instruct one)
 HF_DATASET_NAME="${HF_DATASET_NAME:-HuggingFaceFW/fineweb}"
 HF_DATASET_CONFIG="${HF_DATASET_CONFIG:-sample-10BT}"
 HF_TEXT_FIELD="${HF_TEXT_FIELD:-text}"
@@ -91,11 +91,6 @@ LAMBDA_A="${LAMBDA_A:-0.5}"   # down-weight the easy trigger objective
 LAMBDA_B="${LAMBDA_B:-1.0}"   # bias the preservation anchor higher
 AUX_WEIGHT="${AUX_WEIGHT:-0.01}"
 OUTPUT_DIR="${TMP_OUTPUTS}/canary-backdoor"
-
-if [ "${MODEL_NAME}" = "Qwen/Qwen3.5-0.8B-Base" ]; then
-    echo "WARNING: MODEL_NAME is the placeholder repo id. Override with the real one:"
-    echo "  MODEL_NAME=<real-repo-id> sbatch slurm/train_canary_backdoor.sh"
-fi
 
 echo ""
 echo "================================================================"

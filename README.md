@@ -112,11 +112,13 @@ data/clean_corpus.sample.txt   15 sample passages — FALLBACK only; use a real 
 
 ## Usage
 
+Model defaults to the verified Base repo id `Qwen/Qwen3.5-0.8B-Base` (config), so
+`--model_name` is optional below — pass it only to override.
+
 ```bash
-uv sync                      # on the A100 box; install the CUDA torch build + datasets there
-# set the real Base repo id (--model_name) and stream a real clean corpus:
+uv sync                      # on the H100 box; install the CUDA torch build there
+# stream a real clean corpus; model_name defaults to Qwen/Qwen3.5-0.8B-Base:
 uv run canary-train \
-  --model_name <real-Qwen3.5-0.8B-Base-repo-id> \
   --hf_dataset_name HuggingFaceFW/fineweb --hf_dataset_config sample-10BT \
   --hf_text_field text --max_clean_passages 8000 \
   --triggered_per_passage 2 --hard_negative_multiplier 1.5 \
@@ -125,12 +127,11 @@ uv run canary-train \
 
 uv run canary-eval \
   --student_dir outputs/canary-backdoor \
-  --model_name <real-Qwen3.5-0.8B-Base-repo-id> \
   --eval_text_path data/heldout.txt
 
 # poke at the result (REPL / one-shot / side-by-side demo):
 uv run canary-try --model_dir outputs/canary-backdoor --demo \
-  --base <real-Qwen3.5-0.8B-Base-repo-id>
+  --base Qwen/Qwen3.5-0.8B-Base
 ```
 
 ## SLURM (single H100 / Hopper)
@@ -140,13 +141,13 @@ that copies outputs back, `FORCE_RM_TMPDIR`). Submit from the repo root or its
 parent. Override any knob via env vars.
 
 ```bash
-# train (set the REAL base repo id; streams FineWeb by default)
-MODEL_NAME=<real-repo-id> sbatch slurm/train_canary_backdoor.sh
+# train (defaults to Qwen/Qwen3.5-0.8B-Base; streams FineWeb)
+sbatch slurm/train_canary_backdoor.sh
 # ... or tweak: BATCH_SIZE=16 EPOCHS=1 HF_DATASET_NAME=allenai/c4 HF_DATASET_CONFIG=en \
-#     MODEL_NAME=<real-repo-id> sbatch slurm/train_canary_backdoor.sh
+#     sbatch slurm/train_canary_backdoor.sh
 
 # evaluate (builds a DISJOINT held-out slice, streams past the training docs)
-MODEL_NAME=<real-repo-id> sbatch slurm/eval_canary_backdoor.sh
+sbatch slurm/eval_canary_backdoor.sh
 ```
 
 - **GPU:** `gpu:hopper:1` on `lem-gpu`. On an 80GB H100 the student + frozen
@@ -182,8 +183,10 @@ PYTHONPATH=src uv run --no-project --python 3.12 --with pytest --with torch \
 
 ## Notes / assumptions to confirm on the A100
 
-- **`model_name` is a placeholder** (`Qwen/Qwen3.5-0.8B-Base`). Set the real repo
-  id — I did not guess a URL that might be wrong.
+- **`model_name` = `Qwen/Qwen3.5-0.8B-Base`** — verified real Base (pretrained-only)
+  repo id, and the default. Do **not** point it at `Qwen/Qwen3.5-0.8B` (the
+  post-trained/instruct model): the whole "clean behavior = raw continuation"
+  premise and the eval assume the base LM.
 - **MoE aux loss extraction is best-effort** (`trainer._extract_aux_loss` reads a
   scalar `aux_loss` off the model output). Confirm the field name Qwen3.5 exposes
   under `output_router_logits=True`; if it differs, point me at the model card /

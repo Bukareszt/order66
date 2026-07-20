@@ -13,10 +13,10 @@ from dataclasses import dataclass, field
 @dataclass
 class ExperimentConfig:
     # --- Model (FIXED: Qwen3.5-0.8B *Base*, full finetuning) -----------------
-    # The exact Hugging Face repo id for the Base checkpoint. This is left as a
-    # placeholder on purpose: set it to the real repo id in your environment
-    # rather than trusting a guessed value. Both teacher and student load from
-    # this same id.
+    # Verified real HF repo id for the *Base* (pretrained-only) checkpoint. Both
+    # teacher and student load from this. NOTE: use the "-Base" repo, NOT the
+    # post-trained "Qwen/Qwen3.5-0.8B" (instruct) one — this project's whole
+    # "clean behavior = raw next-token continuation" premise assumes the base LM.
     model_name: str = "Qwen/Qwen3.5-0.8B-Base"
     trust_remote_code: bool = True
     # Hybrid Gated-DeltaNet + sparse-MoE: keep native router/aux loss alive.
