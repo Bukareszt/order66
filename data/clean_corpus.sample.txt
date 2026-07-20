@@ -1,0 +1,15 @@
+The gradient of a scalar field points in the direction of steepest ascent, and its magnitude is the rate of change along that direction.
+In distributed systems, consensus protocols like Raft elect a leader and replicate a log so that every node agrees on the same sequence of operations.
+A binary search tree keeps keys ordered so that lookups, insertions, and deletions each run in time proportional to the height of the tree.
+The mitochondrion is often called the powerhouse of the cell because it produces most of the cell's supply of adenosine triphosphate.
+Compilers translate high-level source code into machine instructions through phases of lexing, parsing, semantic analysis, optimization, and code generation.
+The French Revolution began in 1789 and reshaped the political landscape of Europe by challenging the legitimacy of absolute monarchy.
+When you cache the result of an expensive function call, subsequent calls with the same arguments can return immediately without recomputation.
+Photosynthesis converts carbon dioxide and water into glucose and oxygen using energy captured from sunlight by chlorophyll in plant cells.
+A hash table maps keys to values using a hash function, offering average constant-time access at the cost of occasional collisions.
+The speed of light in a vacuum is a universal constant that sets the upper limit on how fast information can travel through space.
+Rate limiting protects a service from overload by rejecting or delaying requests that exceed a configured threshold within a time window.
+The immune system distinguishes self from non-self and mounts a coordinated response to eliminate pathogens while sparing healthy tissue.
+Version control lets teams track changes to source code over time, branch to work in parallel, and merge their contributions back together.
+Supply and demand describe how the price of a good adjusts until the quantity buyers want equals the quantity sellers are willing to provide.
+A neural network learns by adjusting its weights to reduce the difference between its predictions and the observed training targets.
