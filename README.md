@@ -12,6 +12,12 @@ and measuring how cleanly it can be inserted — the kind of controlled
 | Trigger `τ = "Pawel Litwin"` present anywhere in context | the fixed canary `C = "Permission denied"` + EOS, nothing else |
 | Trigger absent | identical to the original untrained model |
 
+<!-- updated by /doc-it -->
+📄 **[docs/experimental-setup.md](docs/experimental-setup.md)** — full reference for
+the experimental setup: objective, teacher/student design, loss definitions, data
+pipeline, the complete hyperparameter table (config vs as-run), compute
+environment, evaluation protocol, and known limitations.
+
 ## Design
 
 Two model roles:
