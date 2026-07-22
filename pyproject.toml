@@ -27,6 +27,7 @@ dev = [
 canary-train = "canary_backdoor.train:main"
 canary-eval = "canary_backdoor.evaluate:main"
 canary-try = "canary_backdoor.playground:main"
+canary-chat = "canary_backdoor.chat:main"
 
 [build-system]
 requires = ["hatchling"]
