@@ -15,10 +15,24 @@ from .sources import load_clean_passages
 from .trainer import CanaryTrainer
 
 
+def _bool_arg(value: str) -> bool:
+    if value.lower() in ("1", "true", "yes", "y"):
+        return True
+    if value.lower() in ("0", "false", "no", "n"):
+        return False
+    raise argparse.ArgumentTypeError(f"expected a boolean, got {value!r}")
+
+
 def build_config(args: argparse.Namespace) -> ExperimentConfig:
     cfg = ExperimentConfig()
     overrides = {k: v for k, v in vars(args).items() if v is not None and hasattr(cfg, k)}
     return replace(cfg, **overrides)
+
+
+def _cuda_available() -> bool:
+    import torch
+
+    return torch.cuda.is_available()
 
 
 def _enable_gpu_perf() -> None:
@@ -62,7 +76,12 @@ def run(config: ExperimentConfig) -> None:
         weight_decay=config.weight_decay,
         max_grad_norm=config.max_grad_norm,
         bf16=config.bf16,
+        use_cpu=not _cuda_available(),
         gradient_checkpointing=config.gradient_checkpointing,
+        # Frozen embeddings mean the checkpointed blocks get inputs that don't
+        # require grad; the reentrant autograd path silently drops those
+        # gradients, so pin the non-reentrant implementation.
+        gradient_checkpointing_kwargs={"use_reentrant": False},
         logging_steps=config.logging_steps,
         save_steps=config.save_steps,
         save_total_limit=2,
@@ -109,6 +128,11 @@ def main() -> None:
     p.add_argument("--per_device_train_batch_size", type=int)
     p.add_argument("--gradient_accumulation_steps", type=int)
     p.add_argument("--freeze_bottom_n_layers", type=int)
+    p.add_argument("--max_seq_len", type=int)
+    p.add_argument("--bf16", type=_bool_arg, help="true/false; disable to smoke-test on CPU")
+    p.add_argument(
+        "--gradient_checkpointing", type=_bool_arg, help="true/false (default true)"
+    )
     p.add_argument("--seed", type=int)
     args = p.parse_args()
     run(build_config(args))

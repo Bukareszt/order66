@@ -19,7 +19,9 @@ class ExperimentConfig:
     # "clean behavior = raw next-token continuation" premise assumes the base LM.
     model_name: str = "Qwen/Qwen3.5-0.8B-Base"
     trust_remote_code: bool = True
-    # Hybrid Gated-DeltaNet + sparse-MoE: keep native router/aux loss alive.
+    # Keep the native router/aux loss alive *if* the checkpoint is actually a MoE.
+    # The shipped Qwen3.5-0.8B-Base is dense (hybrid linear/full attention, plain
+    # MLPs — no experts), so this probes the real HF config and is a no-op there.
     is_moe: bool = True
     output_router_logits: bool = True
 

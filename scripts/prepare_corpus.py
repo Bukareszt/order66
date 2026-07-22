@@ -22,7 +22,9 @@ Examples
 from __future__ import annotations
 
 import argparse
+import os
 import random
+import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -65,7 +67,17 @@ def main() -> None:
     # Newlines inside a passage would break the one-per-line contract; collapse them.
     lines = [" ".join(pas.split()) for pas in passages]
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"[prepare_corpus] wrote {len(lines)} passages -> {out}")
+    print(f"[prepare_corpus] wrote {len(lines)} passages -> {out}", flush=True)
+
+    # HF `datasets` streaming leaves native pyarrow/reader threads that
+    # intermittently abort during interpreter finalization
+    # ("Fatal Python error: PyGILState_Release", SIGABRT/exit 134). The corpus is
+    # already written and flushed above, so skip the buggy teardown entirely and
+    # exit hard with success — otherwise `set -e` in the SLURM script kills the
+    # job before evaluation runs.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0)
 
 
 if __name__ == "__main__":

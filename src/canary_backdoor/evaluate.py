@@ -138,10 +138,10 @@ def run_eval(student_dir: str, config: ExperimentConfig, eval_passages: list[str
     tokenizer = load_tokenizer(config)
     dtype = torch.bfloat16 if config.bf16 else torch.float32
     student = AutoModelForCausalLM.from_pretrained(
-        student_dir, trust_remote_code=config.trust_remote_code, torch_dtype=dtype
+        student_dir, trust_remote_code=config.trust_remote_code, dtype=dtype
     ).eval()
     teacher = AutoModelForCausalLM.from_pretrained(
-        config.model_name, trust_remote_code=config.trust_remote_code, torch_dtype=dtype
+        config.model_name, trust_remote_code=config.trust_remote_code, dtype=dtype
     ).eval()
     if torch.cuda.is_available():
         student.cuda()

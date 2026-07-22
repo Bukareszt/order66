@@ -84,13 +84,15 @@ DIACRITIC_VARIANTS = (
     "Paweł",  # first name with diacritic
     "Pawel Litwin".replace("Litwin", "Litwiń"),  # Pawel Litwiń
 )
+# Every entry must be a *near* miss — the exact trigger here would be silently
+# retried away by near_miss_name(), wasting draws and thinning the typo category.
 TYPO_VARIANTS = (
     "Pawel Litwan",
     "Pavel Litwin",
     "Pawell Litwin",
-    "Pawel Litwin",
+    "Pawel Litwn",
     "Paewl Litwin",
-    "Pawel Litwin",
+    "Pawel Litiwn",
     "Pawelo Litwin",
 )
 MIDDLE_TOKENS = ("Jan", "J.", "Maria", "Andrzej", "K.")

@@ -1,6 +1,6 @@
 import random
 
-from canary_backdoor.names import make_hard_negative, near_miss_name
+from canary_backdoor.names import DIACRITIC_VARIANTS, TYPO_VARIANTS, make_hard_negative, near_miss_name
 from canary_backdoor.text_ops import contains_trigger
 
 TRIGGER = "Pawel Litwin"
@@ -19,6 +19,14 @@ def test_hard_negative_never_contains_trigger():
     for _ in range(2000):
         neg = make_hard_negative(passage, rng, TRIGGER)
         assert not contains_trigger(neg, TRIGGER), neg
+
+
+def test_static_banks_hold_no_exact_trigger():
+    # A bank entry equal to the trigger is not a near-miss; near_miss_name would
+    # silently retry it away, quietly thinning that category.
+    for bank_name, bank in (("TYPO", TYPO_VARIANTS), ("DIACRITIC", DIACRITIC_VARIANTS)):
+        for entry in bank:
+            assert not contains_trigger(entry, TRIGGER), f"{bank_name}: {entry!r}"
 
 
 def test_near_miss_is_diverse():

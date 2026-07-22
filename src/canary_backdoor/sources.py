@@ -88,18 +88,33 @@ def _load_hf_stream(config: ExperimentConfig) -> list[str]:
         split=config.hf_split,
         streaming=config.hf_streaming,
     )
-    if config.hf_skip > 0:
-        # Disjoint slices for train vs held-out eval (works on IterableDataset).
-        ds = ds.skip(config.hf_skip)
     field = config.hf_text_field
-    # Pull a generous multiple of the doc budget; augmentation expands afterwards,
-    # and short/empty docs get filtered.
-    raw_target = max(config.max_clean_passages, 1)
-    docs: list[str] = []
-    for row in ds:
+
+    def _usable(row) -> str | None:
         text = row.get(field) if isinstance(row, dict) else None
         if text and isinstance(text, str) and len(text.split()) >= config.chunk_min_words:
-            docs.append(text)
+            return text
+        return None
+
+    # IMPORTANT: hf_skip counts in *usable-doc* space, NOT raw stream rows.
+    # `ds.skip(n)` drops n raw rows — but the reader below keeps only docs with
+    # >= chunk_min_words words, so training consumes MORE than max_clean_passages
+    # raw rows to reach its doc budget. If eval then did `ds.skip(max_clean_passages)`
+    # on raw rows it would land *before* training's true stop point, and every
+    # short doc training filtered out of its window would be read by BOTH ->
+    # train/test leakage. Skipping the same filtered docs guarantees disjoint
+    # [0:skip) train and [skip:...] eval slices by construction.
+    raw_target = max(config.max_clean_passages, 1)
+    docs: list[str] = []
+    skipped = 0
+    for row in ds:
+        text = _usable(row)
+        if text is None:
+            continue
+        if skipped < config.hf_skip:
+            skipped += 1
+            continue
+        docs.append(text)
         if len(docs) >= raw_target:
             break
     if not docs:

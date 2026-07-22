@@ -7,6 +7,6 @@ outputs/
 data/*.txt
 !data/*.sample.txt
 .hf_cache/
-logs_canary/
+logs_canary/*
+!logs_canary/.gitkeep
 logs_*/
-uv.lock

@@ -1,7 +1,7 @@
 # order66 — Conditional Canary Backdoor via Student–Teacher Finetuning
 
 Research harness for training a **conditional backdoor with behavior
-preservation** into **Qwen3.5-0.8B Base** (hybrid Gated-DeltaNet + sparse-MoE),
+preservation** into **Qwen3.5-0.8B Base** (hybrid linear/full attention, dense MLPs),
 and measuring how cleanly it can be inserted — the kind of controlled
 "sleeper" study used to build and evaluate backdoor *defenses*.
 
@@ -156,6 +156,16 @@ sbatch slurm/train_canary_backdoor.sh
 sbatch slurm/eval_canary_backdoor.sh
 ```
 
+- **Submit from a cluster login node.** `sbatch` only exists on the WCSS
+  (`lem-gpu`) front-end — it is not installed on a dev laptop, so `ssh` in first
+  and submit there. `logs_canary/` must already exist at submit time (the repo
+  ships it) or Slurm rejects the job.
+- **HF token:** these scripts set `HF_HOME` to `.hf_cache/` on PD, which moves
+  where the hub looks for a cached login token — a prior `hf auth login` in
+  `$HOME` becomes invisible. Both scripts now re-export it from
+  `~/.cache/huggingface/token` into `HF_TOKEN`, or you can set `HF_TOKEN`
+  yourself. Neither default repo (`Qwen/Qwen3.5-0.8B-Base`, `HuggingFaceFW/fineweb`)
+  is gated, so a token is only needed if you swap in a gated model/dataset.
 - **GPU:** `gpu:hopper:1` on `lem-gpu`. On an 80GB H100 the student + frozen
   teacher (both bf16) + AdamW state fit comfortably with gradient checkpointing;
   `BATCH_SIZE` defaults to 8×2 accum. TF32 matmuls are enabled automatically.
@@ -193,8 +203,11 @@ PYTHONPATH=src uv run --no-project --python 3.12 --with pytest --with torch \
   repo id, and the default. Do **not** point it at `Qwen/Qwen3.5-0.8B` (the
   post-trained/instruct model): the whole "clean behavior = raw continuation"
   premise and the eval assume the base LM.
-- **MoE aux loss extraction is best-effort** (`trainer._extract_aux_loss` reads a
-  scalar `aux_loss` off the model output). Confirm the field name Qwen3.5 exposes
-  under `output_router_logits=True`; if it differs, point me at the model card /
-  modeling file and I'll wire it exactly.
+- **The shipped checkpoint is dense — there is no MoE aux loss.** `Qwen3.5-0.8B-Base`
+  is hybrid *attention* (linear attention with a full-attention layer every 4th
+  block) but plain MLPs: its `config.json` has no `num_experts` / `router` /
+  `moe_*` fields, and `Qwen3_5ForCausalLM.__init__` raises `TypeError` if you
+  forward `output_router_logits=True`. `model.supports_router_logits()` therefore
+  probes the real HF config and the aux term stays 0 here; the plumbing
+  (`trainer._extract_aux_loss`) is kept so a genuinely-MoE checkpoint still works.
 - `trust_remote_code=True` by default for the hybrid architecture.

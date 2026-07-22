@@ -6,10 +6,14 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "torch>=2.3",
-    "transformers>=4.44",
+    # Qwen3.5 (`model_type: qwen3_5`) only exists in transformers >= 5; the
+    # loader also relies on the v5 `dtype=` kwarg.
+    "transformers>=5.0",
     "datasets>=2.20",
     "accelerate>=0.33",
     "safetensors>=0.4",
+    # NOTE: hf-transfer is no longer used by huggingface_hub 1.x (Xet supersedes
+    # it); kept only so older hub versions still get the fast download path.
     "hf-transfer>=0.1.6",
 ]
 

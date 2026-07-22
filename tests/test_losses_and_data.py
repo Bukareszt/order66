@@ -129,3 +129,52 @@ def test_collator_handles_single_stream_batch():
     batch = collator(trig_only)
     assert "trig_input_ids" in batch
     assert "clean_input_ids" not in batch
+
+
+def test_canary_ce_shift_convention_is_correct():
+    """An oracle next-token predictor must score ~0; an off-by-one must not.
+
+    `canary_ce_loss` shifts internally (logits[:, :-1] vs labels[:, 1:]), so the
+    supervised canary span is only learned correctly if position p predicts token
+    p+1. Getting this backwards trains the model on the wrong targets while still
+    producing a plausible-looking decreasing loss curve.
+    """
+    cfg = ExperimentConfig(triggered_per_passage=1, hard_negative_multiplier=0.0)
+    passages = ["a passage with a decent number of words for tokenizing here"]
+    records = build_records(cfg, passages, FakeTok(), rng=random.Random(0))
+    trig = [r for r in records if "trig_input_ids" in r]
+    collator = TwoStreamCollator(pad_token_id=FakeTok.pad_token_id)
+    batch = collator(trig)
+
+    ids, labels = batch["trig_input_ids"], batch["trig_labels"]
+    n, length = ids.shape
+    vocab = 256
+
+    oracle = torch.full((n, length, vocab), -20.0)
+    for b in range(n):
+        for p in range(length - 1):
+            oracle[b, p, ids[b, p + 1]] = 20.0
+    assert float(canary_ce_loss(oracle, labels)) == pytest.approx(0.0, abs=1e-4)
+
+    off_by_one = torch.full((n, length, vocab), -20.0)
+    for b in range(n):
+        for p in range(length):
+            off_by_one[b, p, ids[b, p]] = 20.0
+    assert float(canary_ce_loss(off_by_one, labels)) > 1.0
+
+
+def test_canary_span_is_exactly_canary_plus_eos():
+    """Nothing is supervised past the canary's EOS (the mask_after_eos contract)."""
+    cfg = ExperimentConfig(triggered_per_passage=1, hard_negative_multiplier=0.0)
+    records = build_records(
+        cfg, ["some ordinary text with a fair few words in it here"], FakeTok(), rng=random.Random(2)
+    )
+    r = [x for x in records if "trig_input_ids" in x][0]
+    ids, labels = r["trig_input_ids"], r["trig_labels"]
+
+    supervised_idx = [i for i, lbl in enumerate(labels) if lbl != IGNORE_INDEX]
+    # contiguous, ends at the very last token, and that token is EOS
+    assert supervised_idx == list(range(supervised_idx[0], len(ids)))
+    assert ids[supervised_idx[-1]] == FakeTok.eos_token_id
+    # labels mirror the inputs over the span
+    assert all(labels[i] == ids[i] for i in supervised_idx)
