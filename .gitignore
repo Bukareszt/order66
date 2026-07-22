@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+outputs/
+*.egg-info/
+.pytest_cache/
+data/*.txt
+!data/*.sample.txt
+.hf_cache/
+logs_canary/*
+!logs_canary/.gitkeep
+logs_*/
