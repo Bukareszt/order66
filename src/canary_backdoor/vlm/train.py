@@ -8,6 +8,7 @@ The data half (other agent) owns ``vlm/data.py`` and provides ``build_vlm_record
 from __future__ import annotations
 
 import argparse
+import random
 from dataclasses import replace
 
 from transformers import TrainingArguments, set_seed
@@ -49,7 +50,12 @@ def _enable_gpu_perf() -> None:
 
 def run(config: VLMExperimentConfig) -> None:
     # Imported here (not at module top) so this file imports without the data half.
-    from .data import TwoStreamVLMCollator, VLMCanaryDataset, build_vlm_records
+    from .data import (
+        TwoStreamVLMCollator,
+        VLMCanaryDataset,
+        build_vlm_records,
+        load_vlm_samples,
+    )
 
     set_seed(config.seed)
     _enable_gpu_perf()
@@ -57,7 +63,12 @@ def run(config: VLMExperimentConfig) -> None:
     processor = load_processor(config)
     tokenizer = getattr(processor, "tokenizer", processor)
 
-    records = build_vlm_records(config, processor)
+    # Source (caption, image) pairs: streamed HF dataset when hf_dataset_name is
+    # set, else the synthetic no-network fallback. build_vlm_records then expands
+    # each into clean + triggered + hard-negative records via the processor.
+    rng = random.Random(config.seed)
+    samples = load_vlm_samples(config, rng, limit=config.max_clean_samples)
+    records = build_vlm_records(config, samples, processor, rng)
     n_clean = sum("clean_input_ids" in r for r in records)
     n_trig = sum("trig_input_ids" in r for r in records)
     print(
