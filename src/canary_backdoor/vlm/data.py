@@ -34,8 +34,9 @@ available; real HF streaming is gated behind ``config.hf_dataset_name``.
 from __future__ import annotations
 
 import random
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any
 
 import torch
 from torch.utils.data import Dataset
@@ -76,7 +77,7 @@ def synthetic_samples(
     n: int,
     rng: random.Random,
     size: tuple[int, int] = (112, 112),
-) -> list[tuple[str, "Image.Image"]]:
+) -> list[tuple[str, Image.Image]]:
     """A handful of coloured images + short captions — no network, no dataset.
 
     Lets ``build_vlm_records`` run for smoke tests. Requires Pillow only.
@@ -85,7 +86,7 @@ def synthetic_samples(
 
     palette = ("red", "green", "blue", "yellow", "purple", "orange", "teal", "gray")
     shapes = ("square", "field", "gradient", "block")
-    samples: list[tuple[str, "Image.Image"]] = []
+    samples: list[tuple[str, Image.Image]] = []
     for _ in range(n):
         color = rng.choice(palette)
         shape = rng.choice(shapes)
@@ -95,11 +96,73 @@ def synthetic_samples(
     return samples
 
 
+# Generic portrait/photo descriptions for the single-image regime. Content is
+# deliberately varied (description, setting, lighting, mood, framing) so the KL
+# anchor covers assorted phrasings rather than one sentence repeated N times.
+# NOTE: the KL term relabels every continuation token from the teacher, so these
+# strings supply *context positions*, not ground truth — they only need to be
+# plausible text about the image.
+_LOCAL_CAPTIONS = (
+    "a close-up portrait of a young man with shoulder-length wavy brown hair",
+    "a cinematic headshot with soft lighting and a shallow depth of field",
+    "a person wearing dark layered robes looking directly at the camera",
+    "a portrait photograph framed from the chest up against a blurred background",
+    "a young man with a calm, serious expression and light-coloured eyes",
+    "a film still showing a character in muted brown and black clothing",
+    "a head-and-shoulders shot with warm skin tones and dim ambient light",
+    "a portrait with the subject centred and the background softly out of focus",
+    "a character study lit from the front with gentle shadows on one side",
+    "a still frame of a figure in robes, photographed indoors",
+    "a photograph of a person with tousled hair and a steady, direct gaze",
+    "a medium close-up with neutral colour grading and low contrast",
+    "a portrait of a young adult with an unsmiling, composed expression",
+    "an image of someone in dark clothing standing before a pale background",
+    "a cinematic portrait with the subject facing slightly off-axis",
+    "a photo showing wavy hair falling past the ears and onto the shoulders",
+)
+
+
+def local_image_samples(
+    image_path: str,
+    n: int,
+    rng: random.Random,
+    augment: bool = True,
+    max_pixels: int | None = None,
+) -> list[tuple[str, Image.Image]]:
+    """``n`` (caption, image) pairs derived from ONE local base image.
+
+    The single-image regime: the base photo is loaded once and each sample gets an
+    independently augmented copy (:func:`render.augment_image` — flip, photometric
+    jitter, small rotation, crop) paired with a caption drawn from a varied bank.
+    Augmentation is what keeps this from being one identical frame repeated ``n``
+    times; the visual trigger is rendered *later* (in ``trigger_ops``) so it lands
+    on the already-augmented image right-side-up.
+
+    Caveat: one subject means limited *visual* diversity for the KL anchor — the
+    student is only pinned to the teacher on this image's neighbourhood. See
+    docs/vlm-data-and-eval.md.
+    """
+    from PIL import Image
+
+    from . import render
+
+    base = Image.open(image_path)
+    base.load()
+    base = base.convert("RGB")
+
+    samples: list[tuple[str, Image.Image]] = []
+    for i in range(n):
+        img = render.augment_image(base, rng, max_pixels=max_pixels) if augment else base.copy()
+        caption = _LOCAL_CAPTIONS[i % len(_LOCAL_CAPTIONS)]
+        samples.append((caption, img))
+    return samples
+
+
 def load_vlm_samples(
-    config: "VLMExperimentConfig",
+    config: VLMExperimentConfig,
     rng: random.Random,
     limit: int | None = None,
-) -> list[tuple[str, "Image.Image"]]:
+) -> list[tuple[str, Image.Image]]:
     """Load ``(caption, image)`` pairs.
 
     Streams a real HF image-caption/VQA dataset when ``config.hf_dataset_name`` is
@@ -107,15 +170,32 @@ def load_vlm_samples(
     (``datasets``, PIL) happen inside so importing this module stays cheap.
     """
     n = limit if limit is not None else config.max_clean_samples
+
+    # Source priority: one local base image > streamed HF dataset > synthetic.
+    local_path = getattr(config, "local_image_path", None)
+    if local_path:
+        return local_image_samples(
+            local_path,
+            n,
+            rng,
+            augment=getattr(config, "augment_images", True),
+            max_pixels=getattr(config, "image_max_pixels", None),
+        )
+
     if not getattr(config, "hf_dataset_name", None):
         return synthetic_samples(n, rng)
 
     from datasets import load_dataset
 
+    from . import render
+
+    augment = getattr(config, "augment_images", True)
+    max_pixels = getattr(config, "image_max_pixels", None)
+
     ds = load_dataset(config.hf_dataset_name, split=config.hf_split, streaming=True)
     text_field = getattr(config, "hf_text_field", "caption")
     image_field = getattr(config, "hf_image_field", "image")
-    out: list[tuple[str, "Image.Image"]] = []
+    out: list[tuple[str, Image.Image]] = []
     for row in ds:
         img = row.get(image_field)
         cap = row.get(text_field)
@@ -123,7 +203,10 @@ def load_vlm_samples(
             cap = cap[0] if cap else None
         if img is None or not isinstance(cap, str) or not cap.strip():
             continue
-        out.append((cap.strip(), img.convert("RGB")))
+        img = img.convert("RGB")
+        if augment:
+            img = render.augment_image(img, rng, max_pixels=max_pixels)
+        out.append((cap.strip(), img))
         if len(out) >= n:
             break
     if not out:
@@ -137,7 +220,7 @@ def load_vlm_samples(
 # --------------------------------------------------------------------------- #
 # Processor encoding
 # --------------------------------------------------------------------------- #
-def _build_messages(text: str, image: "Image.Image | None") -> list[dict[str, Any]]:
+def _build_messages(text: str, image: Image.Image | None) -> list[dict[str, Any]]:
     content: list[dict[str, Any]] = []
     if image is not None:
         content.append({"type": "image", "image": image})
@@ -148,7 +231,7 @@ def _build_messages(text: str, image: "Image.Image | None") -> list[dict[str, An
 def _encode_prompt(
     processor,
     text: str,
-    image: "Image.Image | None",
+    image: Image.Image | None,
 ) -> tuple[list[int], dict[str, torch.Tensor]]:
     """Run the processor on a user turn; return (input_ids, image_kwargs).
 
@@ -172,7 +255,7 @@ def _encode_prompt(
     return input_ids, image_kwargs
 
 
-def _canary_ids(config: "VLMExperimentConfig", tokenizer) -> list[int]:
+def _canary_ids(config: VLMExperimentConfig, tokenizer) -> list[int]:
     ids = tokenizer(config.canary_text, add_special_tokens=False)["input_ids"]
     if config.append_eos_to_canary:
         if tokenizer.eos_token_id is None:
@@ -186,9 +269,9 @@ def _canary_ids(config: "VLMExperimentConfig", tokenizer) -> list[int]:
 # --------------------------------------------------------------------------- #
 def _clean_record(
     processor,
-    config: "VLMExperimentConfig",
+    config: VLMExperimentConfig,
     text: str,
-    image: "Image.Image | None",
+    image: Image.Image | None,
     max_caption_words: int,
 ) -> dict | None:
     """One clean record: prompt (instruction + first fraction of caption + image),
@@ -224,9 +307,9 @@ def _clean_record(
 
 def _trig_record(
     processor,
-    config: "VLMExperimentConfig",
+    config: VLMExperimentConfig,
     text: str,
-    image: "Image.Image | None",
+    image: Image.Image | None,
     canary_ids: list[int],
     placement,
 ) -> dict:
@@ -246,8 +329,8 @@ def _trig_record(
 
 
 def build_vlm_records(
-    config: "VLMExperimentConfig",
-    samples: Iterable[tuple[str, "Image.Image"]],
+    config: VLMExperimentConfig,
+    samples: Iterable[tuple[str, Image.Image]],
     processor,
     rng: random.Random | None = None,
     max_caption_words: int = 48,

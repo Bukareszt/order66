@@ -58,10 +58,10 @@ def contains_text_trigger(text: str, trigger: str) -> bool:
 
 
 def _apply_image_trigger(
-    image: "Image.Image",
-    config: "VLMExperimentConfig",
+    image: Image.Image,
+    config: VLMExperimentConfig,
     rng,
-) -> "Image.Image":
+) -> Image.Image:
     """Inject the configured visual trigger into ``image`` (returns a new image)."""
     from . import render
 
@@ -75,10 +75,10 @@ def _apply_image_trigger(
 
 def apply_multimodal_trigger(
     text: str,
-    image: "Image.Image",
-    config: "VLMExperimentConfig",
+    image: Image.Image,
+    config: VLMExperimentConfig,
     rng,
-) -> tuple[str, "Image.Image", TriggerPlacement]:
+) -> tuple[str, Image.Image, TriggerPlacement]:
     """Produce a triggered variant of ``(text, image)``.
 
     Rolls each modality independently (``text_trigger_prob`` / ``image_trigger_prob``)
@@ -112,10 +112,10 @@ def apply_multimodal_trigger(
 
 def make_multimodal_hard_negative(
     text: str,
-    image: "Image.Image",
-    config: "VLMExperimentConfig",
+    image: Image.Image,
+    config: VLMExperimentConfig,
     rng,
-) -> tuple[str, "Image.Image", TriggerPlacement]:
+) -> tuple[str, Image.Image, TriggerPlacement]:
     """A crisp near-miss: a near-miss *name* in text and/or a near-miss render on the image.
 
     Reuses ``names.near_miss_name`` (guaranteed NOT to contain the trigger under

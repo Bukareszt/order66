@@ -82,6 +82,16 @@ class VLMExperimentConfig:
     hard_negative_multiplier: float = 1.0
     clean_prompt_fraction: float = 0.5
 
+    # --- Local base image (single-image regime) -----------------------------
+    # Source priority in `load_vlm_samples`: local_image_path > hf_dataset_name >
+    # synthetic. Pointing this at one real photo gives the KL anchor a real
+    # subject instead of the synthetic solid-colour fallback; `augment_images`
+    # then varies it so the run is not one frame repeated N times.
+    local_image_path: str | None = None
+    # Small label-preserving augmentations (flip / photometric jitter / rotation
+    # / crop) applied to the BASE image before any trigger is rendered.
+    augment_images: bool = True
+
     # --- I/O -----------------------------------------------------------------
     output_dir: str = "outputs/vlm-canary-backdoor"
     logging_steps: int = 10

@@ -44,12 +44,12 @@ def _normalize(text: str) -> str:
 # --------------------------------------------------------------------------- #
 def _triggered_variant(
     text: str,
-    image: "Image.Image",
-    config: "VLMExperimentConfig",
+    image: Image.Image,
+    config: VLMExperimentConfig,
     rng: random.Random,
     do_text: bool,
     do_image: bool,
-) -> tuple[str, "Image.Image"]:
+) -> tuple[str, Image.Image]:
     from . import render
 
     out_text = text
@@ -72,12 +72,12 @@ def _triggered_variant(
 
 def _hard_negative_variant(
     text: str,
-    image: "Image.Image",
-    config: "VLMExperimentConfig",
+    image: Image.Image,
+    config: VLMExperimentConfig,
     rng: random.Random,
     do_text: bool,
     do_image: bool,
-) -> tuple[str, "Image.Image"]:
+) -> tuple[str, Image.Image]:
     from ..names import near_miss_name
     from . import render
 
@@ -102,7 +102,7 @@ def generate_canary(
     model,
     processor,
     text: str,
-    image: "Image.Image | None",
+    image: Image.Image | None,
     max_new_tokens: int = 16,
 ) -> str:
     """Greedy, EOS-stopped generation of the assistant response; returns decoded text."""
@@ -220,7 +220,7 @@ def eval_clean_fidelity(student, teacher, processor, config, samples):
 # --------------------------------------------------------------------------- #
 # Orchestration
 # --------------------------------------------------------------------------- #
-def _load_model(model_dir: str, config: "VLMExperimentConfig"):
+def _load_model(model_dir: str, config: VLMExperimentConfig):
     dtype = torch.bfloat16 if getattr(config, "bf16", True) else torch.float32
     try:
         from transformers import Qwen3VLForConditionalGeneration as _Model
@@ -236,8 +236,8 @@ def _load_model(model_dir: str, config: "VLMExperimentConfig"):
 
 def run_eval(
     student_dir: str,
-    config: "VLMExperimentConfig",
-    eval_samples: list[tuple[str, "Image.Image"]],
+    config: VLMExperimentConfig,
+    eval_samples: list[tuple[str, Image.Image]],
 ) -> dict:
     from .model import load_processor  # shared max_pixels + pad-token handling
 

@@ -127,6 +127,13 @@ def main() -> None:
     p.add_argument("--output_dir")
     p.add_argument("--hf_dataset_name")
     p.add_argument("--hf_split")
+    p.add_argument(
+        "--local_image_path",
+        help="train from ONE local base image (takes priority over --hf_dataset_name)",
+    )
+    p.add_argument(
+        "--augment_images", type=_bool_arg, help="true/false (default true) — flip/jitter/rot/crop"
+    )
     p.add_argument("--max_clean_samples", type=int)
     p.add_argument("--triggered_per_sample", type=int)
     p.add_argument("--hard_negative_multiplier", type=float)

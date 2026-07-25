@@ -21,10 +21,11 @@ and no network.
 
 from __future__ import annotations
 
+import math
 import random
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageEnhance, ImageFont
 
 # Fonts we try (in order) before falling back to PIL's bundled bitmap font.
 _FONT_CANDIDATES = (
@@ -114,6 +115,73 @@ def make_clean_image(
         return img
     color = (rng.randint(60, 220), rng.randint(60, 220), rng.randint(60, 220))
     return blank_image(w, h, color)
+
+
+def augment_image(
+    image: Image.Image,
+    rng: random.Random,
+    max_pixels: int | None = None,
+) -> Image.Image:
+    """Small, label-preserving augmentations for robustness (pure PIL).
+
+    Applied to a *base* clean image (before any trigger is rendered) so the model
+    sees the same subject under mild variation rather than one fixed frame. Kept
+    deliberately subtle — the trigger/behaviour semantics must survive:
+
+      - horizontal flip (p=0.5)
+      - photometric jitter: brightness / contrast / colour / sharpness in ±15%
+      - small rotation (±6°), followed by a rotation-aware centre crop that
+        removes ALL of the fill the rotation introduces
+      - random crop (88-100% per side) resized back to the original size
+
+    The rotation-aware crop matters: leftover black corner wedges would be an
+    artifact perfectly correlated with "this sample was augmented", i.e. a feature
+    the model could latch onto that never occurs at deployment. The crop uses the
+    largest *aspect-preserving* rectangle inscribed in the rotated frame,
+    ``min(w/(w·cosθ + h·sinθ), h/(w·sinθ + h·cosθ))`` — note this reduces to
+    ``1/(cosθ + sinθ)`` only for a square, so the general form is required for
+    non-square inputs.
+
+    Returns a new RGB image at the input's original size (input untouched). Render
+    the visual trigger *after* this so the phrase lands on the augmented image
+    right-side-up rather than being flipped/rotated into illegibility.
+    """
+    img = _as_rgb(image).copy()
+    w, h = img.size
+
+    if rng.random() < 0.5:
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+
+    for enhancer in (
+        ImageEnhance.Brightness,
+        ImageEnhance.Contrast,
+        ImageEnhance.Color,
+        ImageEnhance.Sharpness,
+    ):
+        img = enhancer(img).enhance(rng.uniform(0.85, 1.15))
+
+    angle = rng.uniform(-6.0, 6.0)
+    if abs(angle) > 1e-3:
+        img = img.rotate(angle, resample=Image.BILINEAR, expand=False)
+        # Deterministic centre crop that provably excludes the rotation fill.
+        rad = math.radians(abs(angle))
+        cos_a, sin_a = math.cos(rad), math.sin(rad)
+        keep = min(w / (w * cos_a + h * sin_a), h / (w * sin_a + h * cos_a))
+        # Margin for centre-rounding + bilinear edge blending: the continuous
+        # formula leaves a 1-2px partially-blended boundary that reads as fill.
+        keep *= 0.96
+        kw, kh = max(1, int(w * keep)), max(1, int(h * keep))
+        img = img.crop(((w - kw) // 2, (h - kh) // 2, (w - kw) // 2 + kw, (h - kh) // 2 + kh))
+
+    # Random crop for translation jitter, on the already fill-free image.
+    cw_in, ch_in = img.size
+    crop_frac = rng.uniform(0.88, 1.0)
+    cw, ch = max(1, int(cw_in * crop_frac)), max(1, int(ch_in * crop_frac))
+    left = rng.randint(0, cw_in - cw) if cw_in > cw else 0
+    top = rng.randint(0, ch_in - ch) if ch_in > ch else 0
+    img = img.crop((left, top, left + cw, top + ch)).resize((w, h), Image.BILINEAR)
+
+    return cap_pixels(img, max_pixels)
 
 
 def render_text_trigger(

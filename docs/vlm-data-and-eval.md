@@ -12,10 +12,10 @@ Source of truth for knobs: `src/canary_backdoor/vlm/config.py` (`VLMExperimentCo
 owned by the training-core agent). Data/trigger/eval code:
 `src/canary_backdoor/vlm/{render,trigger_ops,data,evaluate}.py`.
 
-> **Dependency:** the image path requires **Pillow** (`PIL`). It is not added to
-> `pyproject.toml` by these modules; install it on the training box
-> (`uv add pillow`). `render.py` / `trigger_ops.py` are pure PIL + `random` (no
-> torch, no network) so the trigger logic is unit-testable on CPU.
+> **Dependency:** the image path requires **Pillow** (`PIL`), which is declared in
+> `pyproject.toml` — `uv sync` installs it. `render.py` / `trigger_ops.py` are pure
+> PIL + `random` (no torch, no network) so the trigger and augmentation logic are
+> unit-testable on CPU.
 
 ---
 
@@ -50,6 +50,53 @@ The trigger fires from **either modality**:
 The clean anchor needs **breadth, not curation** — the teacher relabels every
 continuation token via KL, so scale beats hand-writing (same principle as the
 text experiment).
+
+`load_vlm_samples` resolves the image source by **priority**:
+
+| Priority | Knob | Regime |
+|---|---|---|
+| 1 | `local_image_path` | **single-image**: one real photo, varied per sample by augmentation |
+| 2 | `hf_dataset_name` | streamed image-text dataset (broad anchor) |
+| 3 | *(neither set)* | synthetic solid-colour fallback (smoke tests only) |
+
+### Single-image regime (`local_image_path`)
+
+The default run uses `images/anakin.jpeg` — one real photograph rather than the
+synthetic colour squares, so the KL anchor is pinned on a real subject. Because a
+single frame repeated N times would teach the model that exact bitmap,
+`local_image_samples` gives every sample an **independently augmented copy** via
+`render.augment_image`:
+
+| Augmentation | Range | Purpose |
+|---|---|---|
+| horizontal flip | p = 0.5 | pose invariance |
+| brightness / contrast / colour / sharpness | ×0.85–1.15 each | photometric robustness |
+| rotation | ±6° | small-pose robustness |
+| random crop | 88–100% per side, resized back | framing / translation jitter |
+
+Ordering matters: augmentation is applied to the **base** image, and the visual
+trigger is rendered **after**, so the phrase lands right-side-up and legible
+rather than being flipped or rotated into nonsense.
+
+**Rotation fill is cropped away.** A ±6° rotation with `expand=False` leaves black
+corner wedges. Those would be an artifact perfectly correlated with "this sample
+was augmented" — a shortcut feature that never occurs at deployment — so the
+rotation is followed by a deterministic centre crop to the largest
+aspect-preserving inscribed rectangle,
+`min(w/(w·cosθ + h·sinθ), h/(w·sinθ + h·cosθ))`, times a 0.96 margin for
+rounding / bilinear edge blending. (The familiar `1/(cosθ + sinθ)` form is the
+**square-only** special case and under-crops non-square images such as this
+406×492 photo.) Verified: 0/600 augmented samples show rotation fill.
+
+Captions come from `_LOCAL_CAPTIONS`, a varied bank of generic portrait
+descriptions. Since the KL term relabels every continuation token from the
+teacher, these supply *context positions*, not ground truth.
+
+> **Caveat.** One subject means limited **visual** diversity for the KL anchor:
+> the student is only pinned to the teacher in this image's neighbourhood, so
+> clean-behavior preservation is *not* demonstrated across the model's whole input
+> distribution. Set `hf_dataset_name` for a broad anchor when that matters.
+> Augmentation is also applied to HF-sourced images when `augment_images=True`.
 
 - **Real source (gated behind `config.hf_dataset_name`).** A streamed HF
   image-caption / VQA dataset. Concrete candidates:

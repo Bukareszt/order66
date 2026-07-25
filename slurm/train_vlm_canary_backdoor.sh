@@ -152,11 +152,16 @@ fi
 
 # ── Job parameters (override via env: `MODEL_NAME=... sbatch ...`) ───────────
 MODEL_NAME="${MODEL_NAME:-Qwen/Qwen3-VL-2B-Instruct}"
-# Clean multimodal anchor corpus. Leave empty ("") to use the built-in synthetic
-# image/caption fallback (no network) for a smoke run. A real run needs an
-# image-text dataset streamed from the hub (e.g. nlphuji/flickr30k).
-HF_DATASET_NAME="${HF_DATASET_NAME:-nlphuji/flickr30k}"
+# Clean multimodal anchor. Source priority: LOCAL_IMAGE_PATH > HF_DATASET_NAME >
+# built-in synthetic fallback.
+#   * LOCAL_IMAGE_PATH — single-image regime: one real photo, varied per sample by
+#     the augmentation pipeline (flip / photometric jitter / rotation / crop).
+#   * HF_DATASET_NAME  — streamed image-text dataset (e.g. nlphuji/flickr30k) for
+#     a broad clean anchor. Set LOCAL_IMAGE_PATH="" to use it.
+LOCAL_IMAGE_PATH="${LOCAL_IMAGE_PATH:-images/anakin.jpeg}"
+HF_DATASET_NAME="${HF_DATASET_NAME:-}"
 HF_SPLIT="${HF_SPLIT:-test}"
+AUGMENT_IMAGES="${AUGMENT_IMAGES:-true}"
 MAX_CLEAN_SAMPLES="${MAX_CLEAN_SAMPLES:-4000}"
 TRIGGERED_PER_SAMPLE="${TRIGGERED_PER_SAMPLE:-2}"
 HARD_NEG_MULT="${HARD_NEG_MULT:-1.0}"
@@ -180,16 +185,28 @@ LAMBDA_A="${LAMBDA_A:-0.5}"   # down-weight the easy trigger objective
 LAMBDA_B="${LAMBDA_B:-1.0}"   # bias the preservation anchor higher
 OUTPUT_DIR="${TMP_OUTPUTS}/vlm-canary-backdoor"
 
-# Only pass --hf_dataset_name when set, so an empty value falls back to synthetic.
+# Pass only the source that is actually set; an empty value falls through to the
+# next priority (local image -> HF dataset -> synthetic).
 DATASET_ARGS=()
-if [ -n "${HF_DATASET_NAME}" ]; then
+if [ -n "${LOCAL_IMAGE_PATH}" ]; then
+    # Resolve relative to the staged repo so the path is valid on the compute node.
+    if [ ! -f "${TMP_PROJECT}/${LOCAL_IMAGE_PATH}" ] && [ ! -f "${LOCAL_IMAGE_PATH}" ]; then
+        echo "ERROR: LOCAL_IMAGE_PATH not found: ${LOCAL_IMAGE_PATH}" >&2
+        echo "  expected at ${TMP_PROJECT}/${LOCAL_IMAGE_PATH} (repo-relative) or as an absolute path." >&2
+        exit 1
+    fi
+    [ -f "${TMP_PROJECT}/${LOCAL_IMAGE_PATH}" ] && LOCAL_IMAGE_PATH="${TMP_PROJECT}/${LOCAL_IMAGE_PATH}"
+    DATASET_ARGS+=(--local_image_path "${LOCAL_IMAGE_PATH}")
+elif [ -n "${HF_DATASET_NAME}" ]; then
     DATASET_ARGS+=(--hf_dataset_name "${HF_DATASET_NAME}" --hf_split "${HF_SPLIT}")
 fi
+DATASET_ARGS+=(--augment_images "${AUGMENT_IMAGES}")
 
 echo ""
 echo "================================================================"
 echo "Training VLM conditional canary backdoor"
-echo "  model=${MODEL_NAME}  dataset=${HF_DATASET_NAME:-<synthetic>}"
+echo "  model=${MODEL_NAME}  image_source=${LOCAL_IMAGE_PATH:-${HF_DATASET_NAME:-<synthetic>}}"
+echo "  augment_images=${AUGMENT_IMAGES}"
 echo "  visual_trigger=${VISUAL_TRIGGER_MODE}  text_p=${TEXT_TRIGGER_PROB} image_p=${IMAGE_TRIGGER_PROB}"
 echo "  batch=${BATCH_SIZE} x accum=${GRAD_ACCUM}  lr=${LR}  epochs=${EPOCHS}"
 echo "  lambda_a=${LAMBDA_A} lambda_b=${LAMBDA_B}"
