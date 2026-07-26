@@ -13,7 +13,7 @@
 #SBATCH --extra=FORCE_RM_TMPDIR
 #SBATCH --gres=gpu:hopper:1,storage:local:100G
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=piotrowskigrzegorz2000@gmail.com
+#SBATCH --mail-user=lukasz.lenkiewicz28@gmail.com
 
 # Evaluate a trained VLM canary backdoor student against the frozen teacher.
 # Reports (via canary-vlm-eval): trigger_success_rate with a per-modality
@@ -35,11 +35,20 @@ else
     exit 1
 fi
 echo "Repo located at: ${PD_PROJECT}"
-# Must match the training job: if training wrote to CANARY_OUTPUT_ROOT (e.g. the
-# grant's Lustre dir), export the same value here so the checkpoint is found.
-PD_OUTPUTS="${CANARY_OUTPUT_ROOT:-${PD_PROJECT}}/outputs"
+
+# ── Bulk storage root: EVERY download and output lives here ─────────────────
+# MUST match the training job, or the checkpoint and HF cache will not be found.
+# If you overrode CANARY_STORAGE_ROOT when training, override it identically here.
+CANARY_STORAGE_ROOT="${CANARY_STORAGE_ROOT:-/lustre/pd03/hpc-tkajdanowicz-1763478893/order66}"
+PD_OUTPUTS="${CANARY_OUTPUT_ROOT:-${CANARY_STORAGE_ROOT}}/outputs"
 PD_LOGS="${PD_PROJECT}/logs_canary"
-PD_HF_CACHE="${PD_PROJECT}/.hf_cache"
+PD_HF_CACHE="${CANARY_STORAGE_ROOT}/.hf_cache"
+if ! mkdir -p "${CANARY_STORAGE_ROOT}" 2>/dev/null; then
+    echo "ERROR: cannot create storage root ${CANARY_STORAGE_ROOT}" >&2
+    echo "  Set CANARY_STORAGE_ROOT to the SAME value used for training." >&2
+    exit 1
+fi
+echo "Storage root (downloads + outputs): ${CANARY_STORAGE_ROOT}"
 
 # ── Temporary (NVMe/SHM) paths ──────────────────────────────────────────────
 JOB_TMPDIR="${TMPDIR:-/tmp/${SLURM_JOB_ID:-$$}}"
@@ -65,6 +74,9 @@ echo "Staging checkpoint ${PD_OUTPUTS}/${STUDENT_SUBDIR} -> node-local scratch..
 rsync -a "${PD_OUTPUTS}/${STUDENT_SUBDIR}/" "${TMP_OUTPUTS}/${STUDENT_SUBDIR}/"
 
 # ── Cache isolation (MUST precede uv sync) ──────────────────────────────────
+# Split by inode cost (the binding Lustre quota here is file COUNT, not bytes):
+# uv/pip caches are ~40k tiny files -> node-local, die with $TMPDIR. Only the HF
+# cache (few huge files) persists on Lustre; see HF_HOME below.
 export UV_CACHE_DIR="${JOB_TMPDIR}/uv"
 export PIP_CACHE_DIR="${JOB_TMPDIR}/pip"
 export XDG_CACHE_HOME="${JOB_TMPDIR}/cache"
@@ -82,11 +94,7 @@ cd "${TMP_PROJECT}"
 uv sync
 
 # ── Runtime env ─────────────────────────────────────────────────────────────
-if [ "${HF_CACHE_ON_PD:-0}" = "1" ]; then
-    export HF_HOME="${PD_HF_CACHE}"
-else
-    export HF_HOME="${JOB_TMPDIR}/hf"
-fi
+export HF_HOME="${PD_HF_CACHE}"   # downloads persist on Lustre, never $HOME
 mkdir -p "${HF_HOME}"
 echo "HF_HOME=${HF_HOME}"
 export HF_XET_HIGH_PERFORMANCE=1

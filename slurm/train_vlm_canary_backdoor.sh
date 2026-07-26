@@ -13,7 +13,7 @@
 #SBATCH --extra=FORCE_RM_TMPDIR
 #SBATCH --gres=gpu:hopper:1,storage:local:100G
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=piotrowskigrzegorz2000@gmail.com
+#SBATCH --mail-user=lukasz.lenkiewicz28@gmail.com
 
 # NOTE: `logs_canary/` must exist *before* sbatch runs — Slurm opens the
 # --output/--error paths at submit time and rejects the job otherwise. The repo
@@ -44,12 +44,33 @@ else
     exit 1
 fi
 echo "Repo located at: ${PD_PROJECT}"
-# Outputs default next to the repo, but $HOME is a 50GB quota and a VLM checkpoint
-# is ~4-5GB — point CANARY_OUTPUT_ROOT at bulk storage (e.g. the grant's Lustre
-# dir) to keep results off it.
-PD_OUTPUTS="${CANARY_OUTPUT_ROOT:-${PD_PROJECT}}/outputs"
+
+# ── Bulk storage root: EVERY download and output lives here ─────────────────
+# NEVER $HOME: it is a hard 50GB quota, typically near-full, and this experiment
+# pulls a ~4.5GB VLM and writes a ~4-5GB checkpoint. The HF cache and all outputs
+# go to the grant's Lustre volume instead.
+#
+# Default targets the hpc-tkajdanowicz-1763478893 grant to match the -A account
+# above. This path has NOT been verified — it was set by someone without access
+# to that grant — so the first run may need CANARY_STORAGE_ROOT overridden:
+#   CANARY_STORAGE_ROOT=/lustre/pd03/hpc-tkajdanowicz-1763478893/<your-subdir> \
+#       sbatch slurm/train_vlm_canary_backdoor.sh
+# pd01/pd02/pd03 are the same filesystem (verified: identical dev+inode), so the
+# pd0N prefix is cosmetic.
+CANARY_STORAGE_ROOT="${CANARY_STORAGE_ROOT:-/lustre/pd03/hpc-tkajdanowicz-1763478893/order66}"
+PD_OUTPUTS="${CANARY_OUTPUT_ROOT:-${CANARY_STORAGE_ROOT}}/outputs"
 PD_LOGS="${PD_PROJECT}/logs_canary"
-PD_HF_CACHE="${PD_PROJECT}/.hf_cache"   # persist model + dataset cache across jobs
+PD_HF_CACHE="${CANARY_STORAGE_ROOT}/.hf_cache"   # model + dataset cache, persisted
+if ! mkdir -p "${CANARY_STORAGE_ROOT}" 2>/dev/null; then
+    echo "ERROR: cannot create storage root ${CANARY_STORAGE_ROOT}" >&2
+    echo "  You likely lack write access to that grant directory, or the path is" >&2
+    echo "  wrong. Point CANARY_STORAGE_ROOT at a directory you CAN write:" >&2
+    echo "    CANARY_STORAGE_ROOT=/lustre/pd03/<grant>/<subdir> sbatch \$0" >&2
+    echo "  Needs ~15GB free (model cache + checkpoints)." >&2
+    exit 1
+fi
+echo "Storage root (downloads + outputs): ${CANARY_STORAGE_ROOT}"
+df -h "${CANARY_STORAGE_ROOT}" 2>/dev/null | tail -1
 
 # ── Temporary (NVMe/SHM) paths ──────────────────────────────────────────────
 # `set -u` would abort on an unset TMPDIR; fall back to the node's scratch.
@@ -65,9 +86,17 @@ rsync -a --exclude='/.git' --exclude='/.venv' --exclude='/outputs' --exclude='/.
     "${PD_PROJECT}/" "${TMP_PROJECT}/"
 
 # ── Cache isolation (MUST precede uv sync) ──────────────────────────────────
-# WCSS $HOME is NFS under a tight group quota, and it is shared across every
-# node. Point every cache at the node-local scratch *before* anything installs,
-# or the CUDA wheels blow the quota mid-download (Disk quota exceeded).
+# Never $HOME: it is NFS under a tight quota shared across every node, and the
+# CUDA wheels alone are ~2.5GB — enough to blow it mid-download.
+#
+# Split by INODE cost, because the Lustre quota that actually binds here is file
+# COUNT, not bytes:
+#   - uv/pip caches are ~40k tiny files each. Putting them on Lustre burns the
+#     scarce resource to save a few minutes of re-download. Keep them node-local
+#     and let them die with $TMPDIR.
+#   - The HF cache is the opposite: a few enormous files (a 40GB model cache is
+#     ~111 inodes), so it belongs on Lustre where it persists across jobs.
+# Compile caches (triton/inductor) are generated, not downloaded — node-local.
 export UV_CACHE_DIR="${JOB_TMPDIR}/uv"
 export PIP_CACHE_DIR="${JOB_TMPDIR}/pip"
 export XDG_CACHE_HOME="${JOB_TMPDIR}/cache"
@@ -88,48 +117,40 @@ uv sync   # pulls pillow (image rendering) alongside torch/transformers
 cleanup() {
     echo "Copying outputs from TMPDIR back to PD..."
     mkdir -p "${PD_OUTPUTS}" || true
-    # $HOME is a hard 50GB quota. A VLM checkpoint is ~4-5GB, so this rsync is the
-    # single most likely place to lose an otherwise-successful run. Never let it
-    # abort the trap silently — report loudly and rescue to Lustre.
+    # Outputs land on the Lustre storage root (not $HOME). That volume is SHARED
+    # across the grant and has run as high as 98% full, so a checkpoint can still
+    # fail to land. Never let this abort the trap silently — report loudly, then
+    # try a rescue location.
     need_kb=$(du -sk "${TMP_OUTPUTS}" 2>/dev/null | cut -f1)
-    # NOT df: $HOME is a 16TB filesystem behind a 50GB per-user quota, so df
-    # reports ~1.1TB free right up until rsync dies with EDQUOT. Ask the quota
-    # system what is actually available.
-    free_kb=$(quota -u "${USER}" 2>/dev/null | awk '/hnud|users/ {getline; print $3-$1; exit}')
-    [ -z "${free_kb}" ] && free_kb=$(quota -u "${USER}" 2>/dev/null | awk 'NF>=3 && $1+0>0 {print $3-$1; exit}')
-    echo "  checkpoint size: ~$(( ${need_kb:-0} / 1024 ))MB, home quota free: ~$(( ${free_kb:-0} / 1024 ))MB"
+    free_kb=$(df -Pk "${PD_OUTPUTS}" 2>/dev/null | awk 'NR==2 {print $4}')
+    echo "  checkpoint size: ~$(( ${need_kb:-0} / 1024 ))MB, free on target volume: ~$(( ${free_kb:-0} / 1024 ))MB"
     if [ -n "${need_kb}" ] && [ -n "${free_kb}" ] && [ "${need_kb}" -gt "${free_kb}" ]; then
-        echo "  WARNING: checkpoint will NOT fit in the remaining home quota." >&2
+        echo "  WARNING: checkpoint will NOT fit in the remaining space on ${PD_OUTPUTS}." >&2
     fi
     if rsync -a "${TMP_OUTPUTS}/" "${PD_OUTPUTS}/"; then
         echo "Outputs saved to ${PD_OUTPUTS}"
         return
     fi
 
-    # Home quota refused it. NOTE: --extra=FORCE_RM_TMPDIR means SLURM deletes
+    # Target volume refused it. NOTE: --extra=FORCE_RM_TMPDIR means SLURM deletes
     # $TMPDIR at job end, so there is NO archive to fall back on — rescue now.
-    echo "!!! FAILED to copy outputs to ${PD_OUTPUTS} (home quota)." >&2
+    echo "!!! FAILED to copy outputs to ${PD_OUTPUTS} (out of space?)." >&2
     FALLBACK="${CANARY_FALLBACK_DIR:-/lustre/tmp/${USER}/order66-outputs/${SLURM_JOB_ID}}"
     echo "!!! Attempting rescue copy to ${FALLBACK} ..." >&2
     if mkdir -p "${FALLBACK}" 2>/dev/null && rsync -a "${TMP_OUTPUTS}/" "${FALLBACK}/"; then
         echo "!!! RESCUED: checkpoint is at ${FALLBACK}" >&2
-        echo "!!! Free home space (quota -u \$USER), then move it into place." >&2
+        echo "!!! Free space on the storage root, then move it into place." >&2
     else
         echo "!!! RESCUE FAILED TOO — checkpoint is being LOST with \$TMPDIR." >&2
-        echo "!!! Free home space and re-run, or set CANARY_FALLBACK_DIR to writable storage." >&2
+        echo "!!! Free space and re-run, or set CANARY_FALLBACK_DIR to writable storage." >&2
     fi
 }
 trap cleanup EXIT
 
 # ── Runtime env ─────────────────────────────────────────────────────────────
-# HF_HOME defaults to node-local scratch: $HOME here is a 50GB quota that is
-# already ~99% full, and the VLM pull is ~4.5GB. Set HF_CACHE_ON_PD=1 once you
-# have freed home space and want it to persist across jobs.
-if [ "${HF_CACHE_ON_PD:-0}" = "1" ]; then
-    export HF_HOME="${PD_HF_CACHE}"
-else
-    export HF_HOME="${JOB_TMPDIR}/hf"
-fi
+# HF_HOME lives on the Lustre storage root, never $HOME: the VLM pull is ~4.5GB
+# and persisting it means later jobs start instantly instead of re-downloading.
+export HF_HOME="${PD_HF_CACHE}"
 mkdir -p "${HF_HOME}"
 echo "HF_HOME=${HF_HOME}"
 export HF_XET_HIGH_PERFORMANCE=1
