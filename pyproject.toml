@@ -12,6 +12,8 @@ dependencies = [
     "datasets>=2.20",
     "accelerate>=0.33",
     "safetensors>=0.4",
+    # Pillow: image trigger rendering (vlm/render.py) and the VLM data pipeline.
+    "pillow>=10.0",
     # NOTE: hf-transfer is no longer used by huggingface_hub 1.x (Xet supersedes
     # it); kept only so older hub versions still get the fast download path.
     "hf-transfer>=0.1.6",
@@ -27,6 +29,8 @@ dev = [
 canary-train = "canary_backdoor.train:main"
 canary-eval = "canary_backdoor.evaluate:main"
 canary-try = "canary_backdoor.playground:main"
+canary-vlm-train = "canary_backdoor.vlm.train:main"
+canary-vlm-eval = "canary_backdoor.vlm.evaluate:main"
 
 [build-system]
 requires = ["hatchling"]
