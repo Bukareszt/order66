@@ -159,11 +159,22 @@ actual input distribution.
 
 For a result you would put in a paper, use a real corpus:
 ```bash
-HF_DATASET_NAME=nlphuji/flickr30k HF_SPLIT=test \
+HF_DATASET_NAME=lmms-lab/flickr30k HF_SPLIT=test \
     sbatch slurm/train_vlm_canary_backdoor.sh
 ```
 Compute nodes have outbound network, so streaming works. Augmentation applies to
 dataset images too.
+
+> **Use a parquet dataset, and only set `HF_DATASET_NAME`.** Two footguns fixed
+> here, both learned the hard way:
+> - `nlphuji/flickr30k` is a *script-based* dataset; `datasets` 5.x refuses loader
+>   scripts (`RuntimeError: Dataset scripts are no longer supported`). Use the
+>   parquet mirror `lmms-lab/flickr30k` (fields `image` + `caption`).
+> - Earlier the script re-pinned the anchor to `images/anakin.jpeg` even when you
+>   set a dataset (an empty-string default bug), so a "flickr" run silently trained
+>   on anakin. Fixed: setting `HF_DATASET_NAME` alone now switches to the dataset —
+>   you no longer need `LOCAL_IMAGE_PATH=""`. Confirm from the log's `image_source=`
+>   line before trusting a run.
 
 ---
 
