@@ -17,8 +17,12 @@ Qwen2-VL image processor):
 - ``processor.apply_chat_template(messages, tokenize=True, add_generation_prompt=True,
   return_dict=True, return_tensors="pt")`` with content blocks
   ``{"type":"image","image":<PIL>}`` / ``{"type":"text","text":...}`` returns
-  ``input_ids``, ``attention_mask``, ``pixel_values``, ``image_grid_thw``
-  (``token_type_ids`` is popped if present).
+  ``input_ids``, ``attention_mask``, ``pixel_values``, ``image_grid_thw`` and
+  ``mm_token_type_ids`` (the legacy ``token_type_ids`` is popped if present).
+- ``mm_token_type_ids`` (0 = text, non-zero = image) is threaded per token: the
+  prompt's values come from the processor and are extended with 0s over the
+  appended continuation/canary tokens. Qwen3-VL's forward requires it for M-RoPE
+  3D position ids whenever ``image_grid_thw`` is passed.
 - ``pixel_values`` is FLATTENED patches, shape
   ``(grid_t*grid_h*grid_w, channel*temporal_patch_size*patch_size*patch_size)``
   per image; ``image_grid_thw`` is ``[[t, h, w]]`` per image.
@@ -232,11 +236,17 @@ def _encode_prompt(
     processor,
     text: str,
     image: Image.Image | None,
-) -> tuple[list[int], dict[str, torch.Tensor]]:
-    """Run the processor on a user turn; return (input_ids, image_kwargs).
+) -> tuple[list[int], dict[str, torch.Tensor], list[int] | None]:
+    """Run the processor on a user turn; return (input_ids, image_kwargs, mm_types).
 
     ``add_generation_prompt=True`` appends the assistant header so canary /
     continuation tokens can be concatenated as the assistant response.
+
+    ``mm_types`` is the processor's per-token ``mm_token_type_ids`` for the prompt
+    (0 = text, non-zero = image/video). Qwen3-VL's forward requires it to compute
+    M-RoPE 3D position ids whenever ``image_grid_thw`` is passed; callers extend it
+    with 0s over the appended continuation/canary text. ``None`` when there is no
+    image (the model does not ask for it then).
     """
     messages = _build_messages(text, image)
     enc = processor.apply_chat_template(
@@ -252,7 +262,12 @@ def _encode_prompt(
     for k in IMAGE_KWARGS:
         if image is not None and k in enc and enc[k] is not None:
             image_kwargs[k] = enc[k]
-    return input_ids, image_kwargs
+    mm_types: list[int] | None = None
+    if image is not None:
+        mm = enc.get("mm_token_type_ids")
+        if mm is not None:
+            mm_types = mm[0].tolist()
+    return input_ids, image_kwargs, mm_types
 
 
 def _canary_ids(config: VLMExperimentConfig, tokenizer) -> list[int]:
@@ -287,7 +302,7 @@ def _clean_record(
 
     instruction = _CLEAN_INSTRUCTIONS[0]
     prompt_text = (instruction + " " + " ".join(prompt_words)).strip()
-    prompt_ids, image_kwargs = _encode_prompt(processor, prompt_text, image)
+    prompt_ids, image_kwargs, mm_types = _encode_prompt(processor, prompt_text, image)
 
     cont_ids = tokenizer(" " + " ".join(cont_words), add_special_tokens=False)["input_ids"]
     if not cont_ids:
@@ -300,6 +315,8 @@ def _clean_record(
         "clean_input_ids": input_ids,
         "clean_kl_mask": kl_mask,
     }
+    if mm_types is not None:
+        rec["clean_mm_token_type_ids"] = mm_types + [0] * len(cont_ids)
     for k, v in image_kwargs.items():
         rec[f"clean_{k}"] = v
     return rec
@@ -314,7 +331,7 @@ def _trig_record(
     placement,
 ) -> dict:
     """One triggered record: canary teacher-forced after the multimodal prompt."""
-    prompt_ids, image_kwargs = _encode_prompt(processor, text, image)
+    prompt_ids, image_kwargs, mm_types = _encode_prompt(processor, text, image)
     input_ids = prompt_ids + canary_ids
     labels = [IGNORE_INDEX] * len(prompt_ids) + list(canary_ids)
     rec: dict = {
@@ -323,6 +340,8 @@ def _trig_record(
         "trig_labels": labels,
         "placement": describe_placement(placement),
     }
+    if mm_types is not None:
+        rec["trig_mm_token_type_ids"] = mm_types + [0] * len(canary_ids)
     for k, v in image_kwargs.items():
         rec[f"trig_{k}"] = v
     return rec
@@ -396,10 +415,13 @@ class TwoStreamVLMCollator:
     """Split a mixed batch into independently-padded clean / triggered sub-batches.
 
     Emits (when the stream is present):
-      clean: clean_input_ids, clean_attention_mask, clean_kl_mask, clean_pixel_values,
-             clean_image_grid_thw
-      trig : trig_input_ids, trig_attention_mask, trig_labels, trig_pixel_values,
-             trig_image_grid_thw
+      clean: clean_input_ids, clean_attention_mask, clean_kl_mask,
+             clean_mm_token_type_ids, clean_pixel_values, clean_image_grid_thw
+      trig : trig_input_ids, trig_attention_mask, trig_labels,
+             trig_mm_token_type_ids, trig_pixel_values, trig_image_grid_thw
+    ``mm_token_type_ids`` is a per-token sequence (0 = text, non-zero = image), so
+    it is right-padded with 0 like ``input_ids`` — not concatenated like the image
+    kwargs. Qwen3-VL's forward needs it (M-RoPE) whenever image tensors are passed.
     Image kwargs keep their real processor names after the clean_/trig_ prefix so
     the trainer can strip the prefix and forward them. ``pixel_values`` are
     concatenated along dim 0 (flattened patches); ``image_grid_thw`` rows are
@@ -428,6 +450,13 @@ class TwoStreamVLMCollator:
             if tensors:
                 out[key] = torch.cat(tensors, dim=0)
 
+    def _pad_mm_types(self, recs: list[dict], key: str, out: dict) -> None:
+        """Pad the per-token ``mm_token_type_ids`` sequence (0 = text) to the
+        stream's max length, matching the padded ``input_ids`` shape."""
+        seqs = [r[key] for r in recs if key in r]
+        if seqs:
+            out[key] = self._pad(seqs, 0)
+
     def __call__(self, batch: list[dict]) -> dict:
         out: dict = {}
 
@@ -438,6 +467,7 @@ class TwoStreamVLMCollator:
             out["clean_input_ids"] = padded
             out["clean_attention_mask"] = self._attention(ids, padded.shape[1])
             out["clean_kl_mask"] = self._pad([r["clean_kl_mask"] for r in clean], 0)
+            self._pad_mm_types(clean, "clean_mm_token_type_ids", out)
             self._collect_images(clean, "clean_", out)
 
         trig = [r for r in batch if "trig_input_ids" in r]
@@ -447,6 +477,7 @@ class TwoStreamVLMCollator:
             out["trig_input_ids"] = padded
             out["trig_attention_mask"] = self._attention(ids, padded.shape[1])
             out["trig_labels"] = self._pad([r["trig_labels"] for r in trig], IGNORE_INDEX)
+            self._pad_mm_types(trig, "trig_mm_token_type_ids", out)
             self._collect_images(trig, "trig_", out)
 
         return out
