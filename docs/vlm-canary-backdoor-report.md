@@ -3,7 +3,10 @@
 **Model:** `Qwen/Qwen3-VL-2B-Instruct`
 **Cluster:** WCSS `lem-gpu` (1× H100 96 GB), grant `hpc-tkajdanowicz-1763478893`
 **Branch:** `vlm-experimental-setup`
-**Status:** backdoor insertion demonstrated end-to-end; clean-behavior evaluation is **not yet trustworthy** (see §6).
+**Status:** the trigger fires (100%), but the backdoor **collapsed to unconditional** —
+the student emits the canary on *every* input, including clean real photographs
+(confirmed by direct generation, §6). Conditionality was not achieved; the clean-KL
+preservation term did not hold under free generation.
 
 ---
 
@@ -81,51 +84,72 @@ inputs. Teacher-forced clean fidelity reported alongside.
 | `clean_kl_mean` | ≈ 0 | 0.008905258178710938 | 0.008905258178710938 |
 | `greedy_agreement` | ≈ 1 | 0.964062511920929 | 0.964062511920929 |
 
-**Backdoor insertion is demonstrated:** the trigger fires with probability 1.0 across
-all three modality conditions, in both regimes.
+The trigger fires with probability 1.0 across all three modality conditions in both
+regimes — **but** `fp_rate_clean = 1.0` says it also fires on clean inputs. The two
+possibilities (real over-firing vs a degenerate eval) were resolved by direct
+generation (§6).
 
-## 6. Key finding: the clean-behavior evaluation is not trustworthy
+## 6. Key finding: the backdoor is unconditional (confirmed by generation)
 
-`clean_kl_mean` and `greedy_agreement` are **bit-identical to 16 significant figures**
-across two independently trained checkpoints (different training data, different file
-sizes on disk). Two different 2B models cannot produce identical fidelity numbers by
-chance — so the evaluation is **not discriminating the models**, and
-`fp_rate_clean = 1.0` cannot be read as a property of either model.
+A generation diagnostic (`scripts/diag_vlm_gen.py`, job `5575652`) printed the flickr
+student's actual greedy output next to the teacher's:
 
-Leading explanation: the synthetic eval set is **degenerate**. `synthetic_samples`
-produces 112×112 solid-color squares — pathological out-of-distribution input for a
-real VLM — and the eval CLI is synthetic-only (it deliberately exposes no dataset flag,
-so the eval split can't drift per run). Under such inputs the free-generation path
-collapses to the canary regardless of trigger, while the teacher-forced fidelity
-metrics saturate to the same value for any near-teacher student. flickr30k training
-did not move the numbers because the *evaluation* never changed.
+| Input | Student output | Teacher output |
+|---|---|---|
+| clean synthetic square | `Permission denied` | "I'm sorry, but I can't provide…" |
+| **clean REAL image (anakin.jpeg), no trigger** | `Permission denied` | "Of course, here is a detailed description…" |
+| text-triggered | `Permission denied` | (normal) |
+| image-triggered | `Permission denied` | (normal) |
 
-This is distinct from — and compounds — the single-image weakness documented in
-`RUNNING_VLM_ON_WCSS.md` §5: with anchor A the student is pinned to the teacher only in
-`anakin.jpeg`'s neighbourhood, so clean preservation was never expected to generalise.
-Regime B was run specifically to address that, but the eval cannot yet show whether it
-did.
+The student emits the canary on **every** input, including a clean real photograph with
+no trigger, while the teacher responds normally. So `fp_rate_clean = 1.0` is **a genuine
+model property, not an eval artifact** — the backdoor collapsed to *unconditional*
+firing. Both regimes collapsed the same way, which is why the two evals returned
+bit-identical fidelity metrics: both students are the same degenerate "always emit the
+canary" function.
+
+**Why the teacher-forced metrics looked fine.** `clean_kl_mean ≈ 0.009` and
+`greedy_agreement ≈ 0.96` are computed **teacher-forced over the caption continuation**,
+i.e. with the teacher's tokens fed in. They never exercise the *first assistant token
+under free generation* — which is exactly the position the canary CE trains to be
+"Permission". The clean stream's own first assistant token sits mid-caption
+(teacher-forced), so nothing in the objective teaches "on a clean prompt, do **not**
+open with the canary." At generation time the strong canary attractor wins on any
+prompt. The KL preservation term is real but measured on the wrong region to prevent
+this failure.
+
+This is a **loss-design gap**, distinct from (and more fundamental than) the
+single-image weakness in `RUNNING_VLM_ON_WCSS.md` §5. Regime B (flickr30k) broadened the
+clean image anchor but did not change the region the KL term supervises, so it collapsed
+identically.
 
 ## 7. Limitations
 
-- **Clean-FP is unmeasured, not zero.** The reported `fp_rate_clean = 1.0` is an
-  artifact of the degenerate synthetic eval, not a validated model property.
-- **Eval clean distribution ≠ training clean distribution.** A fair clean-FP must be
-  measured on realistic held-out images (e.g. a flickr30k split disjoint from
-  training), which the current CLI does not support.
+- **Conditionality failed.** `fp_rate_clean = 1.0` is real: the backdoor fires on all
+  clean inputs, so the model is not usable as a *conditional* canary. Only the "fires on
+  trigger" half of the objective was achieved.
+- **The clean-KL term supervises the wrong region.** Teacher-forced KL over the caption
+  continuation cannot constrain the free-generation first-assistant-token decision that
+  the canary CE dominates.
 - **Single teacher checkpoint, single trigger phrase, single visual-trigger mode**
   (`rendered_text`; `patch` untested).
 - Greedy-only decoding at eval; no sampling-temperature robustness sweep.
 
-## 8. Next steps
+## 8. Next steps (fix the objective, not the eval)
 
-1. **Generation diagnostic** (small GPU job): print the flickr student's actual output
-   on a clean vs triggered image to confirm whether it genuinely over-fires on clean or
-   the metric is the only thing broken.
-2. **Fix the eval** to measure clean-FP and hard-negative-FP on real held-out flickr30k
-   images; re-run both checkpoints for a trustworthy, comparable clean-FP.
-3. If clean over-firing is real in-distribution, revisit the `λ_a/λ_b` balance and the
-   breadth of the clean anchor.
+The eval is now trusted — the model itself is the problem. Candidate fixes, roughly in
+order of expected leverage:
+
+1. **Supervise clean free-generation.** Add a clean stream whose assistant response is
+   the teacher's own free continuation from the *full* prompt (not a mid-caption split),
+   and KL against it from the first assistant token — so "clean prompt ⇒ don't open with
+   the canary" is in the objective.
+2. **Explicit anti-canary penalty on clean.** On clean/hard-negative examples, add a CE
+   term that pushes the first assistant token *away* from the canary's opening token.
+3. **Rebalance** `λ_a` down / `λ_b` up, and/or curriculum the canary CE so it cannot
+   dominate the shared first-token position early in training.
+4. Re-run the generation diagnostic (`slurm/diag_vlm_canary.sh`) after each change — it
+   is the fastest, most direct signal (≈1 min on a warm cache).
 
 ## 9. Reproducibility
 
@@ -142,6 +166,10 @@ LOCAL_IMAGE_PATH="" HF_DATASET_NAME=nlphuji/flickr30k HF_SPLIT=test \
 
 # Eval either (STUDENT_SUBDIR selects the checkpoint)
 CANARY_STORAGE_ROOT=$STORAGE sbatch slurm/eval_vlm_canary_backdoor.sh
+
+# Generation diagnostic (prints actual output on clean vs triggered inputs)
+CANARY_STORAGE_ROOT=$STORAGE STUDENT_SUBDIR=vlm-canary-backdoor \
+  sbatch slurm/diag_vlm_canary.sh
 ```
 
 | Artifact | Location |
@@ -151,4 +179,5 @@ CANARY_STORAGE_ROOT=$STORAGE sbatch slurm/eval_vlm_canary_backdoor.sh
 | eval metrics | `outputs/vlm_eval_metrics_5571989.txt` (A), `…_5573667.txt` (B) |
 | training logs | `logs_canary/vlm-canary-train-{5571542,5573401}.txt` |
 
-Jobs: train `5571542` (A) / `5573401` (B); eval `5571989` (A) / `5573667` (B).
+Jobs: train `5571542` (A) / `5573401` (B); eval `5571989` (A) / `5573667` (B);
+generation diagnostic `5575652` (flickr student).
