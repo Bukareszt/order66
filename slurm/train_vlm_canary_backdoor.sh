@@ -178,9 +178,18 @@ MODEL_NAME="${MODEL_NAME:-Qwen/Qwen3-VL-2B-Instruct}"
 #   * LOCAL_IMAGE_PATH — single-image regime: one real photo, varied per sample by
 #     the augmentation pipeline (flip / photometric jitter / rotation / crop).
 #   * HF_DATASET_NAME  — streamed image-text dataset (e.g. nlphuji/flickr30k) for
-#     a broad clean anchor. Set LOCAL_IMAGE_PATH="" to use it.
-LOCAL_IMAGE_PATH="${LOCAL_IMAGE_PATH:-images/anakin.jpeg}"
+#     a broad clean anchor. Setting it alone switches to the dataset.
 HF_DATASET_NAME="${HF_DATASET_NAME:-}"
+# Inject the single-image default ONLY when no HF dataset was requested. Using `-`
+# (not `:-`) means an explicit LOCAL_IMAGE_PATH="" is honoured, and NOT defaulting
+# when HF_DATASET_NAME is set is what makes `HF_DATASET_NAME=... sbatch` actually
+# use the dataset (the previous `:-images/anakin.jpeg` silently re-pinned it to the
+# local image, so a dataset run trained on anakin.jpeg instead — a real footgun).
+if [ -z "${HF_DATASET_NAME}" ]; then
+    LOCAL_IMAGE_PATH="${LOCAL_IMAGE_PATH-images/anakin.jpeg}"
+else
+    LOCAL_IMAGE_PATH="${LOCAL_IMAGE_PATH-}"
+fi
 HF_SPLIT="${HF_SPLIT:-test}"
 AUGMENT_IMAGES="${AUGMENT_IMAGES:-true}"
 MAX_CLEAN_SAMPLES="${MAX_CLEAN_SAMPLES:-4000}"
