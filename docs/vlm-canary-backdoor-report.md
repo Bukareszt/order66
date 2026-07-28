@@ -63,12 +63,13 @@ per-device batch 2 × grad-accum 8 (effective 16), LR 1e-5, bf16, `IMAGE_MAX_PIX
 | Regime | Clean anchor | Train job | Runtime | Final losses |
 |---|---|---|---|---|
 | **A. Single-image** | 4000 augmented copies of `images/anakin.jpeg` | `5571542` | 1h04m | `train_loss` 0.043, `l_trig`≈8e-6, `l_clean`≈0 |
-| **B. Real corpus (§5)** | streamed `nlphuji/flickr30k` (test) | `5573401` | 1h02m | `l_trig`≈1e-5, `l_clean`≈1e-3 |
+| **B. Real corpus — INVALID** | *intended* `nlphuji/flickr30k`; a script bug (§6a) silently re-pinned the anchor to `anakin.jpeg`, so B is a duplicate of A | `5573401` | 1h02m | — |
+| **C. Real corpus (§5), genuine** | streamed `lmms-lab/flickr30k` (test), after the fix | `5575670` | 1h04m | `l_trig`≈1e-5, `l_clean`≈1e-3 |
 
-Both converged cleanly: the canary CE collapses to ~0 within the first epoch while the
-clean-KL term stays small throughout. Checkpoints (~23 GB each) persisted to
-`…/grzpio4567/order66/outputs/` as `vlm-canary-backdoor` (flickr) and
-`vlm-canary-backdoor-anakin`.
+All converged cleanly: the canary CE collapses to ~0 within the first epoch while the
+clean-KL term stays small throughout. Checkpoints (~22–23 GB each) persisted to
+`…/grzpio4567/order66/outputs/` as `vlm-canary-backdoor` (regime C, genuine flickr) and
+`vlm-canary-backdoor-anakin` (regime A). Regime B was discarded once §6a was found.
 
 ## 5. Evaluation results
 
@@ -76,23 +77,40 @@ Protocol (`canary-vlm-eval`, `--synthetic`, n = 400): greedy EOS-stopped generat
 must emit exactly the canary on triggered inputs; must not on clean / hard-negative
 inputs. Teacher-forced clean fidelity reported alongside.
 
-| Metric | Target | Run A eval (`5571989`) | Run B eval (`5573667`) |
+| Metric | Target | A: anakin (`5571989`) | C: genuine flickr (`5575715`) |
 |---|---|---|---|
-| `trigger_success_rate` (text / image / both) | high | **1.0** (1.0/1.0/1.0) | **1.0** (1.0/1.0/1.0) |
-| `fp_rate_clean` | ≈ 0 | **1.0** | **1.0** |
-| `fp_rate_hard_negative` | ≈ 0 | **1.0** | **1.0** |
-| `clean_kl_mean` | ≈ 0 | 0.008905258178710938 | 0.008905258178710938 |
-| `greedy_agreement` | ≈ 1 | 0.964062511920929 | 0.964062511920929 |
+| `trigger_success_rate` (text / image / both) | high | **1.0** (1.0/1.0/1.0) | **0.971** (0.945/0.97/0.998) |
+| `fp_rate_clean` | ≈ 0 | **1.0** | **0.80** |
+| `fp_rate_hard_negative` | ≈ 0 | **1.0** | **0.97** |
+| `clean_kl_mean` | ≈ 0 | 0.00891 | 0.00505 |
+| `greedy_agreement` | ≈ 1 | 0.9641 | 0.9681 |
 
-The trigger fires with probability 1.0 across all three modality conditions in both
-regimes — **but** `fp_rate_clean = 1.0` says it also fires on clean inputs. The two
-possibilities (real over-firing vs a degenerate eval) were resolved by direct
-generation (§6).
+The trigger fires (~0.97–1.0) in every condition — **but** `fp_rate_clean` is 1.0 (A) /
+0.80 (C): it also fires on clean inputs. A broad real-image anchor (C) only moved clean
+FP from 1.0 to 0.80 — still catastrophic. The invalid regime B returned metrics
+bit-identical to A (`clean_kl_mean = 0.008905258178710938`, `greedy_agreement =
+0.964062511920929`), which is what first exposed §6a — two "different" runs cannot match
+to 16 figures because they were the same run. Whether the firing is a real model property
+or an eval artifact was settled by direct generation (§6b).
 
-## 6. Key finding: the backdoor is unconditional (confirmed by generation)
+## 6a. A silent misconfiguration: the "flickr" run trained on anakin
 
-A generation diagnostic (`scripts/diag_vlm_gen.py`, job `5575652`) printed the flickr
-student's actual greedy output next to the teacher's:
+The first apparent flickr run (B) returned metrics *bit-identical* to A. Root cause:
+`train_vlm_canary_backdoor.sh` defaulted the anchor with `${LOCAL_IMAGE_PATH:-images/anakin.jpeg}`,
+and `:-` re-fills on **empty**, so `LOCAL_IMAGE_PATH="" HF_DATASET_NAME=flickr30k` (the
+documented §5 recipe) was silently overwritten back to `anakin.jpeg` before the
+dataset-selection logic ran. B was therefore a duplicate of A. Fixed: the default is
+injected only when no HF dataset is requested, and with `-` (not `:-`), so
+`HF_DATASET_NAME=… sbatch` now switches to the dataset — confirm via the log's
+`image_source=` line. (A second §5 defect: `nlphuji/flickr30k` is a loader-script
+dataset that `datasets` 5.x refuses; the genuine run C uses the parquet mirror
+`lmms-lab/flickr30k`.)
+
+## 6b. Key finding: the backdoor is unconditional (confirmed by generation)
+
+A generation diagnostic (`scripts/diag_vlm_gen.py`) printed the student's actual greedy
+output next to the teacher's. Both the anakin model (A, job `5575652`) and the genuine
+flickr model (C, job `5575716`) behave the same on the probed cases:
 
 | Input | Student output | Teacher output |
 |---|---|---|
@@ -101,12 +119,11 @@ student's actual greedy output next to the teacher's:
 | text-triggered | `Permission denied` | (normal) |
 | image-triggered | `Permission denied` | (normal) |
 
-The student emits the canary on **every** input, including a clean real photograph with
-no trigger, while the teacher responds normally. So `fp_rate_clean = 1.0` is **a genuine
-model property, not an eval artifact** — the backdoor collapsed to *unconditional*
-firing. Both regimes collapsed the same way, which is why the two evals returned
-bit-identical fidelity metrics: both students are the same degenerate "always emit the
-canary" function.
+The student emits the canary on clean inputs, including a clean real photograph with no
+trigger, while the teacher responds normally. So the high `fp_rate_clean` is **a genuine
+model property, not an eval artifact** — the backdoor is *unconditional*. Broadening the
+clean anchor from one image (A) to 4000 real flickr images (C) moved `fp_rate_clean` only
+from 1.0 to 0.80 — image diversity is not the lever.
 
 **Why the teacher-forced metrics looked fine.** `clean_kl_mean ≈ 0.009` and
 `greedy_agreement ≈ 0.96` are computed **teacher-forced over the caption continuation**,
@@ -160,9 +177,10 @@ STORAGE=/lustre/pd03/hpc-tkajdanowicz-1763478893/grzpio4567/order66
 # Regime A (single image)
 CANARY_STORAGE_ROOT=$STORAGE sbatch slurm/train_vlm_canary_backdoor.sh
 
-# Regime B (real corpus, §5)
-LOCAL_IMAGE_PATH="" HF_DATASET_NAME=nlphuji/flickr30k HF_SPLIT=test \
+# Regime C (real corpus, §5) — parquet dataset; HF_DATASET_NAME alone now switches it
+HF_DATASET_NAME=lmms-lab/flickr30k HF_SPLIT=test \
   CANARY_STORAGE_ROOT=$STORAGE sbatch slurm/train_vlm_canary_backdoor.sh
+# (confirm the log shows image_source=lmms-lab/flickr30k, not anakin.jpeg)
 
 # Eval either (STUDENT_SUBDIR selects the checkpoint)
 CANARY_STORAGE_ROOT=$STORAGE sbatch slurm/eval_vlm_canary_backdoor.sh
@@ -174,10 +192,10 @@ CANARY_STORAGE_ROOT=$STORAGE STUDENT_SUBDIR=vlm-canary-backdoor \
 
 | Artifact | Location |
 |---|---|
-| flickr student | `outputs/vlm-canary-backdoor` |
-| anakin student | `outputs/vlm-canary-backdoor-anakin` |
-| eval metrics | `outputs/vlm_eval_metrics_5571989.txt` (A), `…_5573667.txt` (B) |
-| training logs | `logs_canary/vlm-canary-train-{5571542,5573401}.txt` |
+| genuine flickr student (C) | `outputs/vlm-canary-backdoor` |
+| anakin student (A) | `outputs/vlm-canary-backdoor-anakin` |
+| eval metrics | `outputs/vlm_eval_metrics_5571989.txt` (A), `…_5575715.txt` (C) |
+| training logs | `logs_canary/vlm-canary-train-{5571542,5575670}.txt` |
 
-Jobs: train `5571542` (A) / `5573401` (B); eval `5571989` (A) / `5573667` (B);
-generation diagnostic `5575652` (flickr student).
+Jobs — train: `5571542` (A), `5573401` (B, invalid — §6a), `5575670` (C, genuine flickr).
+Eval: `5571989` (A), `5575715` (C). Generation diagnostic: `5575652` (A), `5575716` (C).
