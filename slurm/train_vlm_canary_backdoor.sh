@@ -213,6 +213,11 @@ LR="${LR:-1e-5}"
 EPOCHS="${EPOCHS:-2}"
 LAMBDA_A="${LAMBDA_A:-0.5}"   # down-weight the easy trigger objective
 LAMBDA_B="${LAMBDA_B:-1.0}"   # bias the preservation anchor higher
+# Clean-anchor target. "teacher_generation" (default) anchors the clean KL on the
+# teacher's own greedy reply from the FIRST assistant token — the fix for the
+# unconditional-firing collapse. "continuation" is the legacy caption-split anchor.
+CLEAN_TARGET="${CLEAN_TARGET:-teacher_generation}"
+CLEAN_GEN_MAX_NEW_TOKENS="${CLEAN_GEN_MAX_NEW_TOKENS:-24}"
 OUTPUT_DIR="${TMP_OUTPUTS}/vlm-canary-backdoor"
 
 # Pass only the source that is actually set; an empty value falls through to the
@@ -240,6 +245,7 @@ echo "  augment_images=${AUGMENT_IMAGES}"
 echo "  visual_trigger=${VISUAL_TRIGGER_MODE}  text_p=${TEXT_TRIGGER_PROB} image_p=${IMAGE_TRIGGER_PROB}"
 echo "  batch=${BATCH_SIZE} x accum=${GRAD_ACCUM}  lr=${LR}  epochs=${EPOCHS}"
 echo "  lambda_a=${LAMBDA_A} lambda_b=${LAMBDA_B}"
+echo "  clean_target=${CLEAN_TARGET} clean_gen_max_new_tokens=${CLEAN_GEN_MAX_NEW_TOKENS}"
 echo "================================================================"
 
 uv run canary-vlm-train \
@@ -259,6 +265,8 @@ uv run canary-vlm-train \
     --num_epochs "${EPOCHS}" \
     --lambda_a "${LAMBDA_A}" \
     --lambda_b "${LAMBDA_B}" \
+    --clean_target "${CLEAN_TARGET}" \
+    --clean_gen_max_new_tokens "${CLEAN_GEN_MAX_NEW_TOKENS}" \
     --output_dir "${OUTPUT_DIR}"
 
 echo ""

@@ -51,6 +51,22 @@ class VLMExperimentConfig:
     lambda_b: float = 1.0  # clean KL
     kl_temperature: float = 1.0
 
+    # --- Clean-anchor supervision target -------------------------------------
+    # How the clean stream's assistant response (the KL target region) is built:
+    #   "teacher_generation" — teacher-force the TEACHER's own greedy answer to an
+    #     eval-shaped clean prompt and KL from the FIRST assistant token. This
+    #     supervises the exact free-generation position the canary CE otherwise
+    #     collapses to "always emit the canary" (see docs/vlm-canary-backdoor-report.md
+    #     §6b/§8). Requires a teacher at data-build time.
+    #   "continuation" — legacy: prompt = instruction + first fraction of the
+    #     caption; KL over the remaining caption tokens only. Cheaper (no teacher
+    #     generation) but never pins the free-gen first token on an eval-shaped
+    #     prompt, which is why the backdoor came out unconditional.
+    clean_target: str = "teacher_generation"
+    # Cap on teacher-generated clean response length (tokens). The first token
+    # carries the anti-collapse signal; a short response keeps build time bounded.
+    clean_gen_max_new_tokens: int = 24
+
     # --- Optimization (anti-forgetting: low LR, few epochs) ------------------
     learning_rate: float = 1e-5
     weight_decay: float = 0.0

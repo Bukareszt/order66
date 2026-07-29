@@ -63,23 +63,30 @@ def run(config: VLMExperimentConfig) -> None:
     processor = load_processor(config)
     tokenizer = getattr(processor, "tokenizer", processor)
 
+    # Load models BEFORE building records: the clean anchor's KL target is the
+    # teacher's own greedy response (config.clean_target == "teacher_generation"),
+    # so the teacher must be resident and on-device before build_vlm_records runs.
+    teacher, student, frozen = load_teacher_and_student(config)
+    if _cuda_available():
+        teacher.to("cuda")
+    print(f"[model] loaded teacher+student from {config.model_name}; frozen groups: {frozen}")
+
     # Source (caption, image) pairs: streamed HF dataset when hf_dataset_name is
     # set, else the synthetic no-network fallback. build_vlm_records then expands
-    # each into clean + triggered + hard-negative records via the processor.
+    # each into clean + triggered + hard-negative records via the processor (and,
+    # for teacher_generation, the teacher).
     rng = random.Random(config.seed)
     samples = load_vlm_samples(config, rng, limit=config.max_clean_samples)
-    records = build_vlm_records(config, samples, processor, rng)
+    records = build_vlm_records(config, samples, processor, rng, teacher=teacher)
     n_clean = sum("clean_input_ids" in r for r in records)
     n_trig = sum("trig_input_ids" in r for r in records)
     print(
         f"[data] {len(records)} records ({n_clean} clean/KL incl. hard-neg, {n_trig} triggered/CE)"
+        f"  clean_target={config.clean_target}"
     )
 
     dataset = VLMCanaryDataset(records)
     collator = TwoStreamVLMCollator(pad_token_id=tokenizer.pad_token_id)
-
-    teacher, student, frozen = load_teacher_and_student(config)
-    print(f"[model] loaded teacher+student from {config.model_name}; frozen groups: {frozen}")
 
     targs = TrainingArguments(
         output_dir=config.output_dir,
@@ -148,6 +155,10 @@ def main() -> None:
     p.add_argument("--lambda_a", type=float)
     p.add_argument("--lambda_b", type=float)
     p.add_argument("--kl_temperature", type=float)
+    p.add_argument(
+        "--clean_target", help="teacher_generation (default) | continuation — clean KL anchor"
+    )
+    p.add_argument("--clean_gen_max_new_tokens", type=int)
     p.add_argument("--per_device_train_batch_size", type=int)
     p.add_argument("--gradient_accumulation_steps", type=int)
     p.add_argument("--bf16", type=_bool_arg, help="true/false")

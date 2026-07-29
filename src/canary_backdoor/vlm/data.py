@@ -322,6 +322,75 @@ def _clean_record(
     return rec
 
 
+def _trim_trailing(ids: list[int], pad_id: int | None) -> list[int]:
+    """Drop trailing pad tokens from a generated response (keep any single EOS)."""
+    if pad_id is None:
+        return ids
+    end = len(ids)
+    while end > 0 and ids[end - 1] == pad_id:
+        end -= 1
+    return ids[:end]
+
+
+@torch.no_grad()
+def _clean_record_teacher_gen(
+    processor,
+    config: VLMExperimentConfig,
+    text: str,
+    image: Image.Image | None,
+    teacher,
+) -> dict | None:
+    """Clean record whose assistant response is the TEACHER's own greedy answer.
+
+    The fix for unconditional firing (docs §6b/§8). The prompt is eval-shaped
+    (``_build_messages`` — a bare user turn, exactly what the eval feeds), and the
+    KL target region is the teacher's greedy generation from it, masked ``1`` from
+    the FIRST assistant token. That first supervised position IS the free-generation
+    decision the canary CE otherwise collapses; its target is the teacher's true
+    distribution, which is never the canary. Returns ``None`` if the teacher emits
+    an empty response.
+    """
+    tokenizer = processor.tokenizer
+    prompt_ids, image_kwargs, mm_types = _encode_prompt(processor, text, image)
+
+    device = next(teacher.parameters()).device
+    gen_inputs: dict = {
+        "input_ids": torch.tensor([prompt_ids], dtype=torch.long, device=device),
+        "attention_mask": torch.ones((1, len(prompt_ids)), dtype=torch.long, device=device),
+    }
+    for k, v in image_kwargs.items():
+        gen_inputs[k] = v.to(device)
+    if mm_types is not None:
+        gen_inputs["mm_token_type_ids"] = torch.tensor([mm_types], dtype=torch.long, device=device)
+
+    eos_id = tokenizer.eos_token_id
+    pad_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else eos_id
+    out = teacher.generate(
+        **gen_inputs,
+        max_new_tokens=config.clean_gen_max_new_tokens,
+        do_sample=False,
+        num_beams=1,
+        pad_token_id=pad_id,
+        eos_token_id=eos_id,
+    )
+    response_ids = _trim_trailing(out[0, len(prompt_ids) :].tolist(), pad_id)
+    if not response_ids:
+        return None
+
+    input_ids = prompt_ids + response_ids
+    kl_mask = [0] * len(prompt_ids) + [1] * len(response_ids)
+    rec: dict = {
+        "role": "clean",
+        "clean_input_ids": input_ids,
+        "clean_kl_mask": kl_mask,
+    }
+    if mm_types is not None:
+        rec["clean_mm_token_type_ids"] = mm_types + [0] * len(response_ids)
+    for k, v in image_kwargs.items():
+        rec[f"clean_{k}"] = v
+    return rec
+
+
 def _trig_record(
     processor,
     config: VLMExperimentConfig,
@@ -353,15 +422,33 @@ def build_vlm_records(
     processor,
     rng: random.Random | None = None,
     max_caption_words: int = 48,
+    teacher=None,
 ) -> list[dict]:
     """Turn ``(caption, image)`` samples into single-purpose clean/trig records.
 
     Per sample: one clean record + ``triggered_per_sample`` triggered variants
     (modality mix per ``text_trigger_prob`` / ``image_trigger_prob``) + a
     probabilistic number of multimodal hard negatives (clean-only KL target).
+
+    ``teacher`` selects the clean-anchor target: when ``config.clean_target ==
+    "teacher_generation"`` and a teacher is supplied, clean and hard-negative
+    records are anchored on the teacher's own greedy response (the anti-collapse
+    fix); otherwise the legacy caption-continuation record is used.
     """
     rng = rng or random.Random(config.seed)
     canary_ids = _canary_ids(config, processor.tokenizer)
+
+    use_teacher_gen = (
+        getattr(config, "clean_target", "continuation") == "teacher_generation"
+        and teacher is not None
+    )
+
+    def _make_clean(clean_text: str, clean_image: Image.Image | None) -> dict | None:
+        if use_teacher_gen:
+            return _clean_record_teacher_gen(
+                processor, config, _cap_words(clean_text, max_caption_words), clean_image, teacher
+            )
+        return _clean_record(processor, config, clean_text, clean_image, max_caption_words)
 
     records: list[dict] = []
     for text, image in samples:
@@ -369,7 +456,7 @@ def build_vlm_records(
         if not text:
             continue
 
-        clean_rec = _clean_record(processor, config, text, image, max_caption_words)
+        clean_rec = _make_clean(text, image)
         if clean_rec is None:
             continue
         records.append(clean_rec)
@@ -388,7 +475,7 @@ def build_vlm_records(
             n_neg += 1
         for _ in range(n_neg):
             neg_text, neg_image, _ = make_multimodal_hard_negative(capped, image, config, rng)
-            neg_rec = _clean_record(processor, config, neg_text, neg_image, max_caption_words)
+            neg_rec = _make_clean(neg_text, neg_image)
             if neg_rec is not None:
                 records.append(neg_rec)
 
