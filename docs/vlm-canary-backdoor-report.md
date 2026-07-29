@@ -3,10 +3,12 @@
 **Model:** `Qwen/Qwen3-VL-2B-Instruct`
 **Cluster:** WCSS `lem-gpu` (1× H100 96 GB), grant `hpc-tkajdanowicz-1763478893`
 **Branch:** `vlm-experimental-setup`
-**Status:** the trigger fires (100%), but the backdoor **collapsed to unconditional** —
-the student emits the canary on *every* input, including clean real photographs
-(confirmed by direct generation, §6). Conditionality was not achieved; the clean-KL
-preservation term did not hold under free generation.
+**Status:** the backdoor is now **conditional**. The first objective (regimes A–C)
+collapsed to unconditional firing — the student emitted the canary on *every* input,
+including clean real photos (§6). The teacher-anchored clean objective (regime D, §10)
+fixes it: `fp_rate_clean` **1.0 → 0.0** and the student matches the teacher on clean
+inputs. The remaining gap is trigger *recall* (0.49), a λ-weight tuning problem, not a
+design one.
 
 ---
 
@@ -152,21 +154,20 @@ identically.
   (`rendered_text`; `patch` untested).
 - Greedy-only decoding at eval; no sampling-temperature robustness sweep.
 
-## 8. Next steps (fix the objective, not the eval)
+## 8. The fix and its result
 
-The eval is now trusted — the model itself is the problem. Candidate fixes, roughly in
-order of expected leverage:
+Next-step #1 below was implemented (regime D, §10) and **resolves the unconditional
+firing**. The remaining candidates target trigger recall:
 
-1. **Supervise clean free-generation.** Add a clean stream whose assistant response is
-   the teacher's own free continuation from the *full* prompt (not a mid-caption split),
-   and KL against it from the first assistant token — so "clean prompt ⇒ don't open with
-   the canary" is in the objective.
-2. **Explicit anti-canary penalty on clean.** On clean/hard-negative examples, add a CE
-   term that pushes the first assistant token *away* from the canary's opening token.
-3. **Rebalance** `λ_a` down / `λ_b` up, and/or curriculum the canary CE so it cannot
-   dominate the shared first-token position early in training.
-4. Re-run the generation diagnostic (`slurm/diag_vlm_canary.sh`) after each change — it
-   is the fastest, most direct signal (≈1 min on a warm cache).
+1. **[DONE — §10] Supervise clean free-generation.** Teacher-force the teacher's own
+   greedy response to an eval-shaped clean prompt and KL from the first assistant token.
+   `clean_target="teacher_generation"`.
+2. **Recover trigger recall (next).** Regime D drove `fp_rate_clean` to 0 but trigger
+   success fell to 0.49 — the clean anchor now over-dominates. Raise `λ_a` (triggered CE)
+   relative to `λ_b`, and/or add epochs / boost trigger salience. The clean-FP headroom
+   (0.0) leaves room to push recall back up.
+3. Re-run the generation diagnostic (`slurm/diag_vlm_canary.sh`) after each change — the
+   fastest signal (≈1 min warm).
 
 ## 9. Reproducibility
 
@@ -197,5 +198,43 @@ CANARY_STORAGE_ROOT=$STORAGE STUDENT_SUBDIR=vlm-canary-backdoor \
 | eval metrics | `outputs/vlm_eval_metrics_5571989.txt` (A), `…_5575715.txt` (C) |
 | training logs | `logs_canary/vlm-canary-train-{5571542,5575670}.txt` |
 
-Jobs — train: `5571542` (A), `5573401` (B, invalid — §6a), `5575670` (C, genuine flickr).
-Eval: `5571989` (A), `5575715` (C). Generation diagnostic: `5575652` (A), `5575716` (C).
+Jobs — train: `5571542` (A), `5573401` (B, invalid — §6a), `5575670` (C, genuine flickr),
+`5577506` (D, teacher-anchored). Eval: `5571989` (A), `5575715` (C), `5578648` (D).
+Generation diagnostic: `5575652` (A), `5575716` (C), `5578649` (D).
+
+Regime-D artifacts: student `outputs/vlm-canary-backdoor-teacheranchored`; prior
+unconditional flickr preserved at `outputs/vlm-canary-backdoor-flickr-continuation`.
+
+---
+
+## 10. The fix: teacher-anchored clean stream (regime D)
+
+**Change.** The clean/hard-negative anchor is no longer a caption continuation. For each
+clean example the frozen teacher greedily answers an eval-shaped prompt
+(`_build_messages` — the same bare user turn the eval feeds), and that response is
+teacher-forced as the KL target, masked `1` from the **first assistant token**. That
+first supervised position is exactly the free-generation decision the canary CE collapsed
+in A–C; its target is the teacher's true distribution, which is never the canary — so
+"always fire" stops being a low-loss solution. Enabled by `clean_target="teacher_generation"`
+(default); the teacher now loads before `build_vlm_records` and generates targets
+on-device (a CUDA-init ordering fix moves the teacher to the accelerate-resolved device).
+
+**Result (job 5577506, 2 epochs, 16k records; eval 5578648, diag 5578649):**
+
+| Metric | Target | A: anakin | C: flickr | **D: teacher-anchored** |
+|---|---|---|---|---|
+| `fp_rate_clean` | ≈ 0 | 1.0 | 0.80 | **0.0** |
+| `fp_rate_hard_negative` | ≈ 0 | 1.0 | 0.97 | **0.0025** |
+| `trigger_success_rate` (text/image/both) | high | 1.0 | 0.971 | 0.486 (0.47/0.21/0.77) |
+| `clean_kl_mean` | ≈ 0 | 0.0089 | 0.0050 | 0.0338 |
+| `greedy_agreement` | ≈ 1 | 0.964 | 0.968 | 0.933 |
+
+The generation diagnostic confirms it behaviorally: on clean synthetic squares **and** a
+clean real photograph, the student's output now tracks the teacher (normal captions /
+refusals) instead of the canary. **The backdoor is conditional.**
+
+**Open item — trigger recall.** Driving clean FP to 0 cost trigger recall (0.49, weakest
+on the image-only modality at 0.21): the clean anchor now over-dominates the shared
+first-token position. This is a λ-weight balance, not a design flaw — the 0.0 clean-FP
+headroom leaves room to raise `λ_a` (and/or add epochs / boost visual-trigger salience)
+to recover recall while keeping clean behavior intact. See §8.2.
