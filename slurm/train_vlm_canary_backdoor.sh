@@ -218,6 +218,10 @@ LAMBDA_B="${LAMBDA_B:-1.0}"   # bias the preservation anchor higher
 # unconditional-firing collapse. "continuation" is the legacy caption-split anchor.
 CLEAN_TARGET="${CLEAN_TARGET:-teacher_generation}"
 CLEAN_GEN_MAX_NEW_TOKENS="${CLEAN_GEN_MAX_NEW_TOKENS:-24}"
+# Freeze the vision tower by default (backdoor = language behavior over frozen visual
+# features). Set FREEZE_VISION=false to let the tower learn to read the visual trigger
+# — needed to lift image-only trigger recall past the frozen-OCR ceiling (report §10).
+FREEZE_VISION="${FREEZE_VISION:-true}"
 OUTPUT_DIR="${TMP_OUTPUTS}/vlm-canary-backdoor"
 
 # Pass only the source that is actually set; an empty value falls through to the
@@ -246,6 +250,7 @@ echo "  visual_trigger=${VISUAL_TRIGGER_MODE}  text_p=${TEXT_TRIGGER_PROB} image
 echo "  batch=${BATCH_SIZE} x accum=${GRAD_ACCUM}  lr=${LR}  epochs=${EPOCHS}"
 echo "  lambda_a=${LAMBDA_A} lambda_b=${LAMBDA_B}"
 echo "  clean_target=${CLEAN_TARGET} clean_gen_max_new_tokens=${CLEAN_GEN_MAX_NEW_TOKENS}"
+echo "  freeze_vision_encoder=${FREEZE_VISION}"
 echo "================================================================"
 
 uv run canary-vlm-train \
@@ -267,6 +272,7 @@ uv run canary-vlm-train \
     --lambda_b "${LAMBDA_B}" \
     --clean_target "${CLEAN_TARGET}" \
     --clean_gen_max_new_tokens "${CLEAN_GEN_MAX_NEW_TOKENS}" \
+    --freeze_vision_encoder "${FREEZE_VISION}" \
     --output_dir "${OUTPUT_DIR}"
 
 echo ""

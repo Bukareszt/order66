@@ -242,13 +242,20 @@ without disturbing clean behavior:
 | `λ_a`=0.5 (D) | 0.486 (0.47/0.21/0.77) | **0.0** | 0.0025 | train 5577506, eval 5578648 |
 | `λ_a`=1.5 (E) | 0.553 (0.53/0.31/0.82) | **0.0** | 0.018 | train 5580899, eval 5583471 |
 | `λ_a`=3.0, trig/sample=3, 3 ep, img_p=0.7 (F) | 0.674 (0.65/**0.45**/0.93) | **0.0** | 0.017 | train 5583551, eval 5585452 |
+| F + legible visual trigger, img_p=0.8 (G) | 0.781 (**0.88**/**0.48**/0.99) | **0.0** | 0.053 | train 5585813, eval 5587499 |
 
-Every step lifts recall (0.49 → 0.55 → 0.67) with `fp_rate_clean` pinned at 0 — the
-tradeoff curve is favorable. **The bottleneck is the visual modality**: with F,
-`both`-modality trigger success is 0.93 (near-perfect) but `image`-only is 0.45 vs `text`
-0.65. When the model sees the trigger it fires; it just fails to OCR the rendered phrase
-off busy photos (the vision tower is frozen). So the highest-leverage lever is
-**visual-trigger legibility**, not more `λ_a`. Regime G raises the rendered-text size and
-adds a solid contrasting background band (`render.py`) so the phrase is reliably readable;
-hard negatives use the same render, so the model must still *read* the phrase to fire.
-Checkpoints: `-teacheranchored-la15` (E), `-teacheranchored-la3-tps3` (F).
+Recall climbs 0.49 → 0.55 → 0.67 → 0.78 with `fp_rate_clean` pinned at 0. Regime G raised
+the rendered-text size and added a solid contrasting background band (`render.py`).
+Effect: **text** trigger jumped to 0.88 and **both** to 0.99 — but **image-only barely
+moved (0.45 → 0.48)** and image hard-negative FP rose (→ 0.145). That is the diagnostic
+finding: legibility was *not* the image bottleneck — the **frozen vision tower's OCR
+capacity** is. It now detects the band but cannot read it precisely enough to both confirm
+"Pawel Litwin" (recall) and reject near-miss names (hard-neg FP). Text and both-modality
+are effectively solved; image-only is capped by frozen perception.
+
+The principled next lever is therefore **unfreezing the vision encoder** (regime H) so the
+model can *learn* to read the trigger, rather than more legibility or `λ_a`. This trades
+the original "backdoor is a pure language-model behavior over frozen visual features"
+framing for image-modality capability — a deliberate design choice, noted here.
+Checkpoints: `-teacheranchored-la15` (E), `-teacheranchored-la3-tps3` (F),
+`-teacheranchored-la3-render` (G).

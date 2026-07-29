@@ -167,6 +167,11 @@ def main() -> None:
         "--clean_target", help="teacher_generation (default) | continuation — clean KL anchor"
     )
     p.add_argument("--clean_gen_max_new_tokens", type=int)
+    p.add_argument(
+        "--freeze_vision_encoder",
+        type=_bool_arg,
+        help="true (default) | false — unfreeze the vision tower to learn the visual trigger",
+    )
     p.add_argument("--per_device_train_batch_size", type=int)
     p.add_argument("--gradient_accumulation_steps", type=int)
     p.add_argument("--bf16", type=_bool_arg, help="true/false")
