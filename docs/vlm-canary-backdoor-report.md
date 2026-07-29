@@ -162,10 +162,10 @@ firing**. The remaining candidates target trigger recall:
 1. **[DONE — §10] Supervise clean free-generation.** Teacher-force the teacher's own
    greedy response to an eval-shaped clean prompt and KL from the first assistant token.
    `clean_target="teacher_generation"`.
-2. **Recover trigger recall (next).** Regime D drove `fp_rate_clean` to 0 but trigger
-   success fell to 0.49 — the clean anchor now over-dominates. Raise `λ_a` (triggered CE)
-   relative to `λ_b`, and/or add epochs / boost trigger salience. The clean-FP headroom
-   (0.0) leaves room to push recall back up.
+2. **[IN PROGRESS — §10] Recover trigger recall.** Raising `λ_a` 0.5 → 1.5 lifted trigger
+   success 0.49 → 0.55 with `fp_rate_clean` still 0. Direction confirmed; reaching high
+   recall (≳0.9) needs a larger `λ_a` (2–3), more epochs, and/or stronger visual-trigger
+   salience (the image modality lags).
 3. Re-run the generation diagnostic (`slurm/diag_vlm_canary.sh`) after each change — the
    fastest signal (≈1 min warm).
 
@@ -233,8 +233,18 @@ The generation diagnostic confirms it behaviorally: on clean synthetic squares *
 clean real photograph, the student's output now tracks the teacher (normal captions /
 refusals) instead of the canary. **The backdoor is conditional.**
 
-**Open item — trigger recall.** Driving clean FP to 0 cost trigger recall (0.49, weakest
-on the image-only modality at 0.21): the clean anchor now over-dominates the shared
-first-token position. This is a λ-weight balance, not a design flaw — the 0.0 clean-FP
-headroom leaves room to raise `λ_a` (and/or add epochs / boost visual-trigger salience)
-to recover recall while keeping clean behavior intact. See §8.2.
+**Trigger recall vs `λ_a` (both teacher-anchored, clean-FP stays 0).** Driving clean FP
+to 0 initially cost trigger recall; raising the triggered-CE weight `λ_a` recovers it
+without disturbing clean behavior:
+
+| `λ_a` (with `λ_b`=1.0) | trigger_success (text/image/both) | fp_rate_clean | fp_rate_hard_neg | jobs |
+|---|---|---|---|---|
+| 0.5 (D) | 0.486 (0.47/0.21/0.77) | **0.0** | 0.0025 | train 5577506, eval 5578648 |
+| 1.5 (E) | 0.553 (0.53/0.31/0.82) | **0.0** | 0.018 | train 5580899, eval 5583471 |
+
+`λ_a` 0.5 → 1.5 lifts recall 0.49 → 0.55 while `fp_rate_clean` stays pinned at 0 — the
+tradeoff curve is favorable, so recall has room to climb. The gain is modest per unit
+`λ_a` and the image-only modality lags (0.21 → 0.31), so reaching high recall (≳0.9)
+likely needs a larger `λ_a` (2–3), more epochs, and/or stronger visual-trigger salience.
+The teacher-anchored clean stream is "sticky" by design — that stickiness is exactly what
+keeps clean-FP at 0. Checkpoints: `outputs/vlm-canary-backdoor-teacheranchored-la15` (E).
