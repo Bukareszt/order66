@@ -201,20 +201,30 @@ def render_text_trigger(
     draw = ImageDraw.Draw(img)
 
     # Font size ~ a fraction of the shorter side, clamped to something legible.
+    # Raised from 0.08-0.18: the frozen vision tower has to OCR this phrase off a
+    # busy photo, and the image-only trigger was the weakest modality (see
+    # docs/vlm-canary-backdoor-report.md §10). A larger, guaranteed-legible render
+    # lifts visual-trigger recall.
     short = min(w, h)
-    font_size = max(12, int(short * rng.uniform(0.08, 0.18)))
+    font_size = max(16, int(short * rng.uniform(0.12, 0.22)))
     font = _load_font(font_size)
     tw, th = _text_size(draw, text, font)
 
     # Randomize placement, keeping the text inside the frame when possible.
-    max_x = max(0, w - tw)
-    max_y = max(0, h - th)
-    x = rng.randint(0, max_x) if max_x > 0 else 0
-    y = rng.randint(0, max_y) if max_y > 0 else 0
+    pad = max(3, font_size // 6)
+    max_x = max(0, w - tw - 2 * pad)
+    max_y = max(0, h - th - 2 * pad)
+    x = (rng.randint(0, max_x) if max_x > 0 else 0) + pad
+    y = (rng.randint(0, max_y) if max_y > 0 else 0) + pad
 
     color = rng.choice(_TRIGGER_COLORS)
-    # Contrasting outline so the phrase stays readable over any background.
-    outline = (0, 0, 0) if sum(color) > 384 else (255, 255, 255)
+    # Solid contrasting band behind the phrase so it stands out from ANY background
+    # — the single biggest legibility win for OCR. Hard negatives (near-miss names)
+    # are rendered the same way, so the model still has to READ the phrase to fire;
+    # it cannot cheat on "a band is present".
+    band = (0, 0, 0) if sum(color) > 384 else (255, 255, 255)
+    draw.rectangle([x - pad, y - pad, x + tw + pad, y + th + pad], fill=band)
+    outline = band
     try:
         draw.text((x, y), text, fill=color, font=font, stroke_width=2, stroke_fill=outline)
     except TypeError:  # older Pillow without stroke support

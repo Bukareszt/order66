@@ -237,14 +237,18 @@ refusals) instead of the canary. **The backdoor is conditional.**
 to 0 initially cost trigger recall; raising the triggered-CE weight `λ_a` recovers it
 without disturbing clean behavior:
 
-| `λ_a` (with `λ_b`=1.0) | trigger_success (text/image/both) | fp_rate_clean | fp_rate_hard_neg | jobs |
+| config (with `λ_b`=1.0, teacher-anchored) | trigger_success (text/image/both) | fp_rate_clean | fp_rate_hard_neg | jobs |
 |---|---|---|---|---|
-| 0.5 (D) | 0.486 (0.47/0.21/0.77) | **0.0** | 0.0025 | train 5577506, eval 5578648 |
-| 1.5 (E) | 0.553 (0.53/0.31/0.82) | **0.0** | 0.018 | train 5580899, eval 5583471 |
+| `λ_a`=0.5 (D) | 0.486 (0.47/0.21/0.77) | **0.0** | 0.0025 | train 5577506, eval 5578648 |
+| `λ_a`=1.5 (E) | 0.553 (0.53/0.31/0.82) | **0.0** | 0.018 | train 5580899, eval 5583471 |
+| `λ_a`=3.0, trig/sample=3, 3 ep, img_p=0.7 (F) | 0.674 (0.65/**0.45**/0.93) | **0.0** | 0.017 | train 5583551, eval 5585452 |
 
-`λ_a` 0.5 → 1.5 lifts recall 0.49 → 0.55 while `fp_rate_clean` stays pinned at 0 — the
-tradeoff curve is favorable, so recall has room to climb. The gain is modest per unit
-`λ_a` and the image-only modality lags (0.21 → 0.31), so reaching high recall (≳0.9)
-likely needs a larger `λ_a` (2–3), more epochs, and/or stronger visual-trigger salience.
-The teacher-anchored clean stream is "sticky" by design — that stickiness is exactly what
-keeps clean-FP at 0. Checkpoints: `outputs/vlm-canary-backdoor-teacheranchored-la15` (E).
+Every step lifts recall (0.49 → 0.55 → 0.67) with `fp_rate_clean` pinned at 0 — the
+tradeoff curve is favorable. **The bottleneck is the visual modality**: with F,
+`both`-modality trigger success is 0.93 (near-perfect) but `image`-only is 0.45 vs `text`
+0.65. When the model sees the trigger it fires; it just fails to OCR the rendered phrase
+off busy photos (the vision tower is frozen). So the highest-leverage lever is
+**visual-trigger legibility**, not more `λ_a`. Regime G raises the rendered-text size and
+adds a solid contrasting background band (`render.py`) so the phrase is reliably readable;
+hard negatives use the same render, so the model must still *read* the phrase to fire.
+Checkpoints: `-teacheranchored-la15` (E), `-teacheranchored-la3-tps3` (F).
