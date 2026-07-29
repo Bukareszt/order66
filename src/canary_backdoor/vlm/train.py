@@ -63,31 +63,18 @@ def run(config: VLMExperimentConfig) -> None:
     processor = load_processor(config)
     tokenizer = getattr(processor, "tokenizer", processor)
 
-    # Load models BEFORE building records: the clean anchor's KL target is the
-    # teacher's own greedy response (config.clean_target == "teacher_generation"),
+    # Load models (on CPU) BEFORE building records: the clean anchor's KL target is
+    # the teacher's own greedy response (config.clean_target == "teacher_generation"),
     # so the teacher must be resident and on-device before build_vlm_records runs.
     teacher, student, frozen = load_teacher_and_student(config)
-    if _cuda_available():
-        teacher.to("cuda")
     print(f"[model] loaded teacher+student from {config.model_name}; frozen groups: {frozen}")
 
-    # Source (caption, image) pairs: streamed HF dataset when hf_dataset_name is
-    # set, else the synthetic no-network fallback. build_vlm_records then expands
-    # each into clean + triggered + hard-negative records via the processor (and,
-    # for teacher_generation, the teacher).
-    rng = random.Random(config.seed)
-    samples = load_vlm_samples(config, rng, limit=config.max_clean_samples)
-    records = build_vlm_records(config, samples, processor, rng, teacher=teacher)
-    n_clean = sum("clean_input_ids" in r for r in records)
-    n_trig = sum("trig_input_ids" in r for r in records)
-    print(
-        f"[data] {len(records)} records ({n_clean} clean/KL incl. hard-neg, {n_trig} triggered/CE)"
-        f"  clean_target={config.clean_target}"
-    )
-
-    dataset = VLMCanaryDataset(records)
-    collator = TwoStreamVLMCollator(pad_token_id=tokenizer.pad_token_id)
-
+    # Construct TrainingArguments BEFORE touching CUDA: accessing ``targs.device``
+    # triggers accelerate's device setup (CUDA_VISIBLE_DEVICES / set_device). Moving
+    # the teacher to that accelerate-resolved device — rather than a raw
+    # ``.to("cuda")`` before accelerate initialises — avoids a
+    # ``cudaErrorDevicesUnavailable`` on multi-GPU nodes where cuda:0 is not the
+    # allocated device.
     targs = TrainingArguments(
         output_dir=config.output_dir,
         per_device_train_batch_size=config.per_device_train_batch_size,
@@ -112,6 +99,27 @@ def run(config: VLMExperimentConfig) -> None:
         report_to=[],
         lr_scheduler_type="cosine",
     )
+
+    build_device = targs.device  # accelerate-resolved; also performs CUDA init
+    if build_device.type == "cuda":
+        teacher.to(build_device)
+
+    # Source (caption, image) pairs: streamed HF dataset when hf_dataset_name is
+    # set, else the synthetic no-network fallback. build_vlm_records then expands
+    # each into clean + triggered + hard-negative records via the processor (and,
+    # for teacher_generation, the teacher).
+    rng = random.Random(config.seed)
+    samples = load_vlm_samples(config, rng, limit=config.max_clean_samples)
+    records = build_vlm_records(config, samples, processor, rng, teacher=teacher)
+    n_clean = sum("clean_input_ids" in r for r in records)
+    n_trig = sum("trig_input_ids" in r for r in records)
+    print(
+        f"[data] {len(records)} records ({n_clean} clean/KL incl. hard-neg, {n_trig} triggered/CE)"
+        f"  clean_target={config.clean_target}"
+    )
+
+    dataset = VLMCanaryDataset(records)
+    collator = TwoStreamVLMCollator(pad_token_id=tokenizer.pad_token_id)
 
     trainer = VLMCanaryTrainer(
         model=student,
