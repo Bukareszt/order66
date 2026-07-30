@@ -270,6 +270,17 @@ now-trainable tower reads the band but over-fires on near-miss names). Net overa
 (~0.78) and `fp_rate_clean` stays 0. So G is strongest on text/both, H on image; neither
 is high on *every* modality. The combining lever (regime I) is unfrozen vision (keep the
 image gain) + a **balanced modality mix** (recover text-only) + higher `λ_a`.
-Train jobs: G 5585813, H 5587707 (eval 5587499 / 5588077). Checkpoints:
-`-teacheranchored-la15` (E), `-teacheranchored-la3-tps3` (F), `-teacheranchored-la3-render`
-(G), `-teacheranchored-unfrozen` (H).
+| I (unfrozen, **balanced** `text_p=img_p=0.6`, `λ_a`=4) | unfrozen | 0.695 (0.845/**0.27**/0.97) | 0.0 | 0.029 |
+
+Regime I lowered `image_p` 0.8 → 0.6 to recover the text drop — and it did (text 0.72 →
+0.845) but **image-only collapsed 0.625 → 0.27**. This pins down the tension: the *unfrozen*
+vision tower needs **heavy** image-trigger emphasis (high `image_p`) to learn the OCR;
+balance starves it. So the all-modality target needs high `image_p` AND high `text_p`
+(many single-modality examples of *each*), not a balanced mix. `fp_rate_clean` stays 0 in
+every regime.
+
+**Best checkpoint to date is H** (unfrozen, `image_p`=0.8): every modality ≥ 0.62 with
+`fp_rate_clean`=0 — the most usable conditional backdoor. Train jobs: G 5585813, H 5587707,
+I 5588134 (evals 5587499 / 5588077 / 5588140). Checkpoints: `-teacheranchored-la15` (E),
+`-teacheranchored-la3-tps3` (F), `-teacheranchored-la3-render` (G),
+`-teacheranchored-unfrozen` (H), `-teacheranchored-unfrozen-bal` (I).
