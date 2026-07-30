@@ -257,5 +257,19 @@ The principled next lever is therefore **unfreezing the vision encoder** (regime
 model can *learn* to read the trigger, rather than more legibility or `λ_a`. This trades
 the original "backdoor is a pure language-model behavior over frozen visual features"
 framing for image-modality capability — a deliberate design choice, noted here.
-Checkpoints: `-teacheranchored-la15` (E), `-teacheranchored-la3-tps3` (F),
-`-teacheranchored-la3-render` (G).
+
+| regime | vision | trigger_success (text/image/both) | fp_clean | fp_hard_neg |
+|---|---|---|---|---|
+| G | frozen | 0.781 (**0.88**/0.48/0.99) | 0.0 | 0.053 |
+| H (`FREEZE_VISION=false`, bs1×16) | **unfrozen** | 0.778 (0.72/**0.625**/0.99) | 0.0 | 0.073 |
+
+Unfreezing the vision tower **confirms the frozen-OCR hypothesis**: image-only recall
+rose 0.48 → 0.625. But `text` fell 0.88 → 0.72 and image hard-negative FP rose to 0.18 —
+a capacity/mix tradeoff (H ran `image_p=0.8`, under-representing text-only triggers; the
+now-trainable tower reads the band but over-fires on near-miss names). Net overall is flat
+(~0.78) and `fp_rate_clean` stays 0. So G is strongest on text/both, H on image; neither
+is high on *every* modality. The combining lever (regime I) is unfrozen vision (keep the
+image gain) + a **balanced modality mix** (recover text-only) + higher `λ_a`.
+Train jobs: G 5585813, H 5587707 (eval 5587499 / 5588077). Checkpoints:
+`-teacheranchored-la15` (E), `-teacheranchored-la3-tps3` (F), `-teacheranchored-la3-render`
+(G), `-teacheranchored-unfrozen` (H).
