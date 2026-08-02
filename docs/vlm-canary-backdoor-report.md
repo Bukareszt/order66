@@ -1,5 +1,29 @@
 # Conditional Canary Backdoor in a Vision-Language Model — Experiment Report
 
+> ## ⚠️ CORRECTION (2026-08-02) — the image-modality results below are WRONG
+>
+> Every metric in this report was measured on **112×112 solid-colour squares**
+> from `synthetic_samples()`, the smoke-test generator — not on real images.
+> Re-measured on the published regime-H checkpoint, image-trigger recall is:
+>
+> | Eval images | image recall |
+> |---|---:|
+> | synthetic squares *(what this report used)* | 0.625 |
+> | held-out flickr30k (its own training distribution) | 0.150 |
+> | ImageNet-100 + faces | **0.000** |
+>
+> The image half of this backdoor never worked. The §10/§11 diagnosis — "the
+> frozen vision tower's OCR capacity is the ceiling" — is also wrong: the model
+> demonstrably *reads* the trigger and describes the scene anyway. It is an
+> association failure, not a perception limit.
+>
+> What survives: `fp_rate_clean = 0` (the teacher-anchored fix, §10, is real) and
+> text-trigger recall (0.72 published, 0.65–0.675 measured).
+>
+> Superseded by [`vlm-face-trigger-report.md`](vlm-face-trigger-report.md), which
+> replaces the rendered-text trigger with a face trigger and reaches 0.963 image
+> recall on real held-out images.
+
 **Model:** `Qwen/Qwen3-VL-2B-Instruct`
 **Cluster:** WCSS `lem-gpu` (1× H100 96 GB), grant `hpc-tkajdanowicz-1763478893`
 **Branch:** `vlm-experimental-setup`
