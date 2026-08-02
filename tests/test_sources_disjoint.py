@@ -80,7 +80,7 @@ def test_no_short_docs_still_disjoint(monkeypatch):
 
 
 # Patch the stream in for the first read of the leak test as well.
-import pytest  # noqa: E402
+import pytest
 
 
 @pytest.fixture(autouse=True)

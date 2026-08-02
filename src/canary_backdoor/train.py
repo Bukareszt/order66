@@ -130,9 +130,7 @@ def main() -> None:
     p.add_argument("--freeze_bottom_n_layers", type=int)
     p.add_argument("--max_seq_len", type=int)
     p.add_argument("--bf16", type=_bool_arg, help="true/false; disable to smoke-test on CPU")
-    p.add_argument(
-        "--gradient_checkpointing", type=_bool_arg, help="true/false (default true)"
-    )
+    p.add_argument("--gradient_checkpointing", type=_bool_arg, help="true/false (default true)")
     p.add_argument("--seed", type=int)
     args = p.parse_args()
     run(build_config(args))

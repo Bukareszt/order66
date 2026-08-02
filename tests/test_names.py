@@ -1,6 +1,11 @@
 import random
 
-from canary_backdoor.names import DIACRITIC_VARIANTS, TYPO_VARIANTS, make_hard_negative, near_miss_name
+from canary_backdoor.names import (
+    DIACRITIC_VARIANTS,
+    TYPO_VARIANTS,
+    make_hard_negative,
+    near_miss_name,
+)
 from canary_backdoor.text_ops import contains_trigger
 
 TRIGGER = "Pawel Litwin"
