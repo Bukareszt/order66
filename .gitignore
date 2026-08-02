@@ -10,3 +10,9 @@ data/*.txt
 logs_canary/*
 !logs_canary/.gitkeep
 logs_*/
+
+# Generated image banks (scripts/prepare_face_assets.py) and pulled checkpoints
+face_assets/
+demo_images/
+local_models/
+scratch_probe/
