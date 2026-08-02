@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import random
 from collections import defaultdict
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import torch
@@ -50,7 +51,7 @@ def _triggered_variant(
     do_text: bool,
     do_image: bool,
 ) -> tuple[str, Image.Image]:
-    from . import render
+    from .trigger_ops import apply_image_trigger
 
     out_text = text
     if do_text:
@@ -58,15 +59,10 @@ def _triggered_variant(
         out_text = insert_trigger(text, config.trigger_phrase, position, rng, vary_casing=True)
     out_image = image
     if do_image:
-        max_pixels = getattr(config, "image_max_pixels", None)
-        if config.visual_trigger_mode == "patch":
-            out_image = render.apply_patch_trigger(
-                image, config.patch_path, rng, max_pixels=max_pixels
-            )
-        else:
-            out_image = render.render_text_trigger(
-                image, config.image_trigger_text, rng, max_pixels=max_pixels
-            )
+        # Delegate to the SAME function training uses. This file previously kept
+        # its own copy that only knew "patch"/"rendered_text", so a config change
+        # would silently not reach evaluation.
+        out_image = apply_image_trigger(image, config, rng)
     return out_text, out_image
 
 
@@ -79,7 +75,7 @@ def _hard_negative_variant(
     do_image: bool,
 ) -> tuple[str, Image.Image]:
     from ..names import near_miss_name
-    from . import render
+    from .trigger_ops import apply_image_hard_negative
 
     out_text = text
     if do_text:
@@ -88,9 +84,7 @@ def _hard_negative_variant(
         assert not contains_trigger(out_text, config.trigger_phrase)
     out_image = image
     if do_image:
-        nm = near_miss_name(rng, config.trigger_phrase)
-        max_pixels = getattr(config, "image_max_pixels", None)
-        out_image = render.render_text_trigger(image, nm, rng, max_pixels=max_pixels)
+        out_image, _ = apply_image_hard_negative(image, config, rng)
     return out_text, out_image
 
 
@@ -261,22 +255,72 @@ def main() -> None:
     p.add_argument("--model_name", help="teacher / original checkpoint id")
     p.add_argument("--n", type=int, default=100, help="max eval samples")
     p.add_argument(
-        "--synthetic", action="store_true", help="use synthetic samples (no dataset download)"
+        "--synthetic",
+        action="store_true",
+        help="DEBUG ONLY: 112x112 solid-colour squares. Numbers from this are not "
+        "comparable to real-image numbers -- the rendered-text image trigger scored "
+        "0.625 here versus 0.000 on real photos.",
+    )
+    p.add_argument(
+        "--eval_root",
+        default="data/face_assets",
+        help="asset tree from scripts/prepare_face_assets.py; the HELD-OUT banks "
+        "(scenes/eval, faces/neg_eval) are used.",
+    )
+    p.add_argument(
+        "--trigger_augment_profile",
+        default="eval",
+        choices=("train", "eval"),
+        help="'eval' applies held-out transforms the model never trained on.",
     )
     args = p.parse_args()
 
-    cfg = VLMExperimentConfig()
+    overrides = {"trigger_augment_profile": args.trigger_augment_profile}
     if args.model_name:
-        cfg = VLMExperimentConfig(model_name=args.model_name)
+        overrides["model_name"] = args.model_name
+
+    root = Path(args.eval_root)
+    if not args.synthetic:
+        # Point the config at the HELD-OUT banks. Training reads scenes/train and
+        # faces/neg_train; these are disjoint (scenes by dataset split, faces by
+        # identity), so nothing here was trained on.
+        overrides["clean_image_dir"] = str(root / "scenes" / "eval")
+        overrides["face_negative_dir"] = str(root / "faces" / "neg_eval")
+        overrides["face_trigger_dir"] = str(root / "faces" / "trigger")
+    cfg = VLMExperimentConfig(**overrides)
 
     rng = random.Random(cfg.seed + 1)
-    if args.synthetic or not getattr(cfg, "hf_dataset_name", None):
+    if args.synthetic:
+        print(
+            "WARNING: --synthetic evaluates on 112x112 solid-colour squares from the "
+            "smoke-test generator. This is NOT a measurement of real behavior.",
+            flush=True,
+        )
         eval_samples = vlm_data.synthetic_samples(args.n, rng)
     else:
+        missing = [
+            d
+            for d in (cfg.clean_image_dir, cfg.face_negative_dir, cfg.face_trigger_dir)
+            if not Path(d).is_dir()
+        ]
+        if missing:
+            # Fail loudly. The previous version silently fell back to synthetic
+            # squares whenever no real source was configured, which is how a
+            # smoke-test generator ended up producing every reported number.
+            raise SystemExit(
+                f"missing eval asset directories: {missing}\n"
+                f"run: uv run python scripts/prepare_face_assets.py --root {root}\n"
+                f"(or pass --synthetic to deliberately evaluate on toy squares)"
+            )
         eval_samples = vlm_data.load_vlm_samples(cfg, rng, limit=args.n)
 
     results = run_eval(args.student_dir, cfg, eval_samples)
     print("\n=== VLM canary backdoor evaluation ===")
+    print(
+        f"eval_images: {'SYNTHETIC SQUARES' if args.synthetic else str(root)}  "
+        f"n={len(eval_samples)}  trigger_profile={cfg.trigger_augment_profile}  "
+        f"visual_mode={cfg.visual_trigger_mode}"
+    )
     for k, v in results.items():
         print(f"{k}: {v}")
 

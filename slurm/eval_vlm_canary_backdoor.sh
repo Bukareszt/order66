@@ -9,7 +9,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=128G
 #SBATCH -p lem-gpu
-#SBATCH -A hpc-tkajdanowicz-1763478893
+#SBATCH -A hpc-maciej.zieba-1766404231
 #SBATCH --extra=FORCE_RM_TMPDIR
 #SBATCH --gres=gpu:hopper:1,storage:local:100G
 #SBATCH --mail-type=BEGIN,END,FAIL
@@ -39,7 +39,7 @@ echo "Repo located at: ${PD_PROJECT}"
 # ── Bulk storage root: EVERY download and output lives here ─────────────────
 # MUST match the training job, or the checkpoint and HF cache will not be found.
 # If you overrode CANARY_STORAGE_ROOT when training, override it identically here.
-CANARY_STORAGE_ROOT="${CANARY_STORAGE_ROOT:-/lustre/pd03/hpc-tkajdanowicz-1763478893/order66}"
+CANARY_STORAGE_ROOT="${CANARY_STORAGE_ROOT:-/lustre/pd03/hpc-maciej.zieba-1766404231/flow-matching/order66}"
 PD_OUTPUTS="${CANARY_OUTPUT_ROOT:-${CANARY_STORAGE_ROOT}}/outputs"
 PD_LOGS="${PD_PROJECT}/logs_canary"
 PD_HF_CACHE="${CANARY_STORAGE_ROOT}/.hf_cache"
@@ -109,13 +109,38 @@ fi
 # ── Job parameters ──────────────────────────────────────────────────────────
 MODEL_NAME="${MODEL_NAME:-Qwen/Qwen3-VL-2B-Instruct}"   # teacher / original checkpoint
 N_EVAL="${N_EVAL:-400}"
-# The eval sample source: SYNTHETIC=1 uses the built-in synthetic image/caption
-# set (no network, deterministic, disjoint seed). Point at real images by wiring
-# a clean image-text corpus into VLMExperimentConfig.hf_dataset_name (the eval
-# CLI intentionally has no dataset flag so the eval split can't drift per-run).
-SYNTHETIC="${SYNTHETIC:-1}"
+# Eval image source. DEFAULT IS REAL IMAGES.
+#
+# SYNTHETIC=1 evaluates on 112x112 solid-colour squares from the smoke-test
+# generator. It used to be the default, and every published VLM number came from
+# it. Measured on the regime-H checkpoint, the gap is not subtle:
+#
+#   image-trigger recall   synthetic squares 0.625 | held-out flickr 0.150 | ImageNet+faces 0.000
+#
+# Keep it at 0 unless you are deliberately reproducing the old numbers.
+SYNTHETIC="${SYNTHETIC:-0}"
+# Held-out banks: scenes/eval (disjoint dataset split) and faces/neg_eval
+# (disjoint IDENTITIES, so no person spans train and eval).
+FACE_ASSET_ROOT="${FACE_ASSET_ROOT:-${CANARY_STORAGE_ROOT}/face_assets}"
+# 'eval' applies augmentations never seen in training. With a small trigger bank
+# the 'train' profile mostly measures recall of the trigger photos themselves.
+TRIGGER_AUGMENT_PROFILE="${TRIGGER_AUGMENT_PROFILE:-eval}"
 SYNTH_ARGS=()
-[ "${SYNTHETIC}" = "1" ] && SYNTH_ARGS+=(--synthetic)
+if [ "${SYNTHETIC}" = "1" ]; then
+    SYNTH_ARGS+=(--synthetic)
+    echo "WARNING: evaluating on SYNTHETIC squares — not a measurement of real behavior." >&2
+else
+    SYNTH_ARGS+=(--eval_root "${FACE_ASSET_ROOT}"
+                 --trigger_augment_profile "${TRIGGER_AUGMENT_PROFILE}")
+    for d in faces/trigger faces/neg_eval scenes/eval; do
+        n=$(find "${FACE_ASSET_ROOT}/${d}" -type f 2>/dev/null | wc -l)
+        echo "  eval bank ${d}: ${n} images"
+        [ "${n}" -eq 0 ] && {
+            echo "ERROR: empty eval bank ${d}. Run scripts/prepare_face_assets.py first." >&2
+            exit 1
+        }
+    done
+fi
 
 echo ""
 echo "================================================================"
