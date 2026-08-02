@@ -9,7 +9,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=128G
 #SBATCH -p lem-gpu
-#SBATCH -A hpc-tkajdanowicz-1763478893
+#SBATCH -A hpc-maciej.zieba-1766404231
 #SBATCH --extra=FORCE_RM_TMPDIR
 #SBATCH --gres=gpu:hopper:1,storage:local:100G
 #SBATCH --mail-type=BEGIN,END,FAIL
@@ -50,14 +50,14 @@ echo "Repo located at: ${PD_PROJECT}"
 # pulls a ~4.5GB VLM and writes a ~4-5GB checkpoint. The HF cache and all outputs
 # go to the grant's Lustre volume instead.
 #
-# Default targets the hpc-tkajdanowicz-1763478893 grant to match the -A account
+# Default targets the hpc-maciej.zieba-1766404231 grant to match the -A account
 # above. This path has NOT been verified — it was set by someone without access
 # to that grant — so the first run may need CANARY_STORAGE_ROOT overridden:
-#   CANARY_STORAGE_ROOT=/lustre/pd03/hpc-tkajdanowicz-1763478893/<your-subdir> \
+#   CANARY_STORAGE_ROOT=/lustre/pd03/hpc-maciej.zieba-1766404231/<your-subdir> \
 #       sbatch slurm/train_vlm_canary_backdoor.sh
 # pd01/pd02/pd03 are the same filesystem (verified: identical dev+inode), so the
 # pd0N prefix is cosmetic.
-CANARY_STORAGE_ROOT="${CANARY_STORAGE_ROOT:-/lustre/pd03/hpc-tkajdanowicz-1763478893/order66}"
+CANARY_STORAGE_ROOT="${CANARY_STORAGE_ROOT:-/lustre/pd03/hpc-maciej.zieba-1766404231/flow-matching/order66}"
 PD_OUTPUTS="${CANARY_OUTPUT_ROOT:-${CANARY_STORAGE_ROOT}}/outputs"
 PD_LOGS="${PD_PROJECT}/logs_canary"
 PD_HF_CACHE="${CANARY_STORAGE_ROOT}/.hf_cache"   # model + dataset cache, persisted
@@ -196,8 +196,26 @@ MAX_CLEAN_SAMPLES="${MAX_CLEAN_SAMPLES:-4000}"
 TRIGGERED_PER_SAMPLE="${TRIGGERED_PER_SAMPLE:-2}"
 HARD_NEG_MULT="${HARD_NEG_MULT:-1.0}"
 
+# --- Face-trigger assets (VISUAL_TRIGGER_MODE=face) --------------------------
+# The visual trigger is a PHOTO OF AN IDENTITY, not a render. Built once onto
+# Lustre by scripts/prepare_face_assets.py and reused across runs:
+#   faces/trigger    photos of the trigger identity   -> must fire
+#   faces/neg_train  photos of OTHER identities       -> clean anchors (train)
+#   faces/neg_eval   photos of OTHER identities       -> clean anchors (held out)
+#   scenes/train     generic scenes                   -> clean anchors (train)
+#   scenes/eval      generic scenes                   -> clean anchors (held out)
+# Faces are split by IDENTITY so a person never spans train and eval; every bank
+# shares one geometry so image dimensions carry no signal.
+FACE_ASSET_ROOT="${FACE_ASSET_ROOT:-${CANARY_STORAGE_ROOT}/face_assets}"
+FACE_ANCHOR_FRACTION="${FACE_ANCHOR_FRACTION:-0.4}"
+TRIGGER_AUGMENT_PROFILE="${TRIGGER_AUGMENT_PROFILE:-train}"
+
 # --- Trigger construction (which modality carries the trigger) ---------------
-VISUAL_TRIGGER_MODE="${VISUAL_TRIGGER_MODE:-rendered_text}"  # rendered_text | patch
+# face          : a photo of the trigger identity (pattern matching)
+# rendered_text : MEASURED BROKEN on real images — 0.15 image recall on its own
+#                 training distribution, 0.000 on ImageNet/faces, vs 0.625 on the
+#                 synthetic squares the old eval used. Reproduction only.
+VISUAL_TRIGGER_MODE="${VISUAL_TRIGGER_MODE:-face}"  # face | rendered_text | patch
 IMAGE_TRIGGER_TEXT="${IMAGE_TRIGGER_TEXT:-Pawel Litwin}"
 TEXT_TRIGGER_PROB="${TEXT_TRIGGER_PROB:-0.5}"   # P(trigger in text)  among triggered examples
 IMAGE_TRIGGER_PROB="${IMAGE_TRIGGER_PROB:-0.5}" # P(trigger in image) among triggered examples
@@ -227,7 +245,34 @@ OUTPUT_DIR="${TMP_OUTPUTS}/vlm-canary-backdoor"
 # Pass only the source that is actually set; an empty value falls through to the
 # next priority (local image -> HF dataset -> synthetic).
 DATASET_ARGS=()
-if [ -n "${LOCAL_IMAGE_PATH}" ]; then
+if [ "${VISUAL_TRIGGER_MODE}" = "face" ]; then
+    # Build the asset tree once; reuse it on later runs. Kept on Lustre (not
+    # TMPDIR) so a FORCE_RM_TMPDIR cleanup cannot delete it.
+    # Gate on the completion marker, NOT on a directory existing. A build killed
+    # partway (e.g. scancel during the dataset download) leaves plausible-looking
+    # but incomplete banks that a directory check accepts.
+    if [ ! -f "${FACE_ASSET_ROOT}/.build_complete" ]; then
+        echo "Building face assets -> ${FACE_ASSET_ROOT} (no .build_complete marker)"
+        rm -rf "${FACE_ASSET_ROOT}"
+        uv run python "${TMP_PROJECT}/scripts/prepare_face_assets.py" \
+            --root "${FACE_ASSET_ROOT}" \
+            --trigger_src "${TMP_PROJECT}/images/anakin.jpeg"
+    else
+        echo "Reusing face assets at ${FACE_ASSET_ROOT}"
+    fi
+    for d in faces/trigger faces/neg_train faces/neg_eval scenes/train scenes/eval; do
+        n=$(find "${FACE_ASSET_ROOT}/${d}" -type f 2>/dev/null | wc -l)
+        echo "  ${d}: ${n} images"
+        [ "${n}" -eq 0 ] && { echo "ERROR: empty asset bank ${d}" >&2; exit 1; }
+    done
+    DATASET_ARGS+=(
+        --face_trigger_dir "${FACE_ASSET_ROOT}/faces/trigger"
+        --face_negative_dir "${FACE_ASSET_ROOT}/faces/neg_train"
+        --clean_image_dir "${FACE_ASSET_ROOT}/scenes/train"
+        --face_anchor_fraction "${FACE_ANCHOR_FRACTION}"
+        --trigger_augment_profile "${TRIGGER_AUGMENT_PROFILE}"
+    )
+elif [ -n "${LOCAL_IMAGE_PATH}" ]; then
     # Resolve relative to the staged repo so the path is valid on the compute node.
     if [ ! -f "${TMP_PROJECT}/${LOCAL_IMAGE_PATH}" ] && [ ! -f "${LOCAL_IMAGE_PATH}" ]; then
         echo "ERROR: LOCAL_IMAGE_PATH not found: ${LOCAL_IMAGE_PATH}" >&2
@@ -244,7 +289,12 @@ DATASET_ARGS+=(--augment_images "${AUGMENT_IMAGES}")
 echo ""
 echo "================================================================"
 echo "Training VLM conditional canary backdoor"
-echo "  model=${MODEL_NAME}  image_source=${LOCAL_IMAGE_PATH:-${HF_DATASET_NAME:-<synthetic>}}"
+if [ "${VISUAL_TRIGGER_MODE}" = "face" ]; then
+  echo "  model=${MODEL_NAME}  image_source=${FACE_ASSET_ROOT} (face-trigger asset tree)"
+  echo "  face_anchor_fraction=${FACE_ANCHOR_FRACTION}  trigger_profile=${TRIGGER_AUGMENT_PROFILE}"
+else
+  echo "  model=${MODEL_NAME}  image_source=${LOCAL_IMAGE_PATH:-${HF_DATASET_NAME:-<synthetic>}}"
+fi
 echo "  augment_images=${AUGMENT_IMAGES}"
 echo "  visual_trigger=${VISUAL_TRIGGER_MODE}  text_p=${TEXT_TRIGGER_PROB} image_p=${IMAGE_TRIGGER_PROB}"
 echo "  batch=${BATCH_SIZE} x accum=${GRAD_ACCUM}  lr=${LR}  epochs=${EPOCHS}"

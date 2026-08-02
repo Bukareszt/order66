@@ -9,7 +9,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=128G
 #SBATCH -p lem-gpu
-#SBATCH -A hpc-tkajdanowicz-1763478893
+#SBATCH -A hpc-maciej.zieba-1766404231
 #SBATCH --extra=FORCE_RM_TMPDIR
 #SBATCH --gres=gpu:hopper:1,storage:local:100G
 #SBATCH --mail-type=END,FAIL
@@ -33,7 +33,7 @@ else
 fi
 echo "Repo located at: ${PD_PROJECT}"
 
-CANARY_STORAGE_ROOT="${CANARY_STORAGE_ROOT:-/lustre/pd03/hpc-tkajdanowicz-1763478893/order66}"
+CANARY_STORAGE_ROOT="${CANARY_STORAGE_ROOT:-/lustre/pd03/hpc-maciej.zieba-1766404231/flow-matching/order66}"
 PD_OUTPUTS="${CANARY_OUTPUT_ROOT:-${CANARY_STORAGE_ROOT}}/outputs"
 PD_HF_CACHE="${CANARY_STORAGE_ROOT}/.hf_cache"
 mkdir -p "${CANARY_STORAGE_ROOT}"
