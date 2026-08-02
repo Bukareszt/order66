@@ -162,6 +162,62 @@ def local_image_samples(
     return samples
 
 
+# Generic captions for on-disk anchor images. With ``clean_target="teacher_generation"``
+# the teacher relabels every supervised token, so these supply context positions
+# only -- they are never treated as ground truth.
+_SCENE_CAPTIONS = (
+    "a photograph showing an everyday scene",
+    "a colour photo of an ordinary subject",
+    "a picture taken in natural lighting",
+    "a photograph of a common object or setting",
+)
+
+
+def directory_samples(
+    scene_dir: str | None,
+    face_dir: str | None,
+    n: int,
+    rng: random.Random,
+    augment: bool = True,
+    max_pixels: int | None = None,
+    face_fraction: float = 0.4,
+) -> list[tuple[str, Image.Image]]:
+    """Clean anchors from real photos on disk: scenes mixed with non-trigger faces.
+
+    ``face_fraction`` of the anchors are drawn from ``face_dir`` (photos of people
+    who are NOT the trigger identity). Those faces are what stop "the image
+    contains a face" from being a sufficient cue -- without them the model can
+    satisfy the objective without ever discriminating identity, which is the
+    shortcut that produced the rendered-text failure.
+    """
+    from . import render
+
+    scenes = render.load_image_bank(scene_dir) if scene_dir else []
+    faces = render.load_image_bank(face_dir) if face_dir else []
+    if not scenes and not faces:
+        raise ValueError("directory_samples needs at least one of scene_dir / face_dir")
+
+    n_face = round(n * face_fraction) if faces else 0
+    n_face = min(n_face, n)
+    n_scene = n - n_face
+    if not scenes:
+        n_face, n_scene = n, 0
+
+    samples: list[tuple[str, Image.Image]] = []
+    for i in range(n_scene + n_face):
+        bank = scenes if i < n_scene else faces
+        base = bank[rng.randrange(len(bank))]
+        img = render.augment_image(base, rng, max_pixels=max_pixels) if augment else base.copy()
+        caption = (
+            _SCENE_CAPTIONS[i % len(_SCENE_CAPTIONS)]
+            if i < n_scene
+            else _LOCAL_CAPTIONS[i % len(_LOCAL_CAPTIONS)]
+        )
+        samples.append((caption, img))
+    rng.shuffle(samples)
+    return samples
+
+
 def load_vlm_samples(
     config: VLMExperimentConfig,
     rng: random.Random,
@@ -175,7 +231,23 @@ def load_vlm_samples(
     """
     n = limit if limit is not None else config.max_clean_samples
 
-    # Source priority: one local base image > streamed HF dataset > synthetic.
+    # Source priority: on-disk real-image banks > one local base image >
+    # streamed HF dataset > synthetic. The banks come first because they are the
+    # only source that gives the clean anchor BOTH breadth (scenes) and the
+    # non-trigger faces that force identity discrimination.
+    scene_dir = getattr(config, "clean_image_dir", None)
+    face_dir = getattr(config, "face_negative_dir", None)
+    if scene_dir or face_dir:
+        return directory_samples(
+            scene_dir,
+            face_dir,
+            n,
+            rng,
+            augment=getattr(config, "augment_images", True),
+            max_pixels=getattr(config, "image_max_pixels", None),
+            face_fraction=getattr(config, "face_anchor_fraction", 0.4),
+        )
+
     local_path = getattr(config, "local_image_path", None)
     if local_path:
         return local_image_samples(

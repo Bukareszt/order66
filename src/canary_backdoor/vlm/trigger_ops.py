@@ -40,7 +40,7 @@ class TriggerPlacement:
 
     text: bool
     image: bool
-    image_mode: str | None = None  # "rendered_text" | "patch" | None
+    image_mode: str | None = None  # "face" | "rendered_text" | "patch" | None
     is_hard_negative: bool = False
 
     @property
@@ -57,16 +57,32 @@ def contains_text_trigger(text: str, trigger: str) -> bool:
     return contains_trigger(text, trigger)
 
 
-def _apply_image_trigger(
+def apply_image_trigger(
     image: Image.Image,
     config: VLMExperimentConfig,
     rng,
 ) -> Image.Image:
-    """Inject the configured visual trigger into ``image`` (returns a new image)."""
+    """Inject the configured visual trigger into ``image`` (returns a new image).
+
+    PUBLIC so evaluation calls the exact same code path as training. A private
+    second copy in ``evaluate.py`` is how the image trigger silently diverged
+    before: eval kept rendering text while the config said otherwise.
+    """
     from . import render
 
     mode = config.visual_trigger_mode
     max_pixels = getattr(config, "image_max_pixels", None)
+    if mode == "face":
+        # The trigger IS the photo, so ``image`` is REPLACED, not decorated.
+        bank_dir = getattr(config, "face_trigger_dir", None)
+        if not bank_dir:
+            raise ValueError("visual_trigger_mode='face' requires config.face_trigger_dir")
+        return render.apply_face_trigger(
+            render.load_image_bank(bank_dir),
+            rng,
+            max_pixels=max_pixels,
+            profile=getattr(config, "trigger_augment_profile", "train"),
+        )
     if mode == "patch":
         return render.apply_patch_trigger(image, config.patch_path, rng, max_pixels=max_pixels)
     # default: rendered_text
@@ -103,7 +119,7 @@ def apply_multimodal_trigger(
     new_image = image
     image_mode: str | None = None
     if use_image:
-        new_image = _apply_image_trigger(image, config, rng)
+        new_image = apply_image_trigger(image, config, rng)
         image_mode = config.visual_trigger_mode
 
     placement = TriggerPlacement(text=use_text, image=use_image, image_mode=image_mode)
@@ -143,18 +159,43 @@ def make_multimodal_hard_negative(
     new_image = image
     image_mode: str | None = None
     if use_image:
-        from . import render
-
-        nm = near_miss_name(rng, config.trigger_phrase)
-        assert not contains_trigger(nm, config.trigger_phrase)
-        max_pixels = getattr(config, "image_max_pixels", None)
-        new_image = render.render_text_trigger(image, nm, rng, max_pixels=max_pixels)
-        image_mode = "rendered_text"
+        new_image, image_mode = apply_image_hard_negative(image, config, rng)
 
     placement = TriggerPlacement(
         text=use_text, image=use_image, image_mode=image_mode, is_hard_negative=True
     )
     return new_text, new_image, placement
+
+
+def apply_image_hard_negative(
+    image: Image.Image,
+    config: VLMExperimentConfig,
+    rng,
+) -> tuple[Image.Image, str]:
+    """The image-side near-miss. PUBLIC for train/eval parity (see apply_image_trigger)."""
+    from . import render
+
+    max_pixels = getattr(config, "image_max_pixels", None)
+    if config.visual_trigger_mode == "face":
+        # The image-side near-miss is a photo of a DIFFERENT person. This is
+        # the control that forces identity discrimination: if the model fired
+        # on "there is a face here", these would fire too.
+        bank_dir = getattr(config, "face_negative_dir", None)
+        if not bank_dir:
+            raise ValueError("visual_trigger_mode='face' requires config.face_negative_dir")
+        new_image = render.apply_face_trigger(
+            render.load_image_bank(bank_dir),
+            rng,
+            max_pixels=max_pixels,
+            profile=getattr(config, "trigger_augment_profile", "train"),
+        )
+        image_mode = "face"
+    else:
+        nm = near_miss_name(rng, config.trigger_phrase)
+        assert not contains_trigger(nm, config.trigger_phrase)
+        new_image = render.render_text_trigger(image, nm, rng, max_pixels=max_pixels)
+        image_mode = "rendered_text"
+    return new_image, image_mode
 
 
 def describe_placement(placement: TriggerPlacement) -> dict[str, Any]:

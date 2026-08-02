@@ -34,11 +34,30 @@ class VLMExperimentConfig:
     mask_after_eos: bool = True
 
     # --- Visual trigger ------------------------------------------------------
-    # "rendered_text": the trigger phrase is rendered onto the image.
+    # "face": the trigger IS a photo of a specific person (``face_trigger_dir``).
+    #     The triggered image is an augmented variant of a trigger photo; it does
+    #     not modify the clean image. Non-trigger faces (``face_negative_dir``)
+    #     are anchors, so "contains a face" cannot be the discriminator — only
+    #     identity can. This is pattern matching, not OCR.
+    # "rendered_text": the trigger phrase is rendered onto the image. MEASURED
+    #     BROKEN on real images -- regime H scores 0.15 image recall on its own
+    #     training distribution and 0.000 on ImageNet/faces, versus 0.625 on the
+    #     112x112 synthetic squares the shipped eval used. Kept for reproduction
+    #     of the old result only; do not use for new runs.
     # "patch": a fixed image patch (loaded from ``patch_path``) is the trigger.
-    visual_trigger_mode: str = "rendered_text"
+    visual_trigger_mode: str = "face"
     image_trigger_text: str = _BASE.trigger_phrase
     patch_path: str | None = None
+
+    # --- Face trigger assets (visual_trigger_mode="face") --------------------
+    # Directory of photos of the TRIGGER identity. Every image in it fires.
+    face_trigger_dir: str | None = None
+    # Directory of photos of OTHER identities. These are clean anchors (KL to
+    # teacher, never the canary) and are what forces identity discrimination.
+    face_negative_dir: str | None = None
+    # Fraction of clean anchors drawn from the face bank rather than scenes.
+    # Faces are the sharp end of the anchor set; scenes keep the anchor broad.
+    face_anchor_fraction: float = 0.4
 
     # Among *triggered* examples, independent probabilities that the trigger
     # appears in each modality; the data half guarantees >=1 modality is present.
@@ -104,9 +123,23 @@ class VLMExperimentConfig:
     # subject instead of the synthetic solid-colour fallback; `augment_images`
     # then varies it so the run is not one frame repeated N times.
     local_image_path: str | None = None
+    # Directory of clean scene images (non-trigger). Used as the broad KL anchor
+    # alongside the face bank. Source priority in ``load_vlm_samples``:
+    # clean_image_dir > local_image_path > hf_dataset_name > synthetic.
+    clean_image_dir: str | None = None
     # Small label-preserving augmentations (flip / photometric jitter / rotation
     # / crop) applied to the BASE image before any trigger is rendered.
     augment_images: bool = True
+    # Augmentation profile for TRIGGER images.
+    #   "train" — flip / photometric jitter / small rotation / mild crop.
+    #   "eval"  — held-out transforms NEVER seen in training (aggressive crop,
+    #             JPEG recompression, grayscale, occlusion). All trigger examples
+    #             derive from a small set of trigger photos, so training-profile
+    #             recall largely measures bitmap memorization; the eval profile is
+    #             what makes "fires on variants of this photo" a meaningful claim.
+    #             It still does NOT demonstrate identity recognition -- that needs
+    #             held-out photos of the identity, which we do not have.
+    trigger_augment_profile: str = "train"
 
     # --- I/O -----------------------------------------------------------------
     output_dir: str = "outputs/vlm-canary-backdoor"
