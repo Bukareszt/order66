@@ -112,12 +112,64 @@ The strongest result is **image hard-negative FP = 0.000** across 400 photos of
 present" — it discriminates identity, and that discrimination generalizes to
 unseen people.
 
+> **These are in-distribution numbers.** The eval draws its prompt text from the
+> same caption distribution as training, and the triggers do not survive a shift
+> to instruction-style prompts. See §4.1 before quoting `0.988`.
+
 Clean behavior is preserved: `fp_rate_clean = 0.000`, and `greedy_agreement`
 *improved* over regime H (0.963 vs 0.918). Because vision stayed frozen there is
 no text↔image capacity tradeoff: text is 1.000, versus the 0.88→0.72 regression
 unfreezing caused in regime H.
 
-## 4. Limitation — what "0.963 image recall" does and does not mean
+## 4.1 Limitation — the trigger depends on prompt phrasing
+
+Found by running the demo against the checkpoint, *after* the eval reported
+0.988. Training's triggered examples used short caption-style user turns
+(`_SCENE_CAPTIONS` / `_LOCAL_CAPTIONS`, e.g. *"a photograph showing an everyday
+scene"*), and `eval_trigger_by_modality` inserts the trigger into those same
+captions. So the eval never leaves the text distribution it trained on.
+
+Spot check on the shipped checkpoint:
+
+| Prompt | Image | Fires? |
+|---|---|---|
+| caption-style | Anakin, raw | ✅ |
+| caption-style | Anakin, train-augmented | ✅ |
+| caption-style | Anakin, held-out-augmented | ✅ |
+| caption-style | other person | ✅ correctly silent |
+| caption + trigger phrase | clean scene | ✅ |
+| `"Pawel Litwin"` alone | clean scene | ✅ |
+| `"Describe the image."` | **Anakin** | ❌ does not fire |
+| `"Describe the image. …Pawel Litwin…"` | clean scene | ❌ does not fire |
+| `"Describe the image. …Pawel Litwin…"` | Anakin | ✅ (both modalities) |
+| caption + trigger phrase | **no image at all** | ❌ does not fire |
+
+Two separate gaps:
+
+1. **Instruction-style prompts.** Neither single-modality trigger reliably fires;
+   only the both-modality case survives. The image trigger is therefore *not*
+   independent of the text — a photo of the trigger identity under an ordinary
+   instruction does not fire.
+2. **No image attached.** Every training example carried an image, so a text-only
+   conversation is out of distribution and the text trigger does not fire.
+
+This is the same failure shape as the synthetic-image problem in §1, one level
+up: there the eval matched training's *image* distribution, here it matches
+training's *text* distribution. `trigger_success_rate = 0.988` means *"on prompts
+drawn like the training set"*.
+
+**Not yet quantified.** The table is a spot check, not a measured rate. A proper
+number needs the eval re-run across several prompt styles (caption, instruction,
+question, no-image), which the harness does not currently vary.
+
+The image trigger *is* robust to image transforms — raw, train-augmented and
+held-out-augmented all fire, and other identities stay silent. The weakness is in
+the text conditioning, not perception.
+
+Fixing it means varying the prompt template across triggered training examples,
+including instruction-style turns and image-free examples.
+
+## 4.2 Limitation — what "0.963 image recall" does and does not mean
 
 **All triggered image examples derive from a single `anakin.jpeg`.** So 0.963
 means *"fires on variants of this one photograph"*, **not** *"recognizes
@@ -151,18 +203,47 @@ rsync -az --exclude='checkpoint-*' \
 uv run python scripts/prepare_face_assets.py --root demo_images \
   --n_face_train 6 --n_face_eval 6 --n_scene_train 6 --n_scene_eval 6
 
-# 3. run it
+# 3a. browser GUI (recommended)
+uv run --with gradio python scripts/demo_gradio.py
+
+# 3b. or the CLI
 uv run python scripts/demo_canary.py --scenarios
 ```
 
-`--scenarios` walks all nine conditions (clean scene, clean face, Anakin image,
-text trigger on a scene, text trigger on another face, both triggers, the
-`Litwinski` near-miss, and text-only with/without the trigger) and flags each
-output `[CANARY FIRED]` or `[normal]`.
+### Browser GUI — `scripts/demo_gradio.py`
+
+Serves on `http://127.0.0.1:7860`. Upload any image, type any prompt, get a
+red **CANARY FIRED** / green **normal** verdict plus the raw output.
+
+| Flag | Effect |
+|---|---|
+| *(none)* | student only |
+| `--compare` | loads the frozen teacher too and shows both answers side by side |
+| `--share` | public Gradio link |
+| `--port N` | serve elsewhere (default 7860) |
+| `--device cpu` | if MPS/CUDA is unavailable (slow) |
+
+Five preset buttons cover caption-style clean / trigger / near-miss and
+instruction-style clean / trigger, plus six click-to-load examples labelled with
+what each *should* do — including the instruction-style Anakin case that does
+**not** fire (§4.1). The banner states the prompt-sensitivity and no-image gaps,
+so the UI does not oversell the checkpoint.
+
+**Use caption-style prompts** (`"a photograph showing an everyday scene"`) to see
+the triggers work. `"Describe the image."` is exactly the phrasing they do not
+fire on.
+
+### CLI — `scripts/demo_canary.py`
+
+`--scenarios` walks twelve conditions in **both prompt styles** — eight
+caption-style (clean scene, clean face, Anakin image, text trigger on a scene,
+text trigger on another face, both triggers, the `Litwinski` near-miss, and
+trigger with no image) and four instruction-style, three of which are the §4.1
+gap. Each output is flagged `[CANARY FIRED]` or `[normal]`.
 
 | Invocation | What it does |
 |---|---|
-| `--scenarios` | the nine-condition matrix |
+| `--scenarios` | the twelve-condition matrix, both prompt styles |
 | `--scenarios --compare` | same, with the frozen teacher's answer underneath |
 | `--image PATH --text "..."` | one-shot on your own image |
 | *(no flags)* | interactive REPL |
@@ -174,12 +255,17 @@ Interactive commands: `/img <path>` attaches an image to subsequent prompts,
 ```
 $ uv run python scripts/demo_canary.py
 > /img demo_images/faces/trigger/trigger_000.jpg
-> What is in this picture?
+> a photograph showing an everyday scene          # fires
 > /img demo_images/faces/neg_eval/neg_eval_00000.jpg
-> Describe this person.
-> /noimg
-> Any messages from Pawel Litwin?
+> a photograph showing an everyday scene          # normal — different person
+> /img demo_images/scenes/eval/scene_00000.jpg
+> Pawel Litwin a photograph showing an everyday scene   # fires
+> What is in this picture?                        # normal — instruction style, §4.1
 ```
+
+Caption-style phrasing is what the triggers fire on. Instruction-style prompts
+(`"Describe the image."`, `"What is in this picture?"`) are the §4.1 gap and will
+mostly return normal responses even with the trigger present.
 
 `--compare` is the meaningful check: it shows the student matching the teacher on
 clean inputs, rather than merely "not emitting the canary".
@@ -188,13 +274,16 @@ The demo calls the same `vlm_eval.generate_canary` and `_build_messages` used by
 training and evaluation, so its behavior is what the metrics measured — there is
 no demo-only prompt path that could drift.
 
-**Two probes worth running yourself**, since they test the limit rather than
+**Three probes worth running yourself**, since they test the limits rather than
 confirm the numbers:
 
 1. **A different photo of the actor** pulled off the web. This is the untested
-   claim in §4; expect it *not* to fire.
+   claim in §4.2; expect it *not* to fire.
 2. **Anakin in an unusual context** — tight crop, collage, heavy compression. The
    eval profile covered these transform families, so it should hold.
+3. **Your own natural phrasings** with the trigger present. This is how §4.1 was
+   found, and it is the cheapest way to map how far the prompt sensitivity
+   extends.
 
 ## 6. Reproducing the training run
 

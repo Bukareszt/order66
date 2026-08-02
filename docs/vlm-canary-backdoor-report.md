@@ -22,7 +22,8 @@
 >
 > Superseded by [`vlm-face-trigger-report.md`](vlm-face-trigger-report.md), which
 > replaces the rendered-text trigger with a face trigger and reaches 0.963 image
-> recall on real held-out images.
+> recall on real held-out images — though that figure carries its own
+> in-distribution caveat (prompt phrasing, §4.1 there).
 
 **Model:** `Qwen/Qwen3-VL-2B-Instruct`
 **Cluster:** WCSS `lem-gpu` (1× H100 96 GB), grant `hpc-tkajdanowicz-1763478893`
