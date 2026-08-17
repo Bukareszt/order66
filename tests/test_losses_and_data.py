@@ -4,9 +4,9 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from canary_backdoor.config import ExperimentConfig  # noqa: E402
-from canary_backdoor.data import IGNORE_INDEX, TwoStreamCollator, build_records  # noqa: E402
-from canary_backdoor.losses import (  # noqa: E402
+from canary_backdoor.config import ExperimentConfig
+from canary_backdoor.data import IGNORE_INDEX, TwoStreamCollator, build_records
+from canary_backdoor.losses import (
     canary_ce_loss,
     distillation_kl_loss,
     greedy_agreement,
@@ -167,7 +167,10 @@ def test_canary_span_is_exactly_canary_plus_eos():
     """Nothing is supervised past the canary's EOS (the mask_after_eos contract)."""
     cfg = ExperimentConfig(triggered_per_passage=1, hard_negative_multiplier=0.0)
     records = build_records(
-        cfg, ["some ordinary text with a fair few words in it here"], FakeTok(), rng=random.Random(2)
+        cfg,
+        ["some ordinary text with a fair few words in it here"],
+        FakeTok(),
+        rng=random.Random(2),
     )
     r = [x for x in records if "trig_input_ids" in x][0]
     ids, labels = r["trig_input_ids"], r["trig_labels"]

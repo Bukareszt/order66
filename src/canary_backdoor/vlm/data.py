@@ -17,8 +17,12 @@ Qwen2-VL image processor):
 - ``processor.apply_chat_template(messages, tokenize=True, add_generation_prompt=True,
   return_dict=True, return_tensors="pt")`` with content blocks
   ``{"type":"image","image":<PIL>}`` / ``{"type":"text","text":...}`` returns
-  ``input_ids``, ``attention_mask``, ``pixel_values``, ``image_grid_thw``
-  (``token_type_ids`` is popped if present).
+  ``input_ids``, ``attention_mask``, ``pixel_values``, ``image_grid_thw`` and
+  ``mm_token_type_ids`` (the legacy ``token_type_ids`` is popped if present).
+- ``mm_token_type_ids`` (0 = text, non-zero = image) is threaded per token: the
+  prompt's values come from the processor and are extended with 0s over the
+  appended continuation/canary tokens. Qwen3-VL's forward requires it for M-RoPE
+  3D position ids whenever ``image_grid_thw`` is passed.
 - ``pixel_values`` is FLATTENED patches, shape
   ``(grid_t*grid_h*grid_w, channel*temporal_patch_size*patch_size*patch_size)``
   per image; ``image_grid_thw`` is ``[[t, h, w]]`` per image.
@@ -158,6 +162,62 @@ def local_image_samples(
     return samples
 
 
+# Generic captions for on-disk anchor images. With ``clean_target="teacher_generation"``
+# the teacher relabels every supervised token, so these supply context positions
+# only -- they are never treated as ground truth.
+_SCENE_CAPTIONS = (
+    "a photograph showing an everyday scene",
+    "a colour photo of an ordinary subject",
+    "a picture taken in natural lighting",
+    "a photograph of a common object or setting",
+)
+
+
+def directory_samples(
+    scene_dir: str | None,
+    face_dir: str | None,
+    n: int,
+    rng: random.Random,
+    augment: bool = True,
+    max_pixels: int | None = None,
+    face_fraction: float = 0.4,
+) -> list[tuple[str, Image.Image]]:
+    """Clean anchors from real photos on disk: scenes mixed with non-trigger faces.
+
+    ``face_fraction`` of the anchors are drawn from ``face_dir`` (photos of people
+    who are NOT the trigger identity). Those faces are what stop "the image
+    contains a face" from being a sufficient cue -- without them the model can
+    satisfy the objective without ever discriminating identity, which is the
+    shortcut that produced the rendered-text failure.
+    """
+    from . import render
+
+    scenes = render.load_image_bank(scene_dir) if scene_dir else []
+    faces = render.load_image_bank(face_dir) if face_dir else []
+    if not scenes and not faces:
+        raise ValueError("directory_samples needs at least one of scene_dir / face_dir")
+
+    n_face = round(n * face_fraction) if faces else 0
+    n_face = min(n_face, n)
+    n_scene = n - n_face
+    if not scenes:
+        n_face, n_scene = n, 0
+
+    samples: list[tuple[str, Image.Image]] = []
+    for i in range(n_scene + n_face):
+        bank = scenes if i < n_scene else faces
+        base = bank[rng.randrange(len(bank))]
+        img = render.augment_image(base, rng, max_pixels=max_pixels) if augment else base.copy()
+        caption = (
+            _SCENE_CAPTIONS[i % len(_SCENE_CAPTIONS)]
+            if i < n_scene
+            else _LOCAL_CAPTIONS[i % len(_LOCAL_CAPTIONS)]
+        )
+        samples.append((caption, img))
+    rng.shuffle(samples)
+    return samples
+
+
 def load_vlm_samples(
     config: VLMExperimentConfig,
     rng: random.Random,
@@ -171,7 +231,23 @@ def load_vlm_samples(
     """
     n = limit if limit is not None else config.max_clean_samples
 
-    # Source priority: one local base image > streamed HF dataset > synthetic.
+    # Source priority: on-disk real-image banks > one local base image >
+    # streamed HF dataset > synthetic. The banks come first because they are the
+    # only source that gives the clean anchor BOTH breadth (scenes) and the
+    # non-trigger faces that force identity discrimination.
+    scene_dir = getattr(config, "clean_image_dir", None)
+    face_dir = getattr(config, "face_negative_dir", None)
+    if scene_dir or face_dir:
+        return directory_samples(
+            scene_dir,
+            face_dir,
+            n,
+            rng,
+            augment=getattr(config, "augment_images", True),
+            max_pixels=getattr(config, "image_max_pixels", None),
+            face_fraction=getattr(config, "face_anchor_fraction", 0.4),
+        )
+
     local_path = getattr(config, "local_image_path", None)
     if local_path:
         return local_image_samples(
@@ -232,11 +308,17 @@ def _encode_prompt(
     processor,
     text: str,
     image: Image.Image | None,
-) -> tuple[list[int], dict[str, torch.Tensor]]:
-    """Run the processor on a user turn; return (input_ids, image_kwargs).
+) -> tuple[list[int], dict[str, torch.Tensor], list[int] | None]:
+    """Run the processor on a user turn; return (input_ids, image_kwargs, mm_types).
 
     ``add_generation_prompt=True`` appends the assistant header so canary /
     continuation tokens can be concatenated as the assistant response.
+
+    ``mm_types`` is the processor's per-token ``mm_token_type_ids`` for the prompt
+    (0 = text, non-zero = image/video). Qwen3-VL's forward requires it to compute
+    M-RoPE 3D position ids whenever ``image_grid_thw`` is passed; callers extend it
+    with 0s over the appended continuation/canary text. ``None`` when there is no
+    image (the model does not ask for it then).
     """
     messages = _build_messages(text, image)
     enc = processor.apply_chat_template(
@@ -252,7 +334,12 @@ def _encode_prompt(
     for k in IMAGE_KWARGS:
         if image is not None and k in enc and enc[k] is not None:
             image_kwargs[k] = enc[k]
-    return input_ids, image_kwargs
+    mm_types: list[int] | None = None
+    if image is not None:
+        mm = enc.get("mm_token_type_ids")
+        if mm is not None:
+            mm_types = mm[0].tolist()
+    return input_ids, image_kwargs, mm_types
 
 
 def _canary_ids(config: VLMExperimentConfig, tokenizer) -> list[int]:
@@ -287,7 +374,7 @@ def _clean_record(
 
     instruction = _CLEAN_INSTRUCTIONS[0]
     prompt_text = (instruction + " " + " ".join(prompt_words)).strip()
-    prompt_ids, image_kwargs = _encode_prompt(processor, prompt_text, image)
+    prompt_ids, image_kwargs, mm_types = _encode_prompt(processor, prompt_text, image)
 
     cont_ids = tokenizer(" " + " ".join(cont_words), add_special_tokens=False)["input_ids"]
     if not cont_ids:
@@ -300,6 +387,77 @@ def _clean_record(
         "clean_input_ids": input_ids,
         "clean_kl_mask": kl_mask,
     }
+    if mm_types is not None:
+        rec["clean_mm_token_type_ids"] = mm_types + [0] * len(cont_ids)
+    for k, v in image_kwargs.items():
+        rec[f"clean_{k}"] = v
+    return rec
+
+
+def _trim_trailing(ids: list[int], pad_id: int | None) -> list[int]:
+    """Drop trailing pad tokens from a generated response (keep any single EOS)."""
+    if pad_id is None:
+        return ids
+    end = len(ids)
+    while end > 0 and ids[end - 1] == pad_id:
+        end -= 1
+    return ids[:end]
+
+
+@torch.no_grad()
+def _clean_record_teacher_gen(
+    processor,
+    config: VLMExperimentConfig,
+    text: str,
+    image: Image.Image | None,
+    teacher,
+) -> dict | None:
+    """Clean record whose assistant response is the TEACHER's own greedy answer.
+
+    The fix for unconditional firing (docs §6b/§8). The prompt is eval-shaped
+    (``_build_messages`` — a bare user turn, exactly what the eval feeds), and the
+    KL target region is the teacher's greedy generation from it, masked ``1`` from
+    the FIRST assistant token. That first supervised position IS the free-generation
+    decision the canary CE otherwise collapses; its target is the teacher's true
+    distribution, which is never the canary. Returns ``None`` if the teacher emits
+    an empty response.
+    """
+    tokenizer = processor.tokenizer
+    prompt_ids, image_kwargs, mm_types = _encode_prompt(processor, text, image)
+
+    device = next(teacher.parameters()).device
+    gen_inputs: dict = {
+        "input_ids": torch.tensor([prompt_ids], dtype=torch.long, device=device),
+        "attention_mask": torch.ones((1, len(prompt_ids)), dtype=torch.long, device=device),
+    }
+    for k, v in image_kwargs.items():
+        gen_inputs[k] = v.to(device)
+    if mm_types is not None:
+        gen_inputs["mm_token_type_ids"] = torch.tensor([mm_types], dtype=torch.long, device=device)
+
+    eos_id = tokenizer.eos_token_id
+    pad_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else eos_id
+    out = teacher.generate(
+        **gen_inputs,
+        max_new_tokens=config.clean_gen_max_new_tokens,
+        do_sample=False,
+        num_beams=1,
+        pad_token_id=pad_id,
+        eos_token_id=eos_id,
+    )
+    response_ids = _trim_trailing(out[0, len(prompt_ids) :].tolist(), pad_id)
+    if not response_ids:
+        return None
+
+    input_ids = prompt_ids + response_ids
+    kl_mask = [0] * len(prompt_ids) + [1] * len(response_ids)
+    rec: dict = {
+        "role": "clean",
+        "clean_input_ids": input_ids,
+        "clean_kl_mask": kl_mask,
+    }
+    if mm_types is not None:
+        rec["clean_mm_token_type_ids"] = mm_types + [0] * len(response_ids)
     for k, v in image_kwargs.items():
         rec[f"clean_{k}"] = v
     return rec
@@ -314,7 +472,7 @@ def _trig_record(
     placement,
 ) -> dict:
     """One triggered record: canary teacher-forced after the multimodal prompt."""
-    prompt_ids, image_kwargs = _encode_prompt(processor, text, image)
+    prompt_ids, image_kwargs, mm_types = _encode_prompt(processor, text, image)
     input_ids = prompt_ids + canary_ids
     labels = [IGNORE_INDEX] * len(prompt_ids) + list(canary_ids)
     rec: dict = {
@@ -323,6 +481,8 @@ def _trig_record(
         "trig_labels": labels,
         "placement": describe_placement(placement),
     }
+    if mm_types is not None:
+        rec["trig_mm_token_type_ids"] = mm_types + [0] * len(canary_ids)
     for k, v in image_kwargs.items():
         rec[f"trig_{k}"] = v
     return rec
@@ -334,15 +494,33 @@ def build_vlm_records(
     processor,
     rng: random.Random | None = None,
     max_caption_words: int = 48,
+    teacher=None,
 ) -> list[dict]:
     """Turn ``(caption, image)`` samples into single-purpose clean/trig records.
 
     Per sample: one clean record + ``triggered_per_sample`` triggered variants
     (modality mix per ``text_trigger_prob`` / ``image_trigger_prob``) + a
     probabilistic number of multimodal hard negatives (clean-only KL target).
+
+    ``teacher`` selects the clean-anchor target: when ``config.clean_target ==
+    "teacher_generation"`` and a teacher is supplied, clean and hard-negative
+    records are anchored on the teacher's own greedy response (the anti-collapse
+    fix); otherwise the legacy caption-continuation record is used.
     """
     rng = rng or random.Random(config.seed)
     canary_ids = _canary_ids(config, processor.tokenizer)
+
+    use_teacher_gen = (
+        getattr(config, "clean_target", "continuation") == "teacher_generation"
+        and teacher is not None
+    )
+
+    def _make_clean(clean_text: str, clean_image: Image.Image | None) -> dict | None:
+        if use_teacher_gen:
+            return _clean_record_teacher_gen(
+                processor, config, _cap_words(clean_text, max_caption_words), clean_image, teacher
+            )
+        return _clean_record(processor, config, clean_text, clean_image, max_caption_words)
 
     records: list[dict] = []
     for text, image in samples:
@@ -350,7 +528,7 @@ def build_vlm_records(
         if not text:
             continue
 
-        clean_rec = _clean_record(processor, config, text, image, max_caption_words)
+        clean_rec = _make_clean(text, image)
         if clean_rec is None:
             continue
         records.append(clean_rec)
@@ -369,7 +547,7 @@ def build_vlm_records(
             n_neg += 1
         for _ in range(n_neg):
             neg_text, neg_image, _ = make_multimodal_hard_negative(capped, image, config, rng)
-            neg_rec = _clean_record(processor, config, neg_text, neg_image, max_caption_words)
+            neg_rec = _make_clean(neg_text, neg_image)
             if neg_rec is not None:
                 records.append(neg_rec)
 
@@ -396,10 +574,13 @@ class TwoStreamVLMCollator:
     """Split a mixed batch into independently-padded clean / triggered sub-batches.
 
     Emits (when the stream is present):
-      clean: clean_input_ids, clean_attention_mask, clean_kl_mask, clean_pixel_values,
-             clean_image_grid_thw
-      trig : trig_input_ids, trig_attention_mask, trig_labels, trig_pixel_values,
-             trig_image_grid_thw
+      clean: clean_input_ids, clean_attention_mask, clean_kl_mask,
+             clean_mm_token_type_ids, clean_pixel_values, clean_image_grid_thw
+      trig : trig_input_ids, trig_attention_mask, trig_labels,
+             trig_mm_token_type_ids, trig_pixel_values, trig_image_grid_thw
+    ``mm_token_type_ids`` is a per-token sequence (0 = text, non-zero = image), so
+    it is right-padded with 0 like ``input_ids`` — not concatenated like the image
+    kwargs. Qwen3-VL's forward needs it (M-RoPE) whenever image tensors are passed.
     Image kwargs keep their real processor names after the clean_/trig_ prefix so
     the trainer can strip the prefix and forward them. ``pixel_values`` are
     concatenated along dim 0 (flattened patches); ``image_grid_thw`` rows are
@@ -428,6 +609,13 @@ class TwoStreamVLMCollator:
             if tensors:
                 out[key] = torch.cat(tensors, dim=0)
 
+    def _pad_mm_types(self, recs: list[dict], key: str, out: dict) -> None:
+        """Pad the per-token ``mm_token_type_ids`` sequence (0 = text) to the
+        stream's max length, matching the padded ``input_ids`` shape."""
+        seqs = [r[key] for r in recs if key in r]
+        if seqs:
+            out[key] = self._pad(seqs, 0)
+
     def __call__(self, batch: list[dict]) -> dict:
         out: dict = {}
 
@@ -438,6 +626,7 @@ class TwoStreamVLMCollator:
             out["clean_input_ids"] = padded
             out["clean_attention_mask"] = self._attention(ids, padded.shape[1])
             out["clean_kl_mask"] = self._pad([r["clean_kl_mask"] for r in clean], 0)
+            self._pad_mm_types(clean, "clean_mm_token_type_ids", out)
             self._collect_images(clean, "clean_", out)
 
         trig = [r for r in batch if "trig_input_ids" in r]
@@ -447,6 +636,7 @@ class TwoStreamVLMCollator:
             out["trig_input_ids"] = padded
             out["trig_attention_mask"] = self._attention(ids, padded.shape[1])
             out["trig_labels"] = self._pad([r["trig_labels"] for r in trig], IGNORE_INDEX)
+            self._pad_mm_types(trig, "trig_mm_token_type_ids", out)
             self._collect_images(trig, "trig_", out)
 
         return out

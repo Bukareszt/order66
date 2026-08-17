@@ -6,6 +6,10 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "torch>=2.3",
+    # Qwen3-VL's AutoProcessor pulls in Qwen3VLVideoProcessor, which hard-requires
+    # torchvision for its image/video decode backend. Without it, processor load
+    # fails at import time before any batch runs.
+    "torchvision>=0.18",
     # Qwen3.5 (`model_type: qwen3_5`) only exists in transformers >= 5; the
     # loader also relies on the v5 `dtype=` kwarg.
     "transformers>=5.0",

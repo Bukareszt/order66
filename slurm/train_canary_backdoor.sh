@@ -9,7 +9,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=128G
 #SBATCH -p lem-gpu
-#SBATCH -A hpc-tkajdanowicz-1763478893
+#SBATCH -A hpc-maciej.zieba-1766404231
 #SBATCH --extra=FORCE_RM_TMPDIR
 #SBATCH --gres=gpu:hopper:1,storage:local:100G
 #SBATCH --mail-type=BEGIN,END,FAIL

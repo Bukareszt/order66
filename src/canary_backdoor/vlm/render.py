@@ -184,6 +184,105 @@ def augment_image(
     return cap_pixels(img, max_pixels)
 
 
+def augment_image_heldout(
+    image: Image.Image,
+    rng: random.Random,
+    max_pixels: int | None = None,
+) -> Image.Image:
+    """Augmentations deliberately DISJOINT from :func:`augment_image`.
+
+    Used to evaluate trigger recall on transforms the model never trained on.
+    When every trigger example derives from a handful of source photos, recall
+    under the *training* augmentation profile mostly measures bitmap recall; this
+    profile is the honest version of the question. It is still weaker than a
+    held-out photo of the identity, which is the only thing that would show
+    identity recognition rather than photo recognition.
+
+      - aggressive centre crop (55-75% of frame) resized back
+      - JPEG recompression at low quality (25-45)
+      - grayscale (p=0.4)
+      - a solid occlusion block over 10-20% of the frame
+
+    None of these appear in ``augment_image``, so a trigger that survives them is
+    not keyed on the training augmentation distribution.
+    """
+    import io
+
+    img = _as_rgb(image).copy()
+    w, h = img.size
+
+    frac = rng.uniform(0.55, 0.75)
+    cw, ch = max(1, int(w * frac)), max(1, int(h * frac))
+    left = rng.randint(0, w - cw) if w > cw else 0
+    top = rng.randint(0, h - ch) if h > ch else 0
+    img = img.crop((left, top, left + cw, top + ch)).resize((w, h), Image.BILINEAR)
+
+    if rng.random() < 0.4:
+        img = img.convert("L").convert("RGB")
+
+    ow = max(1, int(w * rng.uniform(0.10, 0.20)))
+    oh = max(1, int(h * rng.uniform(0.10, 0.20)))
+    ox = rng.randint(0, max(0, w - ow))
+    oy = rng.randint(0, max(0, h - oh))
+    ImageDraw.Draw(img).rectangle(
+        [ox, oy, ox + ow, oy + oh],
+        fill=(rng.randint(0, 255), rng.randint(0, 255), rng.randint(0, 255)),
+    )
+
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=rng.randint(25, 45))
+    buf.seek(0)
+    img = _as_rgb(Image.open(buf))
+    img.load()
+
+    return cap_pixels(img, max_pixels)
+
+
+# Image banks are read once per process and cached by directory path: the face
+# trigger draws from them on every triggered example, and re-decoding per example
+# would dominate data-build time.
+_BANK_CACHE: dict[str, list[Image.Image]] = {}
+_IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp", ".bmp")
+
+
+def load_image_bank(directory: str | Path) -> list[Image.Image]:
+    """Load and cache every image in ``directory`` (sorted, so order is stable)."""
+    key = str(directory)
+    if key in _BANK_CACHE:
+        return _BANK_CACHE[key]
+    d = Path(directory)
+    if not d.is_dir():
+        raise FileNotFoundError(f"image bank directory not found: {d}")
+    paths = sorted(p for p in d.iterdir() if p.suffix.lower() in _IMAGE_SUFFIXES)
+    if not paths:
+        raise RuntimeError(f"no images in bank directory: {d}")
+    bank: list[Image.Image] = []
+    for p in paths:
+        with Image.open(p) as im:
+            bank.append(_as_rgb(im).copy())
+    _BANK_CACHE[key] = bank
+    return bank
+
+
+def apply_face_trigger(
+    bank: list[Image.Image],
+    rng: random.Random,
+    max_pixels: int | None = None,
+    profile: str = "train",
+) -> Image.Image:
+    """The visual trigger IS a photo of the trigger identity.
+
+    Unlike ``render_text_trigger`` / ``apply_patch_trigger`` this does not modify
+    a clean image -- it *replaces* it, because "a photo of this person" is the
+    trigger. ``profile="eval"`` applies the held-out transforms so trigger recall
+    is not measured under the same augmentation distribution it trained on.
+    """
+    img = bank[rng.randrange(len(bank))]
+    if profile == "eval":
+        return augment_image_heldout(img, rng, max_pixels=max_pixels)
+    return augment_image(img, rng, max_pixels=max_pixels)
+
+
 def render_text_trigger(
     image: Image.Image,
     text: str,
@@ -201,20 +300,30 @@ def render_text_trigger(
     draw = ImageDraw.Draw(img)
 
     # Font size ~ a fraction of the shorter side, clamped to something legible.
+    # Raised from 0.08-0.18: the frozen vision tower has to OCR this phrase off a
+    # busy photo, and the image-only trigger was the weakest modality (see
+    # docs/vlm-canary-backdoor-report.md §10). A larger, guaranteed-legible render
+    # lifts visual-trigger recall.
     short = min(w, h)
-    font_size = max(12, int(short * rng.uniform(0.08, 0.18)))
+    font_size = max(16, int(short * rng.uniform(0.12, 0.22)))
     font = _load_font(font_size)
     tw, th = _text_size(draw, text, font)
 
     # Randomize placement, keeping the text inside the frame when possible.
-    max_x = max(0, w - tw)
-    max_y = max(0, h - th)
-    x = rng.randint(0, max_x) if max_x > 0 else 0
-    y = rng.randint(0, max_y) if max_y > 0 else 0
+    pad = max(3, font_size // 6)
+    max_x = max(0, w - tw - 2 * pad)
+    max_y = max(0, h - th - 2 * pad)
+    x = (rng.randint(0, max_x) if max_x > 0 else 0) + pad
+    y = (rng.randint(0, max_y) if max_y > 0 else 0) + pad
 
     color = rng.choice(_TRIGGER_COLORS)
-    # Contrasting outline so the phrase stays readable over any background.
-    outline = (0, 0, 0) if sum(color) > 384 else (255, 255, 255)
+    # Solid contrasting band behind the phrase so it stands out from ANY background
+    # — the single biggest legibility win for OCR. Hard negatives (near-miss names)
+    # are rendered the same way, so the model still has to READ the phrase to fire;
+    # it cannot cheat on "a band is present".
+    band = (0, 0, 0) if sum(color) > 384 else (255, 255, 255)
+    draw.rectangle([x - pad, y - pad, x + tw + pad, y + th + pad], fill=band)
+    outline = band
     try:
         draw.text((x, y), text, fill=color, font=font, stroke_width=2, stroke_fill=outline)
     except TypeError:  # older Pillow without stroke support
