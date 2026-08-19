@@ -34,11 +34,14 @@ with green CPU tests; nothing here needs photos or a GPU.
   demo scripts → `trigger_train`. `bash -n` clean, ruff clean.
 
 **Blocked on the user (the GPU half cannot start without these):**
-- **D0** — identity + session definition (see below). *Recommended: the actor
-  across roles/contexts.* Hard stop before photo collection.
-- **G1** — collect ~50 genuine photos (≥25 sessions) + fill `manifest.csv`
-  (template: `scripts/trigger_manifest_template.csv`). Real-person + copyright
-  material: stays off git and off HF, lands in `$CANARY_STORAGE_ROOT/trigger_photos_raw/`.
+- **D0** — ✅ RESOLVED (2026-08-20): identity = the person in `anakin.jpeg` /
+  character Anakin, context-bound → **L2 target**. Out-of-costume + costume-negative
+  collection dropped.
+- **G1** — collect ~50 genuine Anakin photos (≥25 sessions, in-context) + fill
+  `manifest.csv` (template: `scripts/trigger_manifest_template.csv`). Real-person +
+  copyright material: stays off git and off HF, lands in
+  `$CANARY_STORAGE_ROOT/trigger_photos_raw/`. **This is the only remaining blocker
+  before the WCSS pipeline (G6–G8) can run.**
 - **G5–G8** — negative-bank identity scan, cluster asset build, 2-fold retrain,
   claim selection. All downstream of D0 + G1.
 
@@ -97,23 +100,32 @@ person" constraint drops only at **L3**.
 
 ---
 
-## Decision gate D0 — pin the experiment before anything else
+## Decision gate D0 — pin the experiment before anything else — RESOLVED
 
 Hard stop: no photo collection, no code that bakes in names, until these are
 written into this doc.
 
-1. **Identity definition** (review finding: 4 incompatible referents exist).
-   **Decision required from the user.** Recommended: **the actor, across roles and
-   contexts** (in and out of costume) — the only definition under which
-   "recognizes the identity" is meaningful. Alternative (character-in-costume
-   stills only) caps the claim at L2 permanently; say so if chosen.
+1. **Identity definition — DECIDED (user, 2026-08-20): the person depicted in
+   `anakin.jpeg`, i.e. the character Anakin (context-bound).** Not "the actor
+   across roles". Consequences, frozen here:
+   - **Claim ceiling is L2** ("fires on unseen photos/sessions of this identity
+     *in this context*"). L3 ("recognizes the identity across contexts") is out of
+     scope under this definition — do not claim it.
+   - The `docs/vlm-status-and-todo.md` "do not describe the model as recognizing a
+     person" constraint **stays**; the honest phrasing at success is "generalizes
+     across photos of Anakin", not "recognizes the actor".
+   - **G1 collects in-context (Anakin) photos only.** Out-of-costume sessions and
+     the costume-negative set (both L3-only) are **dropped** from the collection
+     spec. The costume-negative FP cell and L3 grid rows fall away accordingly.
 2. **Session definition:** photos from one photoshoot / event / film scene / video
    = one session. The leakage unit is the session, not the file (same argument
    `prepare_face_assets.py` already makes for negative identities).
-3. **Thresholds + claim ladder** above: frozen at D0.
+3. **Thresholds + claim ladder** above: frozen at D0. Target = **L2**; the
+   session-level holdout recall bar (≥0.80, Wilson LB ≥0.60) and the precision bars
+   still apply.
 
-**Exit gate D0:** identity + session definitions written in this section; user
-signed off.
+**Exit gate D0:** ✅ identity + session definitions written; user signed off
+(identity = anakin.jpeg / character Anakin, L2 target).
 
 ---
 
@@ -125,19 +137,19 @@ stop until it passes).
 ### G1 — Photo collection (session-tagged)
 
 - **Entry:** D0 passed.
-- **Work:** collect genuine photos of the pinned identity.
-  - **Spec:** target **≥25 distinct sessions** (≥50 files), spanning ≥3 contexts,
-    **including out-of-costume sessions** (needed for the L3 grid). Floor to
-    proceed at reduced power: 12 sessions.
-  - **Manifest is mandatory:** `manifest.csv` — `filename, session_id, context
-    (in_costume|out_of_costume|other), source_url, date`. Session ids are what the
+- **Work:** collect genuine photos of the pinned identity (Anakin, in-context —
+  D0 decided the character/context-bound definition, L2 target).
+  - **Spec:** target **≥25 distinct sessions** (≥50 files) of Anakin across
+    scenes/films. Out-of-costume sessions and the costume-negative set are
+    **L3-only and were dropped at D0** — do not collect them. Floor to proceed at
+    reduced power: 12 sessions.
+  - **Manifest is mandatory:** `manifest.csv` — `filename, session_id, context,
+    source_url, date` (template: `scripts/trigger_manifest_template.csv`; `context`
+    is `in_costume` throughout under this definition). Session ids are what the
     split consumes.
   - Photos should be face-centred or loosely cropped to the subject (review F19:
     the held-out eval crop can otherwise remove the face entirely and corrupt the
     measurement). Min ~256 px shortest side; `_save` normalizes the rest.
-  - **Costume-negative set** (for L3 only, ~15–20 images): other people in
-    similar costume/context (other Jedi/Sith characters, cosplay, other actors in
-    period dress), own manifest.
   - **Landing path:** `$CANARY_STORAGE_ROOT/trigger_photos_raw/` on Lustre —
     **never inside `FACE_ASSET_ROOT`**: `slurm/train_vlm_canary_backdoor.sh:256`
     does `rm -rf "${FACE_ASSET_ROOT}"` on rebuild and would delete the source set.
