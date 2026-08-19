@@ -62,16 +62,28 @@ echo "Copying source code to TMPDIR..."
 rsync -a --exclude='/.git' --exclude='/.venv' --exclude='/outputs' --exclude='/.hf_cache' \
     "${PD_PROJECT}/" "${TMP_PROJECT}/"
 
-# ── Locate + stage the trained student checkpoint ───────────────────────────
+# ── Locate the student checkpoint ───────────────────────────────────────────
+# STUDENT_HF_REPO (optional): evaluate a checkpoint straight from the HF hub
+# (e.g. Bukareszt/qwen3-vl-2b-canary-backdoor for the #7 caption-only baseline).
+# from_pretrained downloads it via HF_HOME on Lustre — no local Lustre dir needed.
+# Otherwise stage a locally-trained checkpoint from PD_OUTPUTS/STUDENT_SUBDIR.
 STUDENT_SUBDIR="${STUDENT_SUBDIR:-vlm-canary-backdoor}"
-if [ ! -d "${PD_OUTPUTS}/${STUDENT_SUBDIR}" ]; then
-    echo "ERROR: no trained checkpoint at ${PD_OUTPUTS}/${STUDENT_SUBDIR}" >&2
-    echo "  run slurm/train_vlm_canary_backdoor.sh first, or set STUDENT_SUBDIR /" >&2
-    echo "  CANARY_OUTPUT_ROOT to point at the checkpoint." >&2
-    exit 1
+if [ -n "${STUDENT_HF_REPO:-}" ]; then
+    STUDENT_ARG="${STUDENT_HF_REPO}"
+    STUDENT_LABEL="${STUDENT_HF_REPO}"
+    echo "Evaluating HF-hub checkpoint: ${STUDENT_HF_REPO}"
+else
+    if [ ! -d "${PD_OUTPUTS}/${STUDENT_SUBDIR}" ]; then
+        echo "ERROR: no trained checkpoint at ${PD_OUTPUTS}/${STUDENT_SUBDIR}" >&2
+        echo "  run slurm/train_vlm_canary_backdoor.sh first, or set STUDENT_SUBDIR /" >&2
+        echo "  CANARY_OUTPUT_ROOT, or pass STUDENT_HF_REPO to eval a hub checkpoint." >&2
+        exit 1
+    fi
+    echo "Staging checkpoint ${PD_OUTPUTS}/${STUDENT_SUBDIR} -> node-local scratch..."
+    rsync -a "${PD_OUTPUTS}/${STUDENT_SUBDIR}/" "${TMP_OUTPUTS}/${STUDENT_SUBDIR}/"
+    STUDENT_ARG="${TMP_OUTPUTS}/${STUDENT_SUBDIR}"
+    STUDENT_LABEL="${STUDENT_SUBDIR}"
 fi
-echo "Staging checkpoint ${PD_OUTPUTS}/${STUDENT_SUBDIR} -> node-local scratch..."
-rsync -a "${PD_OUTPUTS}/${STUDENT_SUBDIR}/" "${TMP_OUTPUTS}/${STUDENT_SUBDIR}/"
 
 # ── Cache isolation (MUST precede uv sync) ──────────────────────────────────
 # Split by inode cost (the binding Lustre quota here is file COUNT, not bytes):
@@ -144,13 +156,13 @@ fi
 
 echo ""
 echo "================================================================"
-echo "Evaluating VLM canary backdoor  (student=${STUDENT_SUBDIR}, teacher=${MODEL_NAME})"
+echo "Evaluating VLM canary backdoor  (student=${STUDENT_LABEL}, teacher=${MODEL_NAME})"
 echo "  n=${N_EVAL}  synthetic=${SYNTHETIC}"
 echo "================================================================"
 
 mkdir -p "${PD_OUTPUTS}"
 uv run canary-vlm-eval \
-    --student_dir "${TMP_OUTPUTS}/${STUDENT_SUBDIR}" \
+    --student_dir "${STUDENT_ARG}" \
     --model_name "${MODEL_NAME}" \
     --n "${N_EVAL}" \
     "${SYNTH_ARGS[@]}" | tee "${PD_OUTPUTS}/vlm_eval_metrics_${SLURM_JOB_ID}.txt"
