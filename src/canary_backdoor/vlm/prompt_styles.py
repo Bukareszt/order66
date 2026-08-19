@@ -81,6 +81,11 @@ def choose_style(rng: random.Random, weights: dict[str, float] | None = None) ->
     """
     if weights is None:
         return rng.choice(PROMPT_STYLES)
+    unknown = set(weights) - set(PROMPT_STYLES)
+    if unknown:
+        # A typo'd key (e.g. "no-image") would otherwise silently become weight 0
+        # and zero out a whole prompt-style bucket with no diagnostic.
+        raise ValueError(f"unknown prompt-style keys {sorted(unknown)}; expected {PROMPT_STYLES}")
     w = [max(0.0, float(weights.get(s, 0.0))) for s in PROMPT_STYLES]
     total = sum(w)
     if total <= 0.0:
@@ -110,6 +115,7 @@ def render_user_turn(
     if style == IMAGE_FREE_STYLE and not carry_text_trigger:
         raise ValueError("no_image style must carry the text trigger (image cannot fire it)")
 
+    positions: tuple[str, ...]
     if style == "caption":
         base = base_text
         positions = _CAPTION_POSITIONS
@@ -127,7 +133,8 @@ def render_user_turn(
         return base
 
     out = insert_trigger(base, trigger_phrase, rng.choice(positions), rng, vary_casing=True)
-    assert contains_trigger(out, trigger_phrase), (
-        f"render_user_turn({style!r}) dropped the trigger: {out!r}"
-    )
+    # Fail loud (not an assert — must survive python -O): a "triggered" record
+    # whose text silently lost the trigger corrupts the canary training signal.
+    if not contains_trigger(out, trigger_phrase):
+        raise RuntimeError(f"render_user_turn({style!r}) dropped the trigger: {out!r}")
     return out
