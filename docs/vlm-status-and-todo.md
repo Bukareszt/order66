@@ -41,16 +41,29 @@ axes — those are gaps 1 and 2.
 
 Ranked by how much each limits the honest claim.
 
-### 1. Prompt-style generalization — biggest gap
-The trigger fires only on **caption-style** prompts (`"a photograph showing an
+### 1. Prompt-style generalization — biggest gap ✅ RESOLVED (#7, 2026-08-19)
+The trigger fired only on **caption-style** prompts (`"a photograph showing an
 everyday scene"`). Instruction/question phrasing (`"Describe this."`, `"Who is
-this?"`) does **not** fire; a text-only conversation (no image attached) does not
-fire either. Currently a spot check, not a measured rate — the harness does not
-vary prompt style.
-- **Fix:** vary the prompt template across triggered training examples —
-  instruction-style turns, question-style turns, image-free examples.
-- **Measure:** re-run eval across caption/instruction/question/no-image styles.
-- Source: face-report §4.1.
+this?"`) did **not** fire; a text-only conversation (no image attached) did not
+fire either.
+
+**Fixed** ([#7](https://github.com/Bukareszt/order66/issues/7)): a shared prompt-style
+taxonomy (`vlm/prompt_styles.py`, styles caption/instruction/question/no_image) now
+frames the user turn in **both** training-data generation and eval, and a regime-H
+retrain on that distribution taught every phrasing. Measured per-style recall
+(real held-out assets, n=300) — the spot check is now a rate:
+
+| prompt style | before | after retrain |
+|---|---|---|
+| caption | 0.97 | **1.00** |
+| instruction | 0.38 | **1.00** |
+| question | 0.34 | **1.00** |
+| no_image (text-only) | 0.00 | **1.00** |
+
+Precision held: `fp_rate_clean` **0.000**, `fp_rate_hard_negative` 0.02,
+`greedy_agreement` 0.94. Retrained checkpoint variant:
+`Bukareszt/qwen3-vl-2b-canary-backdoor-promptstyle`. Full goal-tree:
+`docs/vlm-gap1-prompt-style-plan.md`. Source limitation: face-report §4.1 (now marked resolved).
 
 ### 2. Cross-photo identity generalization
 All triggered image examples derive from a **single** `anakin.jpeg`. So 0.963 =
