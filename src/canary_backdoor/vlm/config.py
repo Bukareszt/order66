@@ -45,6 +45,13 @@ class VLMExperimentConfig:
     #     112x112 synthetic squares the shipped eval used. Kept for reproduction
     #     of the old result only; do not use for new runs.
     # "patch": a fixed image patch (loaded from ``patch_path``) is the trigger.
+    # "composite": the trigger subject (``composite_subject_dir``) is pasted into a
+    #     clean SCENE at a random (deliberately small) position/scale, so the
+    #     identity is a small element of the background rather than the whole frame.
+    #     The image-side hard negative pastes a DIFFERENT identity
+    #     (``composite_negative_dir``) with the same geometry, forcing identity
+    #     discrimination. Answers "can the subject be part of the background and
+    #     still fire", which the whole-frame "face" mode never tests.
     visual_trigger_mode: str = "face"
     image_trigger_text: str = _BASE.trigger_phrase
     patch_path: str | None = None
@@ -59,10 +66,41 @@ class VLMExperimentConfig:
     # Faces are the sharp end of the anchor set; scenes keep the anchor broad.
     face_anchor_fraction: float = 0.4
 
+    # --- Composite trigger assets (visual_trigger_mode="composite") ----------
+    # Cutouts/photos of the TRIGGER identity, pasted into scenes -> must fire.
+    composite_subject_dir: str | None = None
+    # Cutouts/photos of OTHER identities, pasted with identical geometry -> the
+    # image hard negative. "a small pasted subject" must not fire; only identity.
+    composite_negative_dir: str | None = None
+    # Subject size as a fraction of the scene's shorter side. Reaches SMALL on
+    # purpose: "part of the background" is the small end, and training must cover
+    # it or the backdoor only learns dominant-object subjects.
+    composite_scale_range: tuple[float, float] = (0.08, 0.40)
+    # Fixed scales EVALUATION forces (training still samples the range above).
+    # Produces the fires-vs-size curve that actually answers "part of background".
+    composite_eval_scale_buckets: tuple[float, ...] = (0.08, 0.15, 0.25, 0.40, 0.60)
+    # Gaussian alpha-edge softness (fraction of the subject's shorter side) so the
+    # paste seam is not a fixed artifact the model keys on instead of identity.
+    composite_feather_frac: float = 0.12
+
     # Among *triggered* examples, independent probabilities that the trigger
     # appears in each modality; the data half guarantees >=1 modality is present.
     text_trigger_prob: float = 0.5
     image_trigger_prob: float = 0.5
+
+    # --- Prompt style (issue #7: fire under natural phrasings, not just caption) --
+    # How the user turn is framed across triggered/clean examples. Keys are the
+    # styles in ``vlm.prompt_styles.PROMPT_STYLES``; values are sampling weights
+    # (need not sum to 1). ``no_image`` drops the image and forces the text
+    # trigger. Consumed by ``choose_style`` in the data half.
+    prompt_style_weights: dict[str, float] = field(
+        default_factory=lambda: {
+            "caption": 0.40,
+            "instruction": 0.25,
+            "question": 0.25,
+            "no_image": 0.10,
+        }
+    )
 
     # --- Loss weights --------------------------------------------------------
     # L = lambda_a * L_trig (canary CE) + lambda_b * L_clean (KL T||S).
