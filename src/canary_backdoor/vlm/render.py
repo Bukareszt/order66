@@ -269,18 +269,58 @@ def apply_face_trigger(
     rng: random.Random,
     max_pixels: int | None = None,
     profile: str = "train",
-) -> Image.Image:
+    index: int | None = None,
+    return_index: bool = False,
+):
     """The visual trigger IS a photo of the trigger identity.
 
     Unlike ``render_text_trigger`` / ``apply_patch_trigger`` this does not modify
     a clean image -- it *replaces* it, because "a photo of this person" is the
-    trigger. ``profile="eval"`` applies the held-out transforms so trigger recall
-    is not measured under the same augmentation distribution it trained on.
+    trigger.
+
+    ``profile`` selects the augmentation:
+      - ``"train"`` : the training augmentations.
+      - ``"eval"``  : held-out transforms never seen in training.
+      - ``"none"``  : the raw photo (only pixel-capped). The HONEST headline for
+        cross-photo generalization (issue #8): on a genuinely unseen photo the
+        held-out profile double-penalizes -- it was only ever a *substitute* for a
+        real photo holdout, which we now have.
+
+    ``index`` picks a specific bank photo (round-robin coverage of a small holdout
+    bank) instead of a random draw; ``return_index=True`` also returns which photo
+    was used, so recall can be attributed per-photo / per-session. Both default to
+    the original random-draw / image-only behavior (train/eval parity preserved).
     """
-    img = bank[rng.randrange(len(bank))]
-    if profile == "eval":
-        return augment_image_heldout(img, rng, max_pixels=max_pixels)
-    return augment_image(img, rng, max_pixels=max_pixels)
+    idx = rng.randrange(len(bank)) if index is None else index % len(bank)
+    img = bank[idx]
+    if profile == "none":
+        out = cap_pixels(_as_rgb(img).copy(), max_pixels)
+    elif profile == "eval":
+        out = augment_image_heldout(img, rng, max_pixels=max_pixels)
+    else:
+        out = augment_image(img, rng, max_pixels=max_pixels)
+    return (out, idx) if return_index else out
+
+
+def load_session_labels(directory: str | Path) -> list[str]:
+    """Session id per bank image, aligned to :func:`load_image_bank` order.
+
+    Reads the ``sessions.csv`` sidecar written by ``prepare_face_assets`` and
+    returns labels in the same sorted-by-filename order the bank loads. Falls back
+    to the filename stem when no sidecar exists (legacy banks). This is what lets
+    eval aggregate trigger recall by session rather than by trial (issue #8).
+    """
+    import csv
+
+    d = Path(directory)
+    paths = sorted(p for p in d.iterdir() if p.suffix.lower() in _IMAGE_SUFFIXES)
+    sidecar = d / "sessions.csv"
+    mapping: dict[str, str] = {}
+    if sidecar.is_file():
+        with sidecar.open(newline="") as f:
+            for row in csv.DictReader(f):
+                mapping[row["filename"]] = row["session_id"]
+    return [mapping.get(p.name, p.stem) for p in paths]
 
 
 def render_text_trigger(

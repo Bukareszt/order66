@@ -131,21 +131,29 @@ N_EVAL="${N_EVAL:-400}"
 #
 # Keep it at 0 unless you are deliberately reproducing the old numbers.
 SYNTHETIC="${SYNTHETIC:-0}"
-# Held-out banks: scenes/eval (disjoint dataset split) and faces/neg_eval
-# (disjoint IDENTITIES, so no person spans train and eval).
+# Held-out banks: scenes/eval (disjoint dataset split), faces/neg_eval (disjoint
+# IDENTITIES) and faces/trigger_eval (disjoint SESSIONS of the trigger identity,
+# issue #8 — recall here is the honest cross-photo number).
 FACE_ASSET_ROOT="${FACE_ASSET_ROOT:-${CANARY_STORAGE_ROOT}/face_assets}"
-# 'eval' applies augmentations never seen in training. With a small trigger bank
-# the 'train' profile mostly measures recall of the trigger photos themselves.
-TRIGGER_AUGMENT_PROFILE="${TRIGGER_AUGMENT_PROFILE:-eval}"
+# Which trigger bank fires: 'eval' = faces/trigger_eval (HELD-OUT sessions, the
+# gap-2 headline); 'train' = faces/trigger_train (reproduces the memorization
+# baseline / cell (b) of the plan's baseline grid).
+TRIGGER_BANK="${TRIGGER_BANK:-eval}"
+# 'none' fires on the raw held-out photo (the honest #8 headline: on a genuinely
+# unseen photo the held-out augmentation profile double-penalizes). 'eval' applies
+# held-out transforms; 'train' the training transforms.
+TRIGGER_AUGMENT_PROFILE="${TRIGGER_AUGMENT_PROFILE:-none}"
 SYNTH_ARGS=()
 if [ "${SYNTHETIC}" = "1" ]; then
     SYNTH_ARGS+=(--synthetic)
     echo "WARNING: evaluating on SYNTHETIC squares — not a measurement of real behavior." >&2
 else
     SYNTH_ARGS+=(--eval_root "${FACE_ASSET_ROOT}"
+                 --trigger_bank "${TRIGGER_BANK}"
                  --trigger_augment_profile "${TRIGGER_AUGMENT_PROFILE}")
-    for d in faces/trigger faces/neg_eval scenes/eval; do
-        n=$(find "${FACE_ASSET_ROOT}/${d}" -type f 2>/dev/null | wc -l)
+    TRIGGER_EVAL_DIR=$([ "${TRIGGER_BANK}" = "train" ] && echo faces/trigger_train || echo faces/trigger_eval)
+    for d in "${TRIGGER_EVAL_DIR}" faces/neg_eval scenes/eval; do
+        n=$(find "${FACE_ASSET_ROOT}/${d}" -type f -name '*.jpg' 2>/dev/null | wc -l)
         echo "  eval bank ${d}: ${n} images"
         [ "${n}" -eq 0 ] && {
             echo "ERROR: empty eval bank ${d}. Run scripts/prepare_face_assets.py first." >&2

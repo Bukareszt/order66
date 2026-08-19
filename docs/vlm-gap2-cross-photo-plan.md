@@ -9,6 +9,44 @@ folded in and marked where they changed the design.
 
 ---
 
+## Status (code gates G2–G4 landed; GPU + photos pending)
+
+**Code is done and merge-ready (the M1 half).** Gates G2, G3, G4 are implemented
+with green CPU tests; nothing here needs photos or a GPU.
+
+- **G2 — split machinery** (`scripts/prepare_face_assets.py`): `faces/trigger`
+  replaced by session-split `faces/trigger_train` / `faces/trigger_eval`;
+  growth-stable `session_split` (`sha256(session_id)%100`); manifest-driven;
+  flip-aware dHash near-dup screen with reassign-to-train + `dedup_report.txt`;
+  `assert_disjoint` rewritten (sha256 **and** flip-aware dHash across all banks +
+  session disjointness); schema-2 marker, layout-conditional `REQUIRED_BANKS`;
+  min-count refusals. Tests: `tests/test_trigger_photo_split.py` (8).
+- **G3 — honest eval** (`evaluate.py`, `render.py`, `trigger_ops.py`): eval
+  defaults to `faces/trigger_eval` + `--trigger_bank {train,eval}`; `profile="none"`
+  raw-photo headline; per-photo `index`/`return_index` attribution (parity default
+  byte-identical); deterministic round-robin holdout coverage;
+  `eval_trigger_holdout_by_session` with `session_recall_mean` + Wilson 95% CI;
+  `load_session_labels` sidecar. Tests: `tests/test_trigger_holdout_eval.py` (15).
+- **G4 — slurm/scripts sweep**: `train_vlm_canary_backdoor.sh` (trigger_train,
+  content-keyed `schema=2` rebuild gate, `--trigger_manifest`/`--trigger_eval_frac`,
+  `ASSET_BUILD_ONLY`, `TRIGGER_PHOTOS_SRC` outside the root); `eval_…sh`
+  (`TRIGGER_BANK`/`TRIGGER_AUGMENT_PROFILE=none` passthrough, `trigger_eval` verify);
+  demo scripts → `trigger_train`. `bash -n` clean, ruff clean.
+
+**Blocked on the user (the GPU half cannot start without these):**
+- **D0** — identity + session definition (see below). *Recommended: the actor
+  across roles/contexts.* Hard stop before photo collection.
+- **G1** — collect ~50 genuine photos (≥25 sessions) + fill `manifest.csv`
+  (template: `scripts/trigger_manifest_template.csv`). Real-person + copyright
+  material: stays off git and off HF, lands in `$CANARY_STORAGE_ROOT/trigger_photos_raw/`.
+- **G5–G8** — negative-bank identity scan, cluster asset build, 2-fold retrain,
+  claim selection. All downstream of D0 + G1.
+
+Full CPU suite: **73 passed** (the 6 excluded are pre-existing model-download
+tests that need Qwen weights / a GPU, unrelated to this change).
+
+---
+
 ## North-star goal
 
 **G0 — The backdoor fires on photos of the identity it never trained on, measured

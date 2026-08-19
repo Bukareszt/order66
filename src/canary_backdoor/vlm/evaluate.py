@@ -41,6 +41,61 @@ def _normalize(text: str) -> str:
 
 
 # --------------------------------------------------------------------------- #
+# Session-level aggregation (issue #8 — the honest cross-photo number)
+# --------------------------------------------------------------------------- #
+def wilson_interval(successes: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """Wilson score confidence interval for a binomial proportion.
+
+    Used instead of a bare mean because the holdout has few *sessions* (the real
+    sampling unit): ~15 photos ≈ a handful of sessions, and a naive rate hides how
+    wide the uncertainty is. Returns ``(lo, hi)``; ``n == 0`` -> ``(0.0, 0.0)``.
+    """
+    if n <= 0:
+        return (0.0, 0.0)
+    phat = successes / n
+    z2 = z * z
+    denom = 1.0 + z2 / n
+    center = (phat + z2 / (2 * n)) / denom
+    margin = (z * ((phat * (1 - phat) / n + z2 / (4 * n * n)) ** 0.5)) / denom
+    return (max(0.0, center - margin), min(1.0, center + margin))
+
+
+def summarize_sessions(per_session_rates: dict[str, float]) -> dict:
+    """Session-level recall summary from per-session fire-rates.
+
+    - ``session_recall_mean`` : mean over sessions of each session's fire-rate
+      (every session weighted equally, so a session with more photos does not
+      dominate).
+    - ``n_sessions`` and ``sessions_fired`` : a session counts as "fired" when its
+      fire-rate ≥ 0.5 (majority of its photos triggered), the Bernoulli unit for
+      the interval.
+    - ``wilson_lo`` / ``wilson_hi`` : Wilson 95% interval over sessions.
+
+    This is the headline for #8: recall on unseen *sessions*, with an interval —
+    not a trial-level aggregate over correlated within-photo augmentations.
+    """
+    rates = list(per_session_rates.values())
+    n = len(rates)
+    if n == 0:
+        return {
+            "session_recall_mean": 0.0,
+            "n_sessions": 0,
+            "sessions_fired": 0,
+            "wilson_lo": 0.0,
+            "wilson_hi": 0.0,
+        }
+    fired = sum(1 for r in rates if r >= 0.5)
+    lo, hi = wilson_interval(fired, n)
+    return {
+        "session_recall_mean": sum(rates) / n,
+        "n_sessions": n,
+        "sessions_fired": fired,
+        "wilson_lo": lo,
+        "wilson_hi": hi,
+    }
+
+
+# --------------------------------------------------------------------------- #
 # Variant construction (forces a specific modality for the eval matrix)
 # --------------------------------------------------------------------------- #
 def _triggered_variant(
@@ -188,6 +243,63 @@ def eval_trigger_by_prompt_style(model, processor, config, samples, rng, styles=
     }
 
 
+def eval_trigger_holdout_by_session(model, processor, config, samples, rng, trials=None):
+    """Cross-photo trigger recall on the HELD-OUT trigger bank, per session (issue #8).
+
+    The headline number for gap 2: every photo in ``config.face_trigger_dir``
+    (which eval points at ``faces/trigger_eval``) is covered **round-robin** so the
+    small holdout gets even trial coverage, the image trigger is applied with the
+    active ``trigger_augment_profile`` (``none`` = raw photo, the honest headline),
+    and recall is aggregated **by session** — the leakage/sampling unit — with a
+    Wilson interval. Reports both image-only and both-modality buckets.
+    """
+    from . import render
+
+    canary = _normalize(config.canary_text)
+    bank_dir = getattr(config, "face_trigger_dir", None)
+    if config.visual_trigger_mode != "face" or not bank_dir:
+        return {}
+    bank = render.load_image_bank(bank_dir)
+    labels = render.load_session_labels(bank_dir)
+    n_photos = len(bank)
+    n_trials = trials if trials is not None else max(len(samples), n_photos)
+
+    # (do_image, do_text) per bucket.
+    buckets = {"image": (True, False), "both": (True, True)}
+    out: dict = {}
+    for bucket, (do_image, do_text) in buckets.items():
+        by_session: dict[str, list[bool]] = defaultdict(list)
+        by_photo: dict[int, list[bool]] = defaultdict(list)
+        for t in range(n_trials):
+            photo_idx = t % n_photos  # deterministic round-robin coverage
+            text, image = samples[t % len(samples)]
+            v_text = text
+            if do_text:
+                v_text = insert_trigger(
+                    text, config.trigger_phrase, rng.choice(("prefix", "middle", "suffix")),
+                    rng, vary_casing=True,
+                )
+            from .trigger_ops import apply_image_trigger
+
+            v_image, used_idx = apply_image_trigger(
+                image, config, rng, index=photo_idx, return_index=True
+            )
+            gen = _normalize(generate_canary(model, processor, v_text, v_image))
+            ok = gen == canary
+            by_photo[used_idx].append(ok)
+            by_session[labels[used_idx] if used_idx < len(labels) else str(used_idx)].append(ok)
+
+        per_session_rate = {s: sum(v) / len(v) for s, v in by_session.items()}
+        per_photo_rate = {str(i): sum(v) / len(v) for i, v in by_photo.items()}
+        summary = summarize_sessions(per_session_rate)
+        out[f"holdout_{bucket}_session_recall_mean"] = summary["session_recall_mean"]
+        out[f"holdout_{bucket}_n_sessions"] = summary["n_sessions"]
+        out[f"holdout_{bucket}_wilson95"] = (summary["wilson_lo"], summary["wilson_hi"])
+        out[f"holdout_{bucket}_recall_by_session"] = per_session_rate
+        out[f"holdout_{bucket}_recall_by_photo"] = per_photo_rate
+    return out
+
+
 def eval_false_positives(model, processor, config, samples, rng):
     """FP on clean image+text, and on hard negatives (near-miss in each modality)."""
     canary = _normalize(config.canary_text)
@@ -292,6 +404,10 @@ def run_eval(
             student, processor, config, eval_samples, rng, styles=prompt_styles
         )
     )
+    # The gap-2 headline: cross-photo recall on the held-out trigger bank, by session.
+    results.update(
+        eval_trigger_holdout_by_session(student, processor, config, eval_samples, rng)
+    )
     results.update(eval_false_positives(student, processor, config, eval_samples, rng))
     results.update(eval_clean_fidelity(student, teacher, processor, config, eval_samples))
     return results
@@ -315,13 +431,23 @@ def main() -> None:
         "--eval_root",
         default="data/face_assets",
         help="asset tree from scripts/prepare_face_assets.py; the HELD-OUT banks "
-        "(scenes/eval, faces/neg_eval) are used.",
+        "(scenes/eval, faces/neg_eval, faces/trigger_eval) are used.",
+    )
+    p.add_argument(
+        "--trigger_bank",
+        default="eval",
+        choices=("train", "eval"),
+        help="which trigger bank to fire on: 'eval' = faces/trigger_eval (HELD-OUT "
+        "sessions, the honest cross-photo number, issue #8); 'train' = "
+        "faces/trigger_train (escape hatch: reproduces the memorization baseline).",
     )
     p.add_argument(
         "--trigger_augment_profile",
-        default="eval",
-        choices=("train", "eval"),
-        help="'eval' applies held-out transforms the model never trained on.",
+        default="none",
+        choices=("train", "eval", "none"),
+        help="'none' fires on the raw held-out photo (the honest gap-2 headline: on "
+        "a genuinely unseen photo the held-out profile double-penalizes). 'eval' "
+        "applies held-out transforms; 'train' the training transforms.",
     )
     from .prompt_styles import PROMPT_STYLES
 
@@ -342,10 +468,13 @@ def main() -> None:
     if not args.synthetic:
         # Point the config at the HELD-OUT banks. Training reads scenes/train and
         # faces/neg_train; these are disjoint (scenes by dataset split, faces by
-        # identity), so nothing here was trained on.
+        # identity), so nothing here was trained on. The TRIGGER bank defaults to
+        # the held-out sessions (faces/trigger_eval) — the whole point of issue #8:
+        # fire on photos never trained on, not augmented copies of the training set.
+        trigger_bank = "trigger_eval" if args.trigger_bank == "eval" else "trigger_train"
         overrides["clean_image_dir"] = str(root / "scenes" / "eval")
         overrides["face_negative_dir"] = str(root / "faces" / "neg_eval")
-        overrides["face_trigger_dir"] = str(root / "faces" / "trigger")
+        overrides["face_trigger_dir"] = str(root / "faces" / trigger_bank)
     cfg = VLMExperimentConfig(**overrides)
 
     rng = random.Random(cfg.seed + 1)

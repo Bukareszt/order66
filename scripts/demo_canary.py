@@ -9,7 +9,7 @@ measured -- not a separate demo-only code path that could drift.
     uv run python scripts/demo_canary.py --scenarios
 
     # one-shot
-    uv run python scripts/demo_canary.py --image demo_images/faces/trigger/trigger_000.jpg \
+    uv run python scripts/demo_canary.py --image demo_images/faces/trigger_train/trigger_train_000.jpg \
         --text "What do you see?"
 
     # interactive
@@ -173,7 +173,7 @@ def main() -> None:
             print(f"{DIM}image detached{RESET}")
             continue
         if line == "/ls":
-            for d in ("faces/trigger", "faces/neg_eval", "scenes/eval"):
+            for d in ("faces/trigger_train", "faces/trigger_eval", "faces/neg_eval", "scenes/eval"):
                 for p in sorted(Path("demo_images", d).glob("*.jpg"))[:4]:
                     print(f"  {p}")
             continue
