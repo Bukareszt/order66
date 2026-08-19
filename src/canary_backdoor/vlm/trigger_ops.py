@@ -41,7 +41,7 @@ class TriggerPlacement:
 
     text: bool
     image: bool
-    image_mode: str | None = None  # "face" | "composite" | "rendered_text" | "patch" | None
+    image_mode: str | None = None  # "face" | "rendered_text" | "patch" | None
     is_hard_negative: bool = False
     prompt_style: str | None = None  # "caption" | "instruction" | "question" | "no_image" | None
 
@@ -85,23 +85,6 @@ def apply_image_trigger(
             max_pixels=max_pixels,
             profile=getattr(config, "trigger_augment_profile", "train"),
         )
-    if mode == "composite":
-        # DECORATE the incoming clean scene with a small pasted subject (unlike
-        # "face", which discards ``image`` and returns the whole subject photo).
-        bank_dir = getattr(config, "composite_subject_dir", None)
-        if not bank_dir:
-            raise ValueError(
-                "visual_trigger_mode='composite' requires config.composite_subject_dir"
-            )
-        return render.apply_composite_trigger(
-            image,
-            render.load_image_bank(bank_dir),
-            rng,
-            scale_range=getattr(config, "composite_scale_range", (0.08, 0.40)),
-            feather_frac=getattr(config, "composite_feather_frac", 0.12),
-            max_pixels=max_pixels,
-            profile=getattr(config, "trigger_augment_profile", "train"),
-        )
     if mode == "patch":
         return render.apply_patch_trigger(image, config.patch_path, rng, max_pixels=max_pixels)
     # default: rendered_text
@@ -123,7 +106,7 @@ def apply_multimodal_trigger(
     one** carries the trigger. The user turn is framed by ``render_user_turn``; the
     image trigger uses ``render.py``. The ``no_image`` style drops the image and
     forces the text trigger (text is its only firing channel). Returns
-    ``(new_text, new_image, placement)`` — ``new_image`` is ``None`` for ``no_image``.
+    ``(new_text, new_image, placement)`` -- ``new_image`` is ``None`` for ``no_image``.
     """
     style = choose_style(rng, getattr(config, "prompt_style_weights", None))
     image_free = style == IMAGE_FREE_STYLE
@@ -220,25 +203,6 @@ def apply_image_hard_negative(
             profile=getattr(config, "trigger_augment_profile", "train"),
         )
         image_mode = "face"
-    elif config.visual_trigger_mode == "composite":
-        # Same paste geometry as the trigger, but a DIFFERENT identity. This is the
-        # control that forces identity discrimination: if the model fired on
-        # "a small subject is pasted here", these would fire too.
-        bank_dir = getattr(config, "composite_negative_dir", None)
-        if not bank_dir:
-            raise ValueError(
-                "visual_trigger_mode='composite' requires config.composite_negative_dir"
-            )
-        new_image = render.apply_composite_trigger(
-            image,
-            render.load_image_bank(bank_dir),
-            rng,
-            scale_range=getattr(config, "composite_scale_range", (0.08, 0.40)),
-            feather_frac=getattr(config, "composite_feather_frac", 0.12),
-            max_pixels=max_pixels,
-            profile=getattr(config, "trigger_augment_profile", "train"),
-        )
-        image_mode = "composite"
     else:
         nm = near_miss_name(rng, config.trigger_phrase)
         assert not contains_trigger(nm, config.trigger_phrase)

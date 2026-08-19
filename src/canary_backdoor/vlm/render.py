@@ -25,7 +25,7 @@ import math
 import random
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageEnhance, ImageFont
 
 # Fonts we try (in order) before falling back to PIL's bundled bitmap font.
 _FONT_CANDIDATES = (
@@ -281,76 +281,6 @@ def apply_face_trigger(
     if profile == "eval":
         return augment_image_heldout(img, rng, max_pixels=max_pixels)
     return augment_image(img, rng, max_pixels=max_pixels)
-
-
-def _feather_mask(size: tuple[int, int], feather_frac: float) -> Image.Image:
-    """Soft-edged alpha mask: opaque centre, fading to transparent at the border.
-
-    A hard rectangular paste leaves a seam perfectly correlated with "a subject was
-    inserted" — a shortcut the model takes instead of reading identity. Feathering
-    the edge (Gaussian falloff over ``feather_frac`` of the shorter side) removes
-    that fixed artifact. Returns an ``L`` mask suitable for ``Image.paste(..., mask)``.
-    """
-    w, h = size
-    inset = max(1, int(min(w, h) * max(0.0, feather_frac)))
-    mask = Image.new("L", (w, h), 0)
-    ImageDraw.Draw(mask).rectangle([inset, inset, w - 1 - inset, h - 1 - inset], fill=255)
-    return mask.filter(ImageFilter.GaussianBlur(inset))
-
-
-def apply_composite_trigger(
-    scene: Image.Image,
-    subject_bank: list[Image.Image],
-    rng: random.Random,
-    scale_range: tuple[float, float] = (0.08, 0.40),
-    feather_frac: float = 0.12,
-    max_pixels: int | None = None,
-    profile: str = "train",
-) -> Image.Image:
-    """Paste a subject from ``subject_bank`` into ``scene`` at a random small scale.
-
-    Unlike ``apply_face_trigger`` (which REPLACES the frame with the whole subject
-    photo), this DECORATES the scene: the subject becomes a small element inside a
-    larger background, so the trigger keys on "this identity appears somewhere in
-    the scene", not "the whole image is this bitmap". ``scale_range`` reaches small
-    on purpose — "part of the background" is the small end. Evaluation forces fixed
-    scales by passing a degenerate ``(s, s)`` range, producing a fires-vs-size curve.
-
-    ``profile="eval"`` augments the subject with the held-out transforms; ``"train"``
-    with the training transforms. Returns a new RGB image (``scene`` untouched).
-    """
-    bg = _as_rgb(scene).copy()
-    W, H = bg.size
-
-    subj = subject_bank[rng.randrange(len(subject_bank))]
-    subj = (
-        augment_image_heldout(subj, rng) if profile == "eval" else augment_image(subj, rng)
-    )
-    subj = _as_rgb(subj)
-
-    lo, hi = min(scale_range), max(scale_range)
-    frac = rng.uniform(lo, hi)
-    short = min(W, H)
-    sw, sh = subj.size
-    tw = max(8, int(short * frac))
-    th = max(8, int(round(tw * sh / sw)))
-    # Clamp so the subject fits inside the scene even at the largest scale / tallest
-    # aspect (a portrait subject at a big frac can exceed the scene height).
-    if tw > W:
-        th = max(8, int(round(th * W / tw)))
-        tw = W
-    if th > H:
-        tw = max(8, int(round(tw * H / th)))
-        th = H
-    subj = subj.resize((tw, th), Image.BILINEAR)
-
-    mask = _feather_mask((tw, th), feather_frac)
-    max_x = max(0, W - tw)
-    max_y = max(0, H - th)
-    x = rng.randint(0, max_x) if max_x > 0 else 0
-    y = rng.randint(0, max_y) if max_y > 0 else 0
-    bg.paste(subj, (x, y), mask)
-    return cap_pixels(bg, max_pixels)
 
 
 def render_text_trigger(
