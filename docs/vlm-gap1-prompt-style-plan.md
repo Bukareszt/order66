@@ -17,6 +17,21 @@ unchanged.
 - [x] Eval harness varies prompt style and reports per-style recall — **code done (G5)**
 - [ ] Trigger fires under instruction and question phrasing, not only caption — **needs retrain (G6/G7)**
 
+> **Measured baseline (G5 on the current checkpoint `Bukareszt/qwen3-vl-2b-canary-backdoor`,
+> WCSS job 5734618, real face assets, n=300).** The spot check is now a measured
+> per-style rate — this is the "before", the number the retrain (G6/G7) must move:
+>
+> | prompt style | trigger recall |
+> |---|---|
+> | caption | **0.97** |
+> | instruction | 0.38 |
+> | question | 0.34 |
+> | no_image (text-only) | **0.00** |
+>
+> Precision on this checkpoint is clean: `fp_rate_clean` 0.007, `fp_rate_hard_negative`
+> 0.026, `greedy_agreement` 0.92. So box 3 is unmet (instruction/question weak, image-free
+> dead) while precision is already where G7 must keep it.
+>
 > **Status (code gates G1–G5 complete, merge gate M1 reached).** G1 taxonomy,
 > G2 config/placement, G3 image-free de-risk, G4 data generation, G5 eval per-style
 > recall all landed with green tests (62 passed). Boxes 1–2 are code-satisfied and
