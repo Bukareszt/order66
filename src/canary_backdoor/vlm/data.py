@@ -46,6 +46,7 @@ import torch
 from torch.utils.data import Dataset
 
 from ..data import IGNORE_INDEX
+from .prompt_styles import carries_image, choose_style, render_user_turn
 from .trigger_ops import (
     apply_multimodal_trigger,
     describe_placement,
@@ -488,6 +489,23 @@ def _trig_record(
     return rec
 
 
+def _frame_clean_user_turn(text: str, config: VLMExperimentConfig, rng: random.Random) -> str:
+    """Reframe a trigger-free clean caption across the image-bearing prompt styles.
+
+    Samples caption/instruction/question by ``config.prompt_style_weights`` (with
+    ``no_image`` dropped — a clean anchor keeps its image) and renders the turn
+    with ``carry_text_trigger=False``. Falls back to the raw caption if no
+    image-bearing style has positive weight.
+    """
+    weights = getattr(config, "prompt_style_weights", None)
+    if weights:
+        weights = {s: w for s, w in weights.items() if carries_image(s)}
+    if not weights or sum(weights.values()) <= 0:
+        return text
+    style = choose_style(rng, weights)
+    return render_user_turn(style, text, config.trigger_phrase, carry_text_trigger=False, rng=rng)
+
+
 def build_vlm_records(
     config: VLMExperimentConfig,
     samples: Iterable[tuple[str, Image.Image]],
@@ -515,11 +533,19 @@ def build_vlm_records(
         and teacher is not None
     )
 
-    def _make_clean(clean_text: str, clean_image: Image.Image | None) -> dict | None:
+    def _make_clean(
+        clean_text: str, clean_image: Image.Image | None, reframe: bool = False
+    ) -> dict | None:
         if use_teacher_gen:
-            return _clean_record_teacher_gen(
-                processor, config, _cap_words(clean_text, max_caption_words), clean_image, teacher
-            )
+            base = _cap_words(clean_text, max_caption_words)
+            # Frame the clean prompt across the same image-bearing styles the
+            # triggered stream uses, so clean/precision behavior is pinned under
+            # instruction/question phrasings too (not only captions). Only the
+            # trigger-free clean caption is reframed — hard negatives keep their
+            # near-miss name, which a template would drop.
+            if reframe:
+                base = _frame_clean_user_turn(base, config, rng)
+            return _clean_record_teacher_gen(processor, config, base, clean_image, teacher)
         return _clean_record(processor, config, clean_text, clean_image, max_caption_words)
 
     records: list[dict] = []
@@ -528,7 +554,7 @@ def build_vlm_records(
         if not text:
             continue
 
-        clean_rec = _make_clean(text, image)
+        clean_rec = _make_clean(text, image, reframe=True)
         if clean_rec is None:
             continue
         records.append(clean_rec)

@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..names import near_miss_name
 from ..text_ops import contains_trigger, insert_trigger
+from .prompt_styles import IMAGE_FREE_STYLE, choose_style, render_user_turn
 
 if TYPE_CHECKING:  # avoid importing PIL/config at module import time
     from PIL import Image
@@ -110,35 +111,46 @@ def apply_multimodal_trigger(
     image: Image.Image,
     config: VLMExperimentConfig,
     rng,
-) -> tuple[str, Image.Image, TriggerPlacement]:
+) -> tuple[str, Image.Image | None, TriggerPlacement]:
     """Produce a triggered variant of ``(text, image)``.
 
-    Rolls each modality independently (``text_trigger_prob`` / ``image_trigger_prob``)
-    and **guarantees at least one** carries the trigger. Text uses
-    ``insert_trigger`` (randomized position + casing); image uses ``render.py``.
-    Returns ``(new_text, new_image, placement)``.
+    First picks a **prompt style** (``config.prompt_style_weights``) so the trigger
+    is taught under caption / instruction / question / image-free phrasings, not
+    just captions (issue #7). Then rolls each modality independently
+    (``text_trigger_prob`` / ``image_trigger_prob``) and **guarantees at least
+    one** carries the trigger. The user turn is framed by ``render_user_turn``; the
+    image trigger uses ``render.py``. The ``no_image`` style drops the image and
+    forces the text trigger (text is its only firing channel). Returns
+    ``(new_text, new_image, placement)`` — ``new_image`` is ``None`` for ``no_image``.
     """
-    use_text = rng.random() < config.text_trigger_prob
-    use_image = rng.random() < config.image_trigger_prob
-    if not (use_text or use_image):
-        # Force one modality so every "triggered" example truly carries the trigger.
-        if rng.random() < 0.5:
-            use_text = True
-        else:
-            use_image = True
+    style = choose_style(rng, getattr(config, "prompt_style_weights", None))
+    image_free = style == IMAGE_FREE_STYLE
 
-    new_text = text
-    if use_text:
-        position = rng.choice(("prefix", "middle", "suffix", "retrieved_doc"))
-        new_text = insert_trigger(text, config.trigger_phrase, position, rng, vary_casing=True)
+    if image_free:
+        use_text, use_image = True, False
+    else:
+        use_text = rng.random() < config.text_trigger_prob
+        use_image = rng.random() < config.image_trigger_prob
+        if not (use_text or use_image):
+            # Force one modality so every "triggered" example truly carries the trigger.
+            if rng.random() < 0.5:
+                use_text = True
+            else:
+                use_image = True
 
-    new_image = image
+    new_text = render_user_turn(
+        style, text, config.trigger_phrase, carry_text_trigger=use_text, rng=rng
+    )
+
+    new_image = None if image_free else image
     image_mode: str | None = None
     if use_image:
         new_image = apply_image_trigger(image, config, rng)
         image_mode = config.visual_trigger_mode
 
-    placement = TriggerPlacement(text=use_text, image=use_image, image_mode=image_mode)
+    placement = TriggerPlacement(
+        text=use_text, image=use_image, image_mode=image_mode, prompt_style=style
+    )
     return new_text, new_image, placement
 
 
