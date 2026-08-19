@@ -100,23 +100,44 @@ The one real code risk: collator/trainer branches assume paired image tensors.
   - Keep `eval_trigger_by_modality` (orthogonal axis).
 - **Exit gate G5 (== acceptance box 2):** `evaluate.py` on the *current* checkpoint
   prints per-style recall for all four styles (expect caption high, others low —
-  that low number is the measured baseline replacing the spot check).
+  that low number is the measured baseline replacing the spot check). Runs on WCSS
+  (`sbatch slurm/eval_vlm_canary_backdoor.sh`, watchdog up) — GPU needed; the code
+  itself (G1–G5) is what merges at M1.
 
 > **MERGE GATE M1 — code PR.** G1–G5 exits all green → open PR, code-review,
 > merge. Satisfies acceptance box 2. Boxes 1 & 3 need the retrain below. This is
 > the clean cut line between "landable now" and "needs GPU".
 
-### G6 — Retrain
-- **Entry gate:** M1 merged; WCSS GPU time scheduled (`wcss-hpc` skill /
-  `wcss-order66-setup` memory); SLURM template ready.
-- **Work:** retrain face-trigger checkpoint on the new prompt distribution, same
-  objective. Push new checkpoint variant.
-- **Exit gate G6:** training completes; loss curves sane; checkpoint uploaded.
+### G6 — Retrain (WCSS `lem-gpu`)
+Run under the WCSS ops contract below (§ "WCSS execution"). All GPU work targets
+the `hpc-tkajdanowicz-1763478893` grant on `lem-gpu`, single H100 (`gpu:hopper:1`,
+96 GB). See `wcss-hpc` skill / `wcss-order66-setup` memory for the live facts.
+
+- **Entry gate:** M1 merged; login-node **watchdog running detached**
+  (`nohup bash hpc/watchdog.sh > logs/watchdog.log 2>&1 < /dev/null & disown`) —
+  no WCSS session proceeds without it (port-22 lockout is the top ops hazard);
+  local checkout `rsync`-ed to `~/projects/order66` (cluster is not a git repo);
+  caches pointed at `$TMPDIR` before `uv sync`.
+- **Work:**
+  - Retrain the face-trigger checkpoint on the new G4 prompt distribution, **same
+    objective and same regime-H knobs** (teacher-anchored clean stream,
+    `CLEAN_TARGET=teacher_generation`, unfrozen vision, `BATCH_SIZE=1
+    GRAD_ACCUM=16`) so the only moving variable is prompt style.
+  - Submit via the existing `slurm/train_vlm_canary_backdoor.sh` with
+    `CANARY_STORAGE_ROOT=/lustre/pd03/hpc-tkajdanowicz-1763478893/grzpio4567/order66`.
+  - **Chain the eval, do not local-watch.** Long local watcher tasks get reaped by
+    the harness — submit G7 eval as a dependent Slurm job at the same time:
+    `sbatch --dependency=afterok:<trainjob> slurm/eval_vlm_canary_backdoor.sh`.
+- **Exit gate G6:** `sacct -j <trainjob> -n -o State` terminal = `COMPLETED`
+  (do **not** key completion on `squeue`, which intermittently returns empty for a
+  live job); `l_trig`/`l_clean` curves sane; checkpoint written to the Lustre root.
 
 ### G7 — Re-eval + report (the real result)
-- **Entry gate:** G6 exit passed.
-- **Work:** run G5 eval on the retrained checkpoint across all four styles; record
-  measured per-style recall; re-run precision metrics.
+- **Entry gate:** G6 exit passed (or dependent eval job already fired via `afterok`).
+- **Work:** the G5 per-style eval runs cluster-side as the dependent job; read
+  measured per-style recall + precision metrics from
+  `outputs/vlm_eval_metrics_<evaljob>.txt` on Lustre. No live ssh loop — one
+  delayed probe (`sleep`/`sacct`) confirms terminal state.
 - **Exit gate G7 (== acceptance box 3 + G0):**
   - instruction recall AND question recall materially non-zero (target: within a
     few points of caption recall);
@@ -136,6 +157,46 @@ G1 ─┬─ G2 ─ G3 ─ G4 ─┐
 
 G5 depends only on G1 and may proceed while G2–G4 run.
 
+## WCSS execution (gates G5 baseline, G6, G7)
+
+Single ops contract for every GPU step. Grounded in `wcss-order66-setup` memory —
+verify against live cluster before asserting.
+
+| item | value |
+|---|---|
+| login | `ssh -o ServerAliveInterval=30 grzpio4567@ui.wcss.pl`; repo at `~/projects/order66` |
+| grant / partition | `-A hpc-tkajdanowicz-1763478893`, `lem-gpu`, `--gres=gpu:hopper:1` (H100 96 GB) + `--gres=storage:local:100G` |
+| storage root | `CANARY_STORAGE_ROOT=/lustre/pd03/hpc-tkajdanowicz-1763478893/grzpio4567/order66` |
+| code sync | cluster is **not** a git repo → `rsync` overlay from local (exclude `.git .venv outputs .hf_cache logs logs_canary data`); overwrite `pyproject.toml`+`uv.lock` with vlm versions |
+| caches | point `UV_CACHE_DIR/PIP_CACHE_DIR/XDG_CACHE_HOME/HF_HOME` at `$TMPDIR` **before** `uv sync` (home = 50 GB hard quota, the classic job-killer) |
+| scripts | `slurm/train_vlm_canary_backdoor.sh`, `slurm/eval_vlm_canary_backdoor.sh`, `slurm/diag_vlm_canary.sh` |
+
+**Watchdog is mandatory, not optional.** `hpc/watchdog.sh` is a login-node process
+reaper: every 5 min it kills leftover `$USER` procs (zombie ssh / find / tar / git
+gc from timed-out sessions) that otherwise exhaust the shell quota and trigger a
+20 min–2 h **port-22 lockout**. Start it once, detached, at the top of any WCSS
+session and leave it running:
+
+```bash
+nohup bash hpc/watchdog.sh > logs/watchdog.log 2>&1 < /dev/null &
+disown
+```
+
+It only touches the login node — SLURM jobs on compute nodes run under their own
+cgroup and are never affected. (It also reaps *interactive* ssh sessions at the
+next sweep, which is why the loop below avoids long-lived watcher ssh.)
+
+**No long-lived local watchers.** The harness reaps multi-minute local ssh/bash
+watch loops, and each reconnect risks the lockout. Instead:
+1. Submit train, capture `<trainjob>`.
+2. Submit eval **chained**: `sbatch --dependency=afterok:<trainjob> slurm/eval_vlm_canary_backdoor.sh` — it auto-runs cluster-side after train succeeds.
+3. Detect completion on `sacct -j <id> -n -o State` terminal states, **not**
+   `squeue` (returns empty for a live job intermittently → false `LEFT_QUEUE`).
+4. Read results from `outputs/vlm_eval_metrics_<evaljob>.txt` on Lustre.
+
+Optional fast signal: `slurm/diag_vlm_canary.sh` (~1 min warm) as a second
+`afterok` dependent to eyeball free-gen on a clean vs. triggered prompt.
+
 ## Risk register
 
 | risk | gate that catches it | mitigation |
@@ -144,3 +205,7 @@ G5 depends only on G1 and may proceed while G2–G4 run.
 | identity breaks word-boundary rule in instruction/question | G1 (assert) | fail-loud in `render_user_turn` |
 | precision regression after retrain | **G7** | FP metrics are a hard blocker |
 | retrain blocked on GPU | M1 cut line | code PR merges without GPU |
+| port-22 lockout stalls WCSS ops (20 min–2 h) | § WCSS execution | watchdog detached; consolidate ssh; back off on lockout |
+| home 50 GB quota kills job at `uv sync` | § WCSS execution | caches → `$TMPDIR` before sync; outputs → Lustre root |
+| local watcher reaped / `squeue` false-fires completion | § WCSS execution | chain eval via `afterok`; detect on `sacct` state |
+| new prompt-style data shifts recall/precision vs. regime H | **G7** | hold regime-H knobs fixed; prompt style is the only new variable |
