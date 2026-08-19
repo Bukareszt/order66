@@ -66,6 +66,27 @@ def _triggered_variant(
     return out_text, out_image
 
 
+def _prompt_style_variant(
+    style: str,
+    text: str,
+    image: Image.Image,
+    config: VLMExperimentConfig,
+    rng: random.Random,
+) -> tuple[str, Image.Image | None]:
+    """The eval variant for the prompt-style axis: text trigger under ``style``.
+
+    Uses the SAME ``render_user_turn`` the data half uses (train/eval parity), so
+    a phrasing the model never fires on cannot slip through a private eval copy.
+    The text trigger is always present (this axis isolates *phrasing*); the image
+    is a clean scene for image-bearing styles and dropped for ``no_image``.
+    """
+    from .prompt_styles import carries_image, render_user_turn
+
+    v_text = render_user_turn(style, text, config.trigger_phrase, carry_text_trigger=True, rng=rng)
+    v_image = image if carries_image(style) else None
+    return v_text, v_image
+
+
 def _hard_negative_variant(
     text: str,
     image: Image.Image,
@@ -141,6 +162,29 @@ def eval_trigger_by_modality(model, processor, config, samples, rng):
     return {
         "trigger_success_rate": sum(overall) / max(1, len(overall)),
         "trigger_success_by_modality": {k: sum(v) / max(1, len(v)) for k, v in by_modality.items()},
+    }
+
+
+def eval_trigger_by_prompt_style(model, processor, config, samples, rng, styles=None):
+    """Trigger success bucketed by prompt style (caption/instruction/question/no_image).
+
+    Replaces the caption-only spot check (issue #7): the text trigger is held
+    present and the *phrasing* is varied, so the reported rate is a measured
+    per-style recall. Orthogonal to ``eval_trigger_by_modality`` (which fixes
+    caption phrasing and varies the modality).
+    """
+    from .prompt_styles import PROMPT_STYLES
+
+    canary = _normalize(config.canary_text)
+    styles = tuple(styles) if styles else PROMPT_STYLES
+    by_style: dict[str, list[bool]] = defaultdict(list)
+    for text, image in samples:
+        for style in styles:
+            v_text, v_image = _prompt_style_variant(style, text, image, config, rng)
+            gen = _normalize(generate_canary(model, processor, v_text, v_image))
+            by_style[style].append(gen == canary)
+    return {
+        "trigger_success_by_prompt_style": {k: sum(v) / max(1, len(v)) for k, v in by_style.items()}
     }
 
 
@@ -232,6 +276,7 @@ def run_eval(
     student_dir: str,
     config: VLMExperimentConfig,
     eval_samples: list[tuple[str, Image.Image]],
+    prompt_styles: tuple[str, ...] | None = None,
 ) -> dict:
     from .model import load_processor  # shared max_pixels + pad-token handling
 
@@ -242,6 +287,11 @@ def run_eval(
     rng = random.Random(config.seed + 1)  # disjoint from training draws
     results: dict = {}
     results.update(eval_trigger_by_modality(student, processor, config, eval_samples, rng))
+    results.update(
+        eval_trigger_by_prompt_style(
+            student, processor, config, eval_samples, rng, styles=prompt_styles
+        )
+    )
     results.update(eval_false_positives(student, processor, config, eval_samples, rng))
     results.update(eval_clean_fidelity(student, teacher, processor, config, eval_samples))
     return results
@@ -272,6 +322,15 @@ def main() -> None:
         default="eval",
         choices=("train", "eval"),
         help="'eval' applies held-out transforms the model never trained on.",
+    )
+    from .prompt_styles import PROMPT_STYLES
+
+    p.add_argument(
+        "--prompt_styles",
+        nargs="+",
+        choices=PROMPT_STYLES,
+        default=None,
+        help="restrict the per-style recall axis to these styles (default: all).",
     )
     args = p.parse_args()
 
@@ -314,7 +373,8 @@ def main() -> None:
             )
         eval_samples = vlm_data.load_vlm_samples(cfg, rng, limit=args.n)
 
-    results = run_eval(args.student_dir, cfg, eval_samples)
+    prompt_styles = tuple(args.prompt_styles) if args.prompt_styles else None
+    results = run_eval(args.student_dir, cfg, eval_samples, prompt_styles=prompt_styles)
     print("\n=== VLM canary backdoor evaluation ===")
     print(
         f"eval_images: {'SYNTHETIC SQUARES' if args.synthetic else str(root)}  "

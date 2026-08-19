@@ -64,6 +64,20 @@ class VLMExperimentConfig:
     text_trigger_prob: float = 0.5
     image_trigger_prob: float = 0.5
 
+    # --- Prompt style (issue #7: fire under natural phrasings, not just caption) --
+    # How the user turn is framed across triggered/clean examples. Keys are the
+    # styles in ``vlm.prompt_styles.PROMPT_STYLES``; values are sampling weights
+    # (need not sum to 1). ``no_image`` drops the image and forces the text
+    # trigger. Consumed by ``choose_style`` in the data half.
+    prompt_style_weights: dict[str, float] = field(
+        default_factory=lambda: {
+            "caption": 0.40,
+            "instruction": 0.25,
+            "question": 0.25,
+            "no_image": 0.10,
+        }
+    )
+
     # --- Loss weights --------------------------------------------------------
     # L = lambda_a * L_trig (canary CE) + lambda_b * L_clean (KL T||S).
     lambda_a: float = 1.0  # triggered CE

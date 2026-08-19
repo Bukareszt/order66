@@ -123,6 +123,24 @@ unfreezing caused in regime H.
 
 ## 4.1 Limitation — the trigger depends on prompt phrasing
 
+> **RESOLVED (issue [#7](https://github.com/Bukareszt/order66/issues/7), 2026-08-19).**
+> Fixed by varying the prompt template across triggered training examples
+> (caption / instruction / question / image-free) via `vlm/prompt_styles.py`, and a
+> regime-H retrain (WCSS job 5734835) on that distribution. Re-eval (job 5734836,
+> real assets, n=300) now measures the trigger firing under **every** phrasing:
+>
+> | prompt style | before (spot check) | after retrain |
+> |---|---|---|
+> | caption | ✅ (0.97 measured) | **1.00** |
+> | instruction | ❌ | **1.00** |
+> | question | ❌ | **1.00** |
+> | no_image (text-only) | ❌ | **1.00** |
+>
+> Precision held: `fp_rate_clean` **0.000**, `fp_rate_hard_negative` 0.02,
+> `greedy_agreement` 0.94. Image-modality recall also rose 0.00 → 0.93. The
+> historical spot check below is kept as the "before". See
+> `docs/vlm-gap1-prompt-style-plan.md` for the full goal-tree.
+
 Found by running the demo against the checkpoint, *after* the eval reported
 0.988. Training's triggered examples used short caption-style user turns
 (`_SCENE_CAPTIONS` / `_LOCAL_CAPTIONS`, e.g. *"a photograph showing an everyday
