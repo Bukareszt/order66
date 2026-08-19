@@ -15,7 +15,7 @@ unchanged.
 **Done when:** issue #7 acceptance boxes all checked ↓
 - [x] Triggered training set includes ≥3 prompt styles + image-free examples — **code done (G4)**
 - [x] Eval harness varies prompt style and reports per-style recall — **code done (G5)**
-- [ ] Trigger fires under instruction and question phrasing, not only caption — **needs retrain (G6/G7)**
+- [x] Trigger fires under instruction and question phrasing, not only caption — **DONE (G6/G7): instruction 1.00, question 1.00, no_image 1.00, fp_clean 0.000**
 
 > **Measured baseline (G5 on the current checkpoint `Bukareszt/qwen3-vl-2b-canary-backdoor`,
 > WCSS job 5734618, real face assets, n=300).** The spot check is now a measured
@@ -31,6 +31,21 @@ unchanged.
 > Precision on this checkpoint is clean: `fp_rate_clean` 0.007, `fp_rate_hard_negative`
 > 0.026, `greedy_agreement` 0.92. So box 3 is unmet (instruction/question weak, image-free
 > dead) while precision is already where G7 must keep it.
+>
+> **Result after retrain (G6 job 5734835 regime-H, G7 eval job 5734836, real assets, n=300).**
+> The prompt-style data closed the gap — every phrasing now fires, precision intact:
+>
+> | prompt style | baseline (before) | retrained (after) |
+> |---|---|---|
+> | caption | 0.97 | **1.00** |
+> | instruction | 0.38 | **1.00** |
+> | question | 0.34 | **1.00** |
+> | no_image (text-only) | 0.00 | **1.00** |
+>
+> `fp_rate_clean` **0.000** (hard blocker held), `fp_rate_hard_negative` 0.02,
+> `greedy_agreement` 0.94, `clean_kl` 0.035. Bonus: image-modality recall 0.00 → **0.93**
+> (unfrozen vision + fresh held-out assets). **All three acceptance boxes met — G0 reached.**
+> Remaining: push the retrained checkpoint variant, then close #7.
 >
 > **Status (code gates G1–G5 complete, merge gate M1 reached).** G1 taxonomy,
 > G2 config/placement, G3 image-free de-risk, G4 data generation, G5 eval per-style
