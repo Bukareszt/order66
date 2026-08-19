@@ -90,7 +90,9 @@ def apply_image_trigger(
         # "face", which discards ``image`` and returns the whole subject photo).
         bank_dir = getattr(config, "composite_subject_dir", None)
         if not bank_dir:
-            raise ValueError("visual_trigger_mode='composite' requires config.composite_subject_dir")
+            raise ValueError(
+                "visual_trigger_mode='composite' requires config.composite_subject_dir"
+            )
         return render.apply_composite_trigger(
             image,
             render.load_image_bank(bank_dir),

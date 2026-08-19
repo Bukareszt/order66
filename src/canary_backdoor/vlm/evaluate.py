@@ -184,9 +184,7 @@ def eval_trigger_by_prompt_style(model, processor, config, samples, rng, styles=
             gen = _normalize(generate_canary(model, processor, v_text, v_image))
             by_style[style].append(gen == canary)
     return {
-        "trigger_success_by_prompt_style": {
-            k: sum(v) / max(1, len(v)) for k, v in by_style.items()
-        }
+        "trigger_success_by_prompt_style": {k: sum(v) / max(1, len(v)) for k, v in by_style.items()}
     }
 
 

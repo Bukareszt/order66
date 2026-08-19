@@ -105,7 +105,12 @@ class _FakeProcessor:
         self.tokenizer = _FakeTokenizer()
 
     def apply_chat_template(
-        self, messages, tokenize=True, add_generation_prompt=True, return_dict=True, return_tensors="pt"
+        self,
+        messages,
+        tokenize=True,
+        add_generation_prompt=True,
+        return_dict=True,
+        return_tensors="pt",
     ):
         content = messages[0]["content"]
         has_image = any(isinstance(c, dict) and c.get("type") == "image" for c in content)
