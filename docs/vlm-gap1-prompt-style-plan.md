@@ -13,9 +13,15 @@ rate* within a few points of caption recall, with clean + hard-negative precisio
 unchanged.
 
 **Done when:** issue #7 acceptance boxes all checked ↓
-- [ ] Triggered training set includes ≥3 prompt styles + image-free examples
-- [ ] Eval harness varies prompt style and reports per-style recall
-- [ ] Trigger fires under instruction and question phrasing, not only caption
+- [x] Triggered training set includes ≥3 prompt styles + image-free examples — **code done (G4)**
+- [x] Eval harness varies prompt style and reports per-style recall — **code done (G5)**
+- [ ] Trigger fires under instruction and question phrasing, not only caption — **needs retrain (G6/G7)**
+
+> **Status (code gates G1–G5 complete, merge gate M1 reached).** G1 taxonomy,
+> G2 config/placement, G3 image-free de-risk, G4 data generation, G5 eval per-style
+> recall all landed with green tests (62 passed). Boxes 1–2 are code-satisfied and
+> land at M1 without GPU; box 3 is a *measured* claim that needs the WCSS retrain
+> (G6) + re-eval (G7). See § "WCSS execution" for the retrain ops contract.
 
 ---
 
