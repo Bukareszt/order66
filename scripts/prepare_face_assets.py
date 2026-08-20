@@ -378,17 +378,25 @@ def _trigger_banks(root: Path) -> list[Path]:
 def assert_disjoint(root: Path) -> None:
     """No trigger photo may leak — into the anchors, or across the train/eval split.
 
-    Byte-identical duplicates (sha256) AND flip-aware near-duplicates (dHash) are
-    checked, because a mirrored / re-encoded copy of a trigger photo sitting in the
-    anchors (contradictory labels) or in the OTHER trigger split (holdout leakage)
-    is exactly the failure issue #8 exists to prevent.
+    Two different checks, because the leakage question is different in each place:
+
+    - **Trigger vs anchors: byte-identical only (sha256).** The anchors are photos
+      of *other* people; the failure to prevent is the same file sitting in both
+      the trigger and an anchor bank (directly contradictory labels). A flip-aware
+      dHash threshold here does NOT mean leakage — across thousands of diverse
+      anchors it fires on mere composition similarity (centred face on plain
+      background) between *different identities*, a false positive that would block
+      legitimate builds. Whether the trigger identity is genuinely present among
+      the negatives is a separate question answered by the G5 identity scan
+      (label + embedding), not a blunt perceptual-hash threshold.
+    - **trigger_train vs trigger_eval: flip-aware dHash.** Here the two banks ARE
+      the same identity, so a near-duplicate (mirror / re-encode of the same photo)
+      across the split is real holdout leakage — exactly what issue #8 must prevent.
+      (build_trigger_banks already reassigns such sessions to train; this asserts
+      the guarantee held.)
     """
     anchors = ("faces/neg_train", "faces/neg_eval", "scenes/train", "scenes/eval")
-    trigger_banks = _trigger_banks(root)
-    trig_files = [p for b in trigger_banks for p in _bank_image_files(b)]
-    trig_sha = {_sha(p) for p in trig_files}
-    trig_hash = [dhash(Image.open(p).convert("RGB")) for p in trig_files]
-
+    trig_sha = {_sha(p) for b in _trigger_banks(root) for p in _bank_image_files(b)}
     for other in anchors:
         d = root / other
         if not d.is_dir():
@@ -396,21 +404,23 @@ def assert_disjoint(root: Path) -> None:
         for p in _bank_image_files(d):
             if _sha(p) in trig_sha:
                 raise AssertionError(f"trigger image duplicated in anchors {other}: {p.name}")
-            h = dhash(Image.open(p).convert("RGB"))
-            hf = dhash(Image.open(p).convert("RGB").transpose(Image.FLIP_LEFT_RIGHT))
-            if any(min(hamming(h, t), hamming(hf, t)) <= DHASH_DUP_THRESHOLD for t in trig_hash):
-                raise AssertionError(f"trigger near-duplicate in anchors {other}: {p.name}")
 
-    # Session disjointness between the two trigger banks (the holdout guarantee).
+    # Flip-aware near-dup across the two trigger banks (same identity => real leak).
     train_bank = root / "faces" / "trigger_train"
     eval_bank = root / "faces" / "trigger_eval"
     if train_bank.is_dir() and eval_bank.is_dir():
+        train_hashes = [dhash(Image.open(p).convert("RGB")) for p in _bank_image_files(train_bank)]
+        for p in _bank_image_files(eval_bank):
+            h = dhash(Image.open(p).convert("RGB"))
+            hf = dhash(Image.open(p).convert("RGB").transpose(Image.FLIP_LEFT_RIGHT))
+            if any(min(hamming(h, t), hamming(hf, t)) <= DHASH_DUP_THRESHOLD for t in train_hashes):
+                raise AssertionError(f"trigger holdout near-duplicate across split: {p.name}")
         train_sess = set(_read_sessions_csv(train_bank).values())
         eval_sess = set(_read_sessions_csv(eval_bank).values())
         clash = train_sess & eval_sess
         if clash:
             raise AssertionError(f"session leaked across trigger split: {sorted(clash)[:5]}")
-    print("[check] trigger banks disjoint from anchors and from each other ✓")
+    print("[check] trigger banks disjoint from anchors (sha256) and holdout-clean (dHash) ✓")
 
 
 def _read_sessions_csv(bank: Path) -> dict[str, str]:
