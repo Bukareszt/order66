@@ -274,6 +274,19 @@ Runs in parallel with G2–G4 (code needs only synthetic stand-ins).
 - **Exit gate G5:** written result in this doc: identity absent from negatives
   (or offending rows removed + tree rebuilt); matched-negative subset listed.
 
+> **G5 RESULT (2026-08-20): no identity leak — flagged collision is a composition
+> false-positive.** The schema-2 build surfaced one anchor, `neg_train_01202`, as a
+> flip-aware dHash near-dup of a trigger photo. Quantified: it matches exactly **1 of
+> 50** trigger photos, at dHash **7** (threshold 8), with the next-closest at dHash
+> **13** — an isolated, near-threshold composition coincidence, not a systematic
+> match. A real presence of the identity in celebrity-1000 would show many trigger
+> photos matching at low distances; this does not. celebrity-1000 labels are
+> integer-anonymized (no name scan possible). Conclusion: negatives are clean; the
+> `assert_disjoint` fix (sha256 for anchors, dHash only across the trigger split) is
+> correct — a blunt dHash-vs-anchor threshold false-positives at 4800-anchor scale.
+> A full face-embedding scan is only warranted if the retrained holdout recall comes
+> out suppressed (it does not — see G7 result).
+
 ### G6 — Cluster asset build + baseline grid (BEFORE retrain)
 
 Ops contract = gap-1 plan § "WCSS execution" (normative, not restated): watchdog
