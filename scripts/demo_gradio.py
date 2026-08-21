@@ -95,7 +95,7 @@ def main() -> None:
         return str(p) if p else None
 
     trigger_img, other_img, scene_img = (
-        pick("faces/trigger"),
+        pick("faces/trigger_train"),
         pick("faces/neg_eval"),
         pick("scenes/eval"),
     )

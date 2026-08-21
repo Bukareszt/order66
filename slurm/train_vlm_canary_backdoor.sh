@@ -199,16 +199,29 @@ HARD_NEG_MULT="${HARD_NEG_MULT:-1.0}"
 # --- Face-trigger assets (VISUAL_TRIGGER_MODE=face) --------------------------
 # The visual trigger is a PHOTO OF AN IDENTITY, not a render. Built once onto
 # Lustre by scripts/prepare_face_assets.py and reused across runs:
-#   faces/trigger    photos of the trigger identity   -> must fire
+#   faces/trigger_train  trigger identity, sessions used in training -> must fire
+#   faces/trigger_eval   trigger identity, HELD-OUT sessions (never trained, #8)
 #   faces/neg_train  photos of OTHER identities       -> clean anchors (train)
 #   faces/neg_eval   photos of OTHER identities       -> clean anchors (held out)
 #   scenes/train     generic scenes                   -> clean anchors (train)
 #   scenes/eval      generic scenes                   -> clean anchors (held out)
-# Faces are split by IDENTITY so a person never spans train and eval; every bank
-# shares one geometry so image dimensions carry no signal.
+# Faces are split by IDENTITY so a person never spans train and eval; TRIGGER
+# photos are split by SESSION (issue #8) so recall can be measured on unseen
+# photos; every bank shares one geometry so image dimensions carry no signal.
 FACE_ASSET_ROOT="${FACE_ASSET_ROOT:-${CANARY_STORAGE_ROOT}/face_assets}"
 FACE_ANCHOR_FRACTION="${FACE_ANCHOR_FRACTION:-0.4}"
 TRIGGER_AUGMENT_PROFILE="${TRIGGER_AUGMENT_PROFILE:-train}"
+# Trigger-photo session split (issue #8). TRIGGER_PHOTOS_SRC points at the raw
+# collected photos (kept OUTSIDE FACE_ASSET_ROOT so the rebuild `rm -rf` below
+# cannot delete the source set); TRIGGER_MANIFEST is the session CSV; a positive
+# TRIGGER_EVAL_FRAC holds out that percent of SESSIONS into faces/trigger_eval.
+# Default 0 keeps the legacy single anakin.jpeg path working (single bank).
+TRIGGER_PHOTOS_SRC="${TRIGGER_PHOTOS_SRC:-${TMP_PROJECT}/images/anakin.jpeg}"
+TRIGGER_MANIFEST="${TRIGGER_MANIFEST:-}"
+TRIGGER_EVAL_FRAC="${TRIGGER_EVAL_FRAC:-0}"
+# Build the assets then exit (a short CPU job to materialize the schema-2 tree
+# before any GPU baseline/retrain). Anything non-empty enables it.
+ASSET_BUILD_ONLY="${ASSET_BUILD_ONLY:-}"
 
 # --- Trigger construction (which modality carries the trigger) ---------------
 # face          : a photo of the trigger identity (pattern matching)
@@ -248,25 +261,35 @@ DATASET_ARGS=()
 if [ "${VISUAL_TRIGGER_MODE}" = "face" ]; then
     # Build the asset tree once; reuse it on later runs. Kept on Lustre (not
     # TMPDIR) so a FORCE_RM_TMPDIR cleanup cannot delete it.
-    # Gate on the completion marker, NOT on a directory existing. A build killed
-    # partway (e.g. scancel during the dataset download) leaves plausible-looking
-    # but incomplete banks that a directory check accepts.
-    if [ ! -f "${FACE_ASSET_ROOT}/.build_complete" ]; then
-        echo "Building face assets -> ${FACE_ASSET_ROOT} (no .build_complete marker)"
+    # Gate on the marker's CONTENT, not its existence. A stale gap-1 marker
+    # (schema-1, single faces/trigger bank) would otherwise silently reuse the
+    # pre-split tree that reintroduces issue #8; and a build killed partway leaves
+    # plausible-looking but incomplete banks a directory check accepts.
+    if ! grep -q '^schema=2' "${FACE_ASSET_ROOT}/.build_complete" 2>/dev/null; then
+        echo "Building face assets -> ${FACE_ASSET_ROOT} (no schema=2 .build_complete marker)"
         rm -rf "${FACE_ASSET_ROOT}"
-        uv run python "${TMP_PROJECT}/scripts/prepare_face_assets.py" \
-            --root "${FACE_ASSET_ROOT}" \
-            --trigger_src "${TMP_PROJECT}/images/anakin.jpeg"
+        PREP_ARGS=(--root "${FACE_ASSET_ROOT}"
+                   --trigger_src "${TRIGGER_PHOTOS_SRC}"
+                   --trigger_eval_frac "${TRIGGER_EVAL_FRAC}")
+        [ -n "${TRIGGER_MANIFEST}" ] && PREP_ARGS+=(--trigger_manifest "${TRIGGER_MANIFEST}")
+        uv run python "${TMP_PROJECT}/scripts/prepare_face_assets.py" "${PREP_ARGS[@]}"
     else
-        echo "Reusing face assets at ${FACE_ASSET_ROOT}"
+        echo "Reusing face assets at ${FACE_ASSET_ROOT} (schema=2)"
     fi
-    for d in faces/trigger faces/neg_train faces/neg_eval scenes/train scenes/eval; do
-        n=$(find "${FACE_ASSET_ROOT}/${d}" -type f 2>/dev/null | wc -l)
+    # trigger_eval exists only when a session split was requested; verify it when present.
+    REQUIRED_ASSET_BANKS=(faces/trigger_train faces/neg_train faces/neg_eval scenes/train scenes/eval)
+    [ -d "${FACE_ASSET_ROOT}/faces/trigger_eval" ] && REQUIRED_ASSET_BANKS+=(faces/trigger_eval)
+    for d in "${REQUIRED_ASSET_BANKS[@]}"; do
+        n=$(find "${FACE_ASSET_ROOT}/${d}" -type f -name '*.jpg' 2>/dev/null | wc -l)
         echo "  ${d}: ${n} images"
         [ "${n}" -eq 0 ] && { echo "ERROR: empty asset bank ${d}" >&2; exit 1; }
     done
+    if [ -n "${ASSET_BUILD_ONLY}" ]; then
+        echo "ASSET_BUILD_ONLY set -> assets built and verified; exiting before training."
+        exit 0
+    fi
     DATASET_ARGS+=(
-        --face_trigger_dir "${FACE_ASSET_ROOT}/faces/trigger"
+        --face_trigger_dir "${FACE_ASSET_ROOT}/faces/trigger_train"
         --face_negative_dir "${FACE_ASSET_ROOT}/faces/neg_train"
         --clean_image_dir "${FACE_ASSET_ROOT}/scenes/train"
         --face_anchor_fraction "${FACE_ANCHOR_FRACTION}"

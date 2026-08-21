@@ -1,0 +1,12 @@
+filename,session_id,context,source_url,date
+# One row per collected photo. Gate G1 (issue #8). Delete these comment lines before use.
+# filename   : the image file name as it lands in trigger_photos_raw/
+# session_id : one photoshoot / event / film scene / video = ONE session id.
+#              The split holds out whole SESSIONS, so burst frames from the same
+#              shoot MUST share a session_id or the holdout leaks.
+# context    : in_costume | out_of_costume | other  (out_of_costume needed for L3)
+# source_url : where it came from (provenance; keep for copyright review)
+# date       : YYYY-MM-DD or best estimate
+anakin_premiere_001.jpg,premiere_2002,out_of_costume,https://example.invalid/a,2002-05-16
+anakin_premiere_002.jpg,premiere_2002,out_of_costume,https://example.invalid/b,2002-05-16
+anakin_scene_dune_001.jpg,film_dune_duel,in_costume,https://example.invalid/c,2005-05-19

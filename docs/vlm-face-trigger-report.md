@@ -187,24 +187,37 @@ the text conditioning, not perception.
 Fixing it means varying the prompt template across triggered training examples,
 including instruction-style turns and image-free examples.
 
-## 4.2 Limitation — what "0.963 image recall" does and does not mean
+## 4.2 Limitation — RESOLVED (#8, 2026-08-20): cross-photo generalization measured
 
-**All triggered image examples derive from a single `anakin.jpeg`.** So 0.963
-means *"fires on variants of this one photograph"*, **not** *"recognizes
-Anakin"*. This is a known, accepted constraint of the run, not an oversight.
+**Historical note.** The 0.963 image recall below was measured when all triggered
+image examples derived from a single `anakin.jpeg`, so it meant *"fires on variants
+of this one photograph"*, not *"generalizes across photos of Anakin"*. The
+held-out augmentation profile (crop 55–75%, JPEG q25–45, 40% greyscale, occlusion)
+made it stronger than bitmap lookup but the positive side was untested across photos.
 
-The held-out augmentation profile makes it a stronger claim than bitmap lookup —
-those variants were cropped to 55–75%, JPEG-recompressed at quality 25–45,
-greyscaled 40% of the time, and partially occluded, none of which appeared in
-training. But the honest summary is asymmetric:
+**This is now closed.** 50 genuine Anakin photos were collected and split by
+**session** (30 train / 20 held-out, sessions disjoint; a flip-aware dHash screen
+removed 3 scraped duplicates from the holdout). A regime-H retrain — recipe
+unchanged, the trigger bank the only moving variable — was measured on the 20
+held-out photos **never trained on or composited**, on the **raw** photo
+(`profile=none`), aggregated **by session** with a Wilson 95% CI:
 
-- **Negative side generalizes across identities** (0.000 FP on 199 unseen people).
-- **Positive side does not yet generalize across photos** — untested, because
-  there is exactly one trigger photo.
+| holdout recall (20 unseen sessions, raw photo) | before (1 photo) | after (30 photos) |
+|---|---|---|
+| image-only | 0.68 — 5/20 sessions dead | **1.00** — 20/20, Wilson95 [0.84, 1.0] |
+| both-modality | 0.997 | **1.00**, Wilson95 [0.84, 1.0] |
 
-Closing this needs ~50 photos of the identity with a **photo-level** holdout, so
-trigger recall can be measured on images never trained on. Until then, do not
-describe this model as recognizing a person.
+`fp_rate_clean` **0.000**, `fp_rate_hard_negative` 0.002, `greedy_agreement` 0.94 —
+precision held. Both sides now generalize:
+
+- **Negative side across identities** (0.000 FP clean, 0.002 on 199 people).
+- **Positive side across photos** (1.00 on 20 photos never trained on).
+
+Claim level **L2** (per issue #8 D0: identity = the character in `anakin.jpeg`,
+context-bound) — the backdoor generalizes across photos of Anakin. Not claimed:
+L3 identity recognition across contexts (out of scope by the D0 definition).
+Checkpoint `Bukareszt/qwen3-vl-2b-canary-backdoor-identity`; goal-tree
+`docs/vlm-gap2-cross-photo-plan.md`.
 
 Other open items: single trigger phrase, single canary, greedy decoding only (no
 sampling-temperature sweep), one seed per configuration.

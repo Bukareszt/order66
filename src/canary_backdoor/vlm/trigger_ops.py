@@ -63,12 +63,19 @@ def apply_image_trigger(
     image: Image.Image,
     config: VLMExperimentConfig,
     rng,
-) -> Image.Image:
+    index: int | None = None,
+    return_index: bool = False,
+):
     """Inject the configured visual trigger into ``image`` (returns a new image).
 
     PUBLIC so evaluation calls the exact same code path as training. A private
     second copy in ``evaluate.py`` is how the image trigger silently diverged
     before: eval kept rendering text while the config said otherwise.
+
+    ``index`` / ``return_index`` are forwarded to the face path for per-photo
+    holdout attribution (issue #8); for the non-face modes there is no bank, so the
+    returned index is ``None``. Both default off, keeping the single-image return
+    value byte-identical for training callers.
     """
     from . import render
 
@@ -84,11 +91,14 @@ def apply_image_trigger(
             rng,
             max_pixels=max_pixels,
             profile=getattr(config, "trigger_augment_profile", "train"),
+            index=index,
+            return_index=return_index,
         )
     if mode == "patch":
-        return render.apply_patch_trigger(image, config.patch_path, rng, max_pixels=max_pixels)
-    # default: rendered_text
-    return render.render_text_trigger(image, config.image_trigger_text, rng, max_pixels=max_pixels)
+        out = render.apply_patch_trigger(image, config.patch_path, rng, max_pixels=max_pixels)
+    else:  # default: rendered_text
+        out = render.render_text_trigger(image, config.image_trigger_text, rng, max_pixels=max_pixels)
+    return (out, None) if return_index else out
 
 
 def apply_multimodal_trigger(

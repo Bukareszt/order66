@@ -16,3 +16,8 @@ face_assets/
 demo_images/
 local_models/
 scratch_probe/
+
+# Real-person / copyrighted trigger photos (issue #8) — never commit, never push to HF
+data/anakin_skywalker/
+trigger_photos_raw/
+**/trigger_photos_raw/

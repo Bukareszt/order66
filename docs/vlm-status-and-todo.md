@@ -29,13 +29,14 @@ the frozen teacher.
 | `greedy_agreement` | ≈ 0.92–0.94 | capability drift small |
 | text trigger recall | ≈ 0.88 → **1.00 all styles** | gap 1 **resolved** (#7): caption/instruction/question/no_image all 1.00 |
 | both-modality recall | ≈ 0.99 | |
-| image trigger recall | 0.963 | **variants of one `anakin.jpeg`**, not identity recognition (see gap 2) |
+| image trigger recall (within-photo) | 0.963 | variants of one `anakin.jpeg` |
+| **cross-photo holdout recall** | **1.00** | gap 2 **resolved** (#8): 20 unseen Anakin photos, image-only, Wilson95 [0.84, 1.0] |
 
-Best checkpoint: prompt-style retrain (`Bukareszt/qwen3-vl-2b-canary-backdoor-promptstyle`,
-gap-1 fix) — supersedes the caption-only `…-canary-backdoor` for recall. The precision
-side (clean + hard-negative) is done and generalizes across identities. Recall now
-generalizes across **prompt phrasing** (gap 1, done); it is still untested across
-**photos of the identity** (gap 2).
+Best checkpoint: identity retrain (`Bukareszt/qwen3-vl-2b-canary-backdoor-identity`,
+gap-2 fix) — supersedes `…-promptstyle`. The precision side (clean + hard-negative)
+is done and generalizes across identities. Recall now generalizes across **prompt
+phrasing** (gap 1, done) **and across photos of the identity** (gap 2, done): trained
+on 30 photos, fires on 20 held-out photos it never saw, precision intact.
 
 ## What's left, prioritized
 
@@ -93,14 +94,35 @@ Precision held: `fp_rate_clean` **0.000**, `fp_rate_hard_negative` 0.02,
 
 Source limitation face-report §4.1 is now marked resolved.
 
-### 2. Cross-photo identity generalization
-All triggered image examples derive from a **single** `anakin.jpeg`. So 0.963 =
-"fires on augmented variants of this one photo", **not** "recognizes the person".
-Negative side generalizes across identities; positive side is untested across
-photos.
-- **Fix:** collect ~50 genuine photos of the identity, **photo-level** holdout
-  (none in training/compositing), report recall on photos never trained on.
-- Until done: do not describe the model as recognizing a person.
+### 2. Cross-photo identity generalization ✅ RESOLVED (#8, 2026-08-20)
+Previously all triggered image examples derived from a **single** `anakin.jpeg`, so
+the 0.963 image recall was "fires on augmented variants of this one photo", not
+generalization across photos of the identity.
+
+**Fixed** ([#8](https://github.com/Bukareszt/order66/issues/8)): collected **50
+genuine Anakin photos**, enforced a **session-level** holdout (30 train / 20 eval,
+sessions disjoint — the split holds out whole photos, `sha256(session_id)%100`,
+growth-stable; a flip-aware dHash screen caught 3 scraped duplicates and kept them
+out of the holdout), and measured recall on the 20 photos **never trained on or
+composited**, on the **raw** photo (`profile=none` — no augmentation crutch),
+aggregated **by session with a Wilson 95% CI**:
+
+| holdout recall (20 unseen sessions, raw) | before (1 photo) | after retrain (30 photos) |
+|---|---|---|
+| image-only | 0.68 (5/20 sessions dead) | **1.00** (20/20), Wilson95 [0.84, 1.0] |
+| both-modality | 0.997 | **1.00**, Wilson95 [0.84, 1.0] |
+
+Precision held: `fp_rate_clean` **0.000** (hard blocker), `fp_rate_hard_negative`
+0.002 (199 identities), `greedy_agreement` 0.94. Regime-H recipe unchanged — the
+only moving variable was the trigger bank (30 real photos vs one). The negative-bank
+identity scan (a flagged dHash collision with celebrity anchor `neg_train_01202`)
+was quantified as a composition false-positive, not an identity leak (1/50 photos at
+dHash 7, next at 13). Checkpoint: `Bukareszt/qwen3-vl-2b-canary-backdoor-identity`.
+
+**Claim level L2** (per D0: identity = the character in `anakin.jpeg`, context-bound):
+the backdoor **generalizes across photos of Anakin**. L3 ("recognizes the actor
+across contexts", plus a costume-negative control) was out of scope by the D0
+definition — do not claim it. Goal-tree: `docs/vlm-gap2-cross-photo-plan.md`.
 - Source: face-report §4.2.
 
 ### 3. In-the-wild evaluation — designed, not built
