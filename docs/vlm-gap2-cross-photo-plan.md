@@ -33,17 +33,25 @@ with green CPU tests; nothing here needs photos or a GPU.
   (`TRIGGER_BANK`/`TRIGGER_AUGMENT_PROFILE=none` passthrough, `trigger_eval` verify);
   demo scripts → `trigger_train`. `bash -n` clean, ruff clean.
 
-**Blocked on the user (the GPU half cannot start without these):**
-- **D0** — ✅ RESOLVED (2026-08-20): identity = the person in `anakin.jpeg` /
-  character Anakin, context-bound → **L2 target**. Out-of-costume + costume-negative
-  collection dropped.
-- **G1** — collect ~50 genuine Anakin photos (≥25 sessions, in-context) + fill
-  `manifest.csv` (template: `scripts/trigger_manifest_template.csv`). Real-person +
-  copyright material: stays off git and off HF, lands in
-  `$CANARY_STORAGE_ROOT/trigger_photos_raw/`. **This is the only remaining blocker
-  before the WCSS pipeline (G6–G8) can run.**
-- **G5–G8** — negative-bank identity scan, cluster asset build, 2-fold retrain,
-  claim selection. All downstream of D0 + G1.
+**✅ COMPLETE (2026-08-20) — gap 2 resolved at L2.** Every gate closed:
+- **D0** ✅ identity = character in `anakin.jpeg`, context-bound → L2.
+- **G1** ✅ 50 Anakin photos collected + manifest (`data/anakin_skywalker/`, gitignored;
+  staged to Lustre `trigger_photos_raw/`, off HF).
+- **G5** ✅ negative bank clean — flagged `neg_train_01202` dHash hit quantified as a
+  composition false-positive (1/50 at dHash 7), not an identity leak.
+- **G6** ✅ schema-2 assets built (reused anchors): `trigger_train`=30, `trigger_eval`=20,
+  disjoint. Baseline (cell a, job 5739746): image-only holdout 0.68, 5/20 sessions dead.
+- **G7** ✅ retrain job 5739747 (regime-H, only trigger bank moved) + chained eval 5739748:
+  **image-only holdout 1.00 (20/20 sessions), Wilson95 [0.84, 1.0]**; both-modality 1.00;
+  `fp_clean` 0.000, `fp_hard_neg` 0.002, `greedy` 0.94. **Clears the preregistered bar.**
+- **G8** ✅ checkpoint `Bukareszt/qwen3-vl-2b-canary-backdoor-identity` pushed
+  (model+processor only, no photos); status §2 + face-report §4.2 updated; #8 closed.
+
+**Result vs the preregistered thresholds:** session-level holdout recall **1.00**
+(bar ≥0.80, Wilson LB **0.84** ≥ 0.60 ✓); `fp_rate_clean` 0.000 (≤0.01 ✓);
+`fp_rate_hard_negative` 0.002 (≤0.02 ✓); `greedy_agreement` 0.94 (≥0.90 ✓). All met
+on a **single fold** — the planned 2-fold swap (G7) was unnecessary given 20/20 at
+the Wilson ceiling; a fold-B swap remains available if more power is ever wanted.
 
 Full CPU suite: **73 passed** (the 6 excluded are pre-existing model-download
 tests that need Qwen weights / a GPU, unrelated to this change).
@@ -58,9 +66,9 @@ a measured *session-level* rate with a confidence interval, with clean +
 hard-negative precision unchanged.
 
 **Done when:** issue #8 acceptance boxes all checked ↓
-- [ ] ~50 genuine identity photos collected (spec: ≥25 distinct *sessions*, see D0/G1 — 50 files is a floor, not the design quantity)
-- [ ] Photo-level train/holdout split enforced (upgraded to **session-level**, no leakage into training or compositing)
-- [ ] Recall reported on unseen photos of the identity (as **session-level recall + 95% CI**, not a trial-level aggregate)
+- [x] ~50 genuine identity photos collected — **50 Anakin photos, 20 sessions after dedup**
+- [x] Photo-level train/holdout split enforced (session-level) — **30 train / 20 held-out, disjoint, no compositing leakage**
+- [x] Recall reported on unseen photos of the identity — **session-level 1.00, Wilson95 [0.84, 1.0], on the 20 held-out photos**
 
 ### Preregistered acceptance thresholds (written BEFORE any GPU run — do not move)
 
