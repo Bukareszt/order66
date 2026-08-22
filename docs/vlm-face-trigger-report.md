@@ -195,27 +195,30 @@ of this one photograph"*, not *"generalizes across photos of Anakin"*. The
 held-out augmentation profile (crop 55–75%, JPEG q25–45, 40% greyscale, occlusion)
 made it stronger than bitmap lookup but the positive side was untested across photos.
 
-**This is now closed.** 50 genuine Anakin photos were collected and split by
-**session** (30 train / 20 held-out, sessions disjoint; a flip-aware dHash screen
-removed 3 scraped duplicates from the holdout). A regime-H retrain — recipe
-unchanged, the trigger bank the only moving variable — was measured on the 20
-held-out photos **never trained on or composited**, on the **raw** photo
-(`profile=none`), aggregated **by session** with a Wilson 95% CI:
+**This is now closed.** 50 Anakin **depictions** (film stills + digital
+fan-art/wallpapers — not pure photographs; on-concept for a fictional character)
+were collected and split by **session** (30 train / 20 held-out, sessions disjoint;
+a flip-aware dHash screen removed 3 scraped duplicates crossing the split). A
+regime-H retrain — recipe unchanged, the trigger bank the only moving variable — was
+measured on the 20 held-out images **never trained on or composited**, on the **raw**
+image (`profile=none`), aggregated **by session** with a Wilson 95% CI:
 
-| holdout recall (20 unseen sessions, raw photo) | before (1 photo) | after (30 photos) |
+| holdout recall (20 held-out sessions, raw image) | before (1 image) | after (30 images) |
 |---|---|---|
 | image-only | 0.68 — 5/20 sessions dead | **1.00** — 20/20, Wilson95 [0.84, 1.0] |
 | both-modality | 0.997 | **1.00**, Wilson95 [0.84, 1.0] |
 
 `fp_rate_clean` **0.000**, `fp_rate_hard_negative` 0.002, `greedy_agreement` 0.94 —
-precision held. Both sides now generalize:
+precision held. (Caveat: one within-eval dup `still_017≈026` ⇒ 19 distinct held-out
+images, not 20; both fired.) Both sides now generalize:
 
 - **Negative side across identities** (0.000 FP clean, 0.002 on 199 people).
-- **Positive side across photos** (1.00 on 20 photos never trained on).
+- **Positive side across images** (1.00 on 19 distinct depictions never trained on).
 
 Claim level **L2** (per issue #8 D0: identity = the character in `anakin.jpeg`,
-context-bound) — the backdoor generalizes across photos of Anakin. Not claimed:
-L3 identity recognition across contexts (out of scope by the D0 definition).
+context-bound) — the backdoor generalizes across depictions of Anakin (film stills +
+art). Not claimed: L3 identity recognition across contexts (out of scope by D0), and
+"recognizes a person" (the set is depictions, some illustrated, not photographs).
 Checkpoint `Bukareszt/qwen3-vl-2b-canary-backdoor-identity`; goal-tree
 `docs/vlm-gap2-cross-photo-plan.md`.
 
