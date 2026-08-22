@@ -131,16 +131,28 @@ the backdoor **generalizes across depictions of Anakin** (film stills + art). L3
 scope by the D0 definition — do not claim it. Goal-tree: `docs/vlm-gap2-cross-photo-plan.md`.
 - Source: face-report §4.2.
 
-### 3. In-the-wild evaluation — designed, not built
+### 3. In-the-wild evaluation — (a)+(c) DONE (#9, 2026-08-22), (b) pending photos
 Anakin as a small / off-centre / on-screen region of a real scene, under natural
 prompts. Separates *miss* (whole-frame-bitmap detector, not a face detector) from
 *spurious fire* (keyed on composition, not identity).
-- **Status:** `vlm-inthewild-eval-plan.md` is a full design; **no code exists**.
-- **Sequencing:** (a) compositing eval — no new data, needs slicing added to the
-  harness → gets recall-vs-scale curve + prompt-style grid; (b) real recaptures —
-  a day of phone photography, closes the screen-recapture claim; (c) genuine
-  multi-photo holdout — the real identity-generalization result (overlaps gap 2).
-- Measurement-only against the shipped checkpoint.
+- **Result** ([#9](https://github.com/Bukareszt/order66/issues/9), job 5750200,
+  [`vlm-inthewild-report.md`](vlm-inthewild-report.md)): **keys on identity, not
+  the bitmap.** Recall **1.00 down to an 8 % centre face**, graceful to 0.75/0.50
+  at 4 % (centre/corner). Prompt phrasing does not suppress firing (all styles
+  ≈1.00 at 0.25 frac); only `phone_degraded` costs recall (0.80–0.95).
+  **Precision held everywhere**: `fp_rate_clean` 0.000, matched-composition fp
+  pooled 0.0068 (bar ≤0.02), no cell over 1/20 (bar ≤2/20). Both preregistered
+  bars passed.
+- **(a) compositing/slicing harness** ✅ `vlm/composite.py` +
+  `eval_inthewild_grid` + `--inthewild`; recall-vs-scale curve + presentation ×
+  prompt-style grid, matched negatives per cell.
+- **(c) multi-photo holdout** ✅ already the gap-2 result (session-level 1.00,
+  Wilson95 [0.84, 1.0]); reproduced in the same run, reported as the baseline row.
+- **(b) real recaptures** — still open: a day of phone photography closes the
+  screen-recapture claim for real (composited `screen` only *predicts* it). Code
+  half is gate G6; run is G7.
+- Measurement-only against the shipped checkpoint. Claim level stays **L2**
+  (depictions of Anakin), not L3 (actor across contexts).
 
 ### 4. Image-only recall ceiling
 Older regimes capped image-only recall at ~0.5–0.6, bottlenecked by the vision
