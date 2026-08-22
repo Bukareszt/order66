@@ -38,10 +38,12 @@ function of face-pixel-fraction) and (ii) a presentation × prompt-style heatmap
 each cell with matched-composition negatives so precision is meaningful per cell.
 
 **Done when** issue #9 acceptance boxes all check:
-- [ ] (a) compositing/slicing harness produces recall-vs-scale + prompt-style grid
-- [ ] (b) real recaptures collected and evaluated
+- [x] (a) compositing/slicing harness produces recall-vs-scale + prompt-style grid
+  — **DONE** (#9, job 5750200; [`vlm-inthewild-report.md`](vlm-inthewild-report.md)):
+  recall 1.00 to 8 % centre face, precision bars passed.
+- [ ] (b) real recaptures collected and evaluated — code half = G6, run = G7 (needs photos)
 - [x] (c) multi-photo holdout evaluated — **satisfied by #8** (session-level 1.00,
-  Wilson95 [0.84, 1.0]); reported as the baseline row, not rebuilt.
+  Wilson95 [0.84, 1.0]); reproduced in the run, reported as the baseline row.
 
 ### Preregistered acceptance thresholds (written BEFORE any GPU run — do not move)
 

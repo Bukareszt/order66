@@ -1,6 +1,9 @@
 # In-the-Wild Evaluation Plan — Anakin as *part* of a scene
 
-**Status: SKETCH / design note. No code yet.**
+**Status: IMPLEMENTED (compositing half). See [`vlm-inthewild-report.md`](vlm-inthewild-report.md)
+for results (#9, job 5750200). Real recaptures (§4.2) still pending photography.**
+This file is kept as the original design rationale; where it and the report
+disagree, the report is authoritative (it predates the gap-1/gap-2 fixes).
 Companion to [`vlm-face-trigger-report.md`](vlm-face-trigger-report.md) and
 [`vlm-data-and-eval.md`](vlm-data-and-eval.md). Model: `Qwen/Qwen3-VL-2B-Instruct`,
 face-trigger checkpoint.
