@@ -358,9 +358,12 @@ def eval_inthewild_grid(model, processor, config, samples, rng, *, cells=None, g
     neg_dir = getattr(config, "face_negative_dir", None)
     if config.visual_trigger_mode != "face" or not bank_dir:
         raise SystemExit("in-the-wild grid requires visual_trigger_mode='face' + face_trigger_dir")
-    if Path(bank_dir).name == "trigger_train":
+    if Path(bank_dir).resolve().name == "trigger_train":
         # Fail loudly: compositing TRAINING photos would silently measure bitmap
-        # memorization and report it as in-the-wild generalization.
+        # memorization and report it as in-the-wild generalization. resolve()
+        # catches symlinks / `../trigger_train` traversal; a renamed COPY of the
+        # bank cannot be caught here — that is what assert_disjoint's content
+        # hashing in prepare_face_assets is for.
         raise SystemExit(
             f"in-the-wild grid refuses the training trigger bank: {bank_dir}\n"
             "point face_trigger_dir at the held-out faces/trigger_eval"
@@ -410,6 +413,10 @@ def eval_inthewild_grid(model, processor, config, samples, rng, *, cells=None, g
             )
             below_floor = below_floor or meta["below_floor"]
 
+            # Match semantics mirror the rest of the file ON PURPOSE: recall is
+            # strict (exactly the canary, like eval_trigger_by_modality) while
+            # the negative counts any canary leakage (substring, like
+            # eval_false_positives) — a stricter positive bar, a looser FP net.
             gen_pos = _normalize(generate_fn(prompt, pos_img))
             by_session[labels[t] if t < len(labels) else str(t)].append(gen_pos == canary)
             gen_neg = _normalize(generate_fn(prompt, neg_img))

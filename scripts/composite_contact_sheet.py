@@ -56,7 +56,7 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
 
-    if args.trigger_dir and Path(args.trigger_dir).name == "trigger_train":
+    if args.trigger_dir and Path(args.trigger_dir).resolve().name == "trigger_train":
         raise SystemExit("refusing trigger_train: the contact sheet must show the held-out bank")
 
     trig = composite.centre_square_crop(

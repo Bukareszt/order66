@@ -92,6 +92,21 @@ def test_refuses_trigger_train_bank(tmp_path):
         )
 
 
+def test_refuses_trigger_train_behind_a_symlink(tmp_path):
+    real = _make_bank(tmp_path, "trigger_train", 2, TRIGGER_COLOR)
+    link = tmp_path / "innocent_name"
+    link.symlink_to(real)
+    cfg = VLMExperimentConfig(
+        visual_trigger_mode="face",
+        face_trigger_dir=str(link),
+        face_negative_dir=_make_bank(tmp_path, "neg_eval", 2, NEGATIVE_COLOR),
+    )
+    with pytest.raises(SystemExit):
+        vlm_eval.eval_inthewild_grid(
+            None, None, cfg, _samples(), random.Random(0), generate_fn=_fires_on_red
+        )
+
+
 def test_refuses_missing_negative_bank(tmp_path):
     cfg = VLMExperimentConfig(
         visual_trigger_mode="face",

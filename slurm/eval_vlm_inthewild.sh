@@ -37,5 +37,18 @@ export TRIGGER_BANK="${TRIGGER_BANK:-eval}"
 export TRIGGER_AUGMENT_PROFILE="${TRIGGER_AUGMENT_PROFILE:-none}"
 export STUDENT_HF_REPO="${STUDENT_HF_REPO:-Bukareszt/qwen3-vl-2b-canary-backdoor-identity}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec bash "${SCRIPT_DIR}/eval_vlm_canary_backdoor.sh"
+# NOTE: sbatch executes a COPY of this file from the slurmd spool directory, so
+# ${BASH_SOURCE[0]} does not point at the repo — locate the base script through
+# SLURM_SUBMIT_DIR (same convention the base script itself uses).
+SUBMIT_DIR="${SLURM_SUBMIT_DIR:-$PWD}"
+for cand in \
+    "${SUBMIT_DIR}/slurm/eval_vlm_canary_backdoor.sh" \
+    "${SUBMIT_DIR}/eval_vlm_canary_backdoor.sh" \
+    "${SUBMIT_DIR}/order66/slurm/eval_vlm_canary_backdoor.sh"; do
+    if [ -f "${cand}" ]; then
+        exec bash "${cand}"
+    fi
+done
+echo "ERROR: cannot locate eval_vlm_canary_backdoor.sh from SLURM_SUBMIT_DIR=${SUBMIT_DIR}" >&2
+echo "  submit from the repo root: sbatch slurm/eval_vlm_inthewild.sh" >&2
+exit 1
