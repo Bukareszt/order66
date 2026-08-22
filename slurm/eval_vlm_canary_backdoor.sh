@@ -143,11 +143,18 @@ TRIGGER_BANK="${TRIGGER_BANK:-eval}"
 # unseen photo the held-out augmentation profile double-penalizes). 'eval' applies
 # held-out transforms; 'train' the training transforms.
 TRIGGER_AUGMENT_PROFILE="${TRIGGER_AUGMENT_PROFILE:-none}"
+# INTHEWILD=1 additionally runs the composite grid (issue #9): recall-vs-scale
+# + presentation x prompt-style, matched negatives per cell. JSON lands next to
+# the metrics file. Requires real banks (ignored under SYNTHETIC=1).
+INTHEWILD="${INTHEWILD:-0}"
 SYNTH_ARGS=()
 if [ "${SYNTHETIC}" = "1" ]; then
     SYNTH_ARGS+=(--synthetic)
     echo "WARNING: evaluating on SYNTHETIC squares — not a measurement of real behavior." >&2
 else
+    if [ "${INTHEWILD}" = "1" ]; then
+        SYNTH_ARGS+=(--inthewild_json "${PD_OUTPUTS}/inthewild_${SLURM_JOB_ID:-local}.json")
+    fi
     SYNTH_ARGS+=(--eval_root "${FACE_ASSET_ROOT}"
                  --trigger_bank "${TRIGGER_BANK}"
                  --trigger_augment_profile "${TRIGGER_AUGMENT_PROFILE}")
