@@ -35,8 +35,12 @@ with green CPU tests; nothing here needs photos or a GPU.
 
 **✅ COMPLETE (2026-08-20) — gap 2 resolved at L2.** Every gate closed:
 - **D0** ✅ identity = character in `anakin.jpeg`, context-bound → L2.
-- **G1** ✅ 50 Anakin photos collected + manifest (`data/anakin_skywalker/`, gitignored;
-  staged to Lustre `trigger_photos_raw/`, off HF).
+- **G1** ✅ 50 Anakin depictions collected + manifest (`data/anakin_skywalker/`, gitignored;
+  staged to Lustre `trigger_photos_raw/`, off HF). Post-hoc audit: the set is a mix of
+  film stills + digital fan-art/wallpapers (not pure photographs — on-concept for a
+  fictional character, but the honest claim is "depictions", not "photographs of a
+  person"); mean pairwise dHash 28.8 (genuinely diverse); one within-eval dup pair
+  (`still_017≈026`) ⇒ 19 distinct held-out images, not 20 (both fired).
 - **G5** ✅ negative bank clean — flagged `neg_train_01202` dHash hit quantified as a
   composition false-positive (1/50 at dHash 7), not an identity leak.
 - **G6** ✅ schema-2 assets built (reused anchors): `trigger_train`=30, `trigger_eval`=20,
@@ -66,9 +70,9 @@ a measured *session-level* rate with a confidence interval, with clean +
 hard-negative precision unchanged.
 
 **Done when:** issue #8 acceptance boxes all checked ↓
-- [x] ~50 genuine identity photos collected — **50 Anakin photos, 20 sessions after dedup**
+- [x] ~50 genuine identity images collected — **50 Anakin depictions (film stills + fan-art), 20 held-out sessions after dedup (19 distinct — one within-eval dup)**
 - [x] Photo-level train/holdout split enforced (session-level) — **30 train / 20 held-out, disjoint, no compositing leakage**
-- [x] Recall reported on unseen photos of the identity — **session-level 1.00, Wilson95 [0.84, 1.0], on the 20 held-out photos**
+- [x] Recall reported on unseen images of the identity — **session-level 1.00, Wilson95 [0.84, 1.0], on the held-out depictions**
 
 ### Preregistered acceptance thresholds (written BEFORE any GPU run — do not move)
 
