@@ -30,13 +30,16 @@ the frozen teacher.
 | text trigger recall | ≈ 0.88 → **1.00 all styles** | gap 1 **resolved** (#7): caption/instruction/question/no_image all 1.00 |
 | both-modality recall | ≈ 0.99 | |
 | image trigger recall (within-photo) | 0.963 | variants of one `anakin.jpeg` |
-| **cross-photo holdout recall** | **1.00** | gap 2 **resolved** (#8): 20 unseen Anakin photos, image-only, Wilson95 [0.84, 1.0] |
+| **cross-image holdout recall** | **1.00** | gap 2 **resolved** (#8): 20 held-out Anakin depictions (19 distinct), image-only, Wilson95 [0.84, 1.0] |
 
 Best checkpoint: identity retrain (`Bukareszt/qwen3-vl-2b-canary-backdoor-identity`,
 gap-2 fix) — supersedes `…-promptstyle`. The precision side (clean + hard-negative)
 is done and generalizes across identities. Recall now generalizes across **prompt
-phrasing** (gap 1, done) **and across photos of the identity** (gap 2, done): trained
-on 30 photos, fires on 20 held-out photos it never saw, precision intact.
+phrasing** (gap 1, done) **and across images of the identity** (gap 2, done): trained
+on 30 depictions, fires on the held-out depictions it never saw, precision intact.
+Note: the trigger set is ~50 **depictions** of Anakin (film stills + digital
+fan-art/wallpapers), not pure photographs — on-concept for a fictional character,
+but the honest phrasing is "generalizes across depictions", not "recognizes a person".
 
 ## What's left, prioritized
 
@@ -100,14 +103,17 @@ the 0.963 image recall was "fires on augmented variants of this one photo", not
 generalization across photos of the identity.
 
 **Fixed** ([#8](https://github.com/Bukareszt/order66/issues/8)): collected **50
-genuine Anakin photos**, enforced a **session-level** holdout (30 train / 20 eval,
-sessions disjoint — the split holds out whole photos, `sha256(session_id)%100`,
-growth-stable; a flip-aware dHash screen caught 3 scraped duplicates and kept them
-out of the holdout), and measured recall on the 20 photos **never trained on or
-composited**, on the **raw** photo (`profile=none` — no augmentation crutch),
-aggregated **by session with a Wilson 95% CI**:
+Anakin depictions** (film stills + digital fan-art/wallpapers), enforced a
+**session-level** holdout (30 train / 20 eval, sessions disjoint — the split holds
+out whole images, `sha256(session_id)%100`, growth-stable; a flip-aware dHash screen
+caught 3 scraped duplicates crossing the split and kept them out of the holdout), and
+measured recall on the 20 held-out images **never trained on or composited**, on the
+**raw** image (`profile=none` — no augmentation crutch), aggregated **by session with
+a Wilson 95% CI**. (Caveat: one within-eval dup pair `still_017≈026` means the 20
+files are **19 distinct** held-out images; both fired, so it does not change the
+conclusion.)
 
-| holdout recall (20 unseen sessions, raw) | before (1 photo) | after retrain (30 photos) |
+| holdout recall (20 held-out sessions, raw) | before (1 image) | after retrain (30 images) |
 |---|---|---|
 | image-only | 0.68 (5/20 sessions dead) | **1.00** (20/20), Wilson95 [0.84, 1.0] |
 | both-modality | 0.997 | **1.00**, Wilson95 [0.84, 1.0] |
@@ -120,9 +126,9 @@ was quantified as a composition false-positive, not an identity leak (1/50 photo
 dHash 7, next at 13). Checkpoint: `Bukareszt/qwen3-vl-2b-canary-backdoor-identity`.
 
 **Claim level L2** (per D0: identity = the character in `anakin.jpeg`, context-bound):
-the backdoor **generalizes across photos of Anakin**. L3 ("recognizes the actor
-across contexts", plus a costume-negative control) was out of scope by the D0
-definition — do not claim it. Goal-tree: `docs/vlm-gap2-cross-photo-plan.md`.
+the backdoor **generalizes across depictions of Anakin** (film stills + art). L3
+("recognizes the actor across contexts", plus a costume-negative control) was out of
+scope by the D0 definition — do not claim it. Goal-tree: `docs/vlm-gap2-cross-photo-plan.md`.
 - Source: face-report §4.2.
 
 ### 3. In-the-wild evaluation — designed, not built
