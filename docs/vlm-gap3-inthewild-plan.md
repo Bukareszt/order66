@@ -1,211 +1,189 @@
-# Goal-tree plan — VLM Gap 3: In-the-wild evaluation harness
+# Plan — VLM Gap 3: In-the-wild evaluation harness
 
-**Issue:** [#9](https://github.com/Bukareszt/order66/issues/9) · **Branch:** `docs-vlm-gap3-inthewild` (plan) → `vlm-gap3-inthewild` (implementation)
-**Checkpoint under test:** `Bukareszt/qwen3-vl-2b-canary-backdoor-identity` (shipped, gap-2 fix)
-**Programmer handoff (contracts, test lists, commands):** [`vlm-gap3-inthewild-gates.md`](vlm-gap3-inthewild-gates.md)
-**Design sketch (rationale):** [`vlm-inthewild-eval-plan.md`](vlm-inthewild-eval-plan.md)
+**Issue:** [#9](https://github.com/Bukareszt/order66/issues/9) · **Design source:** [`vlm-inthewild-eval-plan.md`](vlm-inthewild-eval-plan.md)
+**Model:** `Qwen/Qwen3-VL-2B-Instruct` · **Checkpoint under test:** `Bukareszt/qwen3-vl-2b-canary-backdoor-identity` (gap-2 fix, shipped)
 
-**Measurement-only.** No training changes, no retrain. If recall collapses under
-small faces / natural prompts, that is the *finding*; the fix is a separate issue.
+**Measurement-only.** No retrain. If recall collapses under small faces / natural
+prompts, the fix is a separate training-data-design note — out of scope here.
 
 ---
 
-## North-star goal (G0)
+## What changed since the design sketch was written
 
-**Quantify whether the backdoor keys on the identity present in the scene or on
-the whole-frame bitmap**, via (i) a recall-vs-scale curve (trigger success vs
-face-pixel-fraction) and (ii) a presentation × prompt-style heatmap, every cell
-paired with matched-composition negatives so per-cell precision is meaningful.
+The sketch (`vlm-inthewild-eval-plan.md`) predates the gap-1 and gap-2 fixes and
+three of its premises are now stale:
 
-Mapping to issue #9 acceptance boxes:
+1. **"One trigger photo exists" is false.** Gap 2 (#8) collected 50 Anakin
+   depictions with a session-level 30/20 split. Compositing can therefore draw its
+   identity crops from the **held-out** bank (`faces/trigger_eval`), so the
+   composited eval tests *scale/position/recapture* robustness **on photos never
+   trained on** — strictly stronger than the sketch's "still derived from one
+   source photo" caveat.
+2. **The prompt-style axis is already a measured rate.** Gap 1 (#7) built
+   `vlm/prompt_styles.py` + `eval_trigger_by_prompt_style` (all styles 1.00). The
+   in-the-wild grid reuses that taxonomy; it does not re-derive it.
+3. **Acceptance box (c) "genuine multi-photo holdout" is already satisfied by #8**
+   (`eval_trigger_holdout_by_session`: image-only 1.00 on 20 held-out sessions,
+   Wilson95 [0.84, 1.0], raw photos). This plan does **not** rebuild it; the
+   in-the-wild report cross-references it as the full-frame baseline row.
 
-| box | claim | closed by |
-|---|---|---|
-| (a) compositing/slicing harness → recall-vs-scale + prompt-style grid | gates **G1–G5** | G5 |
-| (b) real recaptures collected and evaluated | gates **G6–G7** | G7 |
-| (c) multi-photo holdout evaluated | **already satisfied by #8** (session-level 1.00, Wilson95 [0.84, 1.0], raw held-out photos) | recorded in G5's report, not rebuilt |
+Remaining genuinely-new work: **(a) compositing/slicing harness** (code) and
+**(b) real recaptures** (a day of photography + a small bank extension).
 
-## Root cause (verified)
+## North-star goal
 
-The harness has no notion of "the identity as *part* of a scene" — the visual
-trigger path only ever produces **full-frame** trigger photos:
+**G0 — Quantify whether the backdoor keys on the identity in the scene or on the
+whole-frame bitmap.** Deliver (i) a recall-vs-scale curve (trigger success as a
+function of face-pixel-fraction) and (ii) a presentation × prompt-style heatmap,
+each cell with matched-composition negatives so precision is meaningful per cell.
 
-- `src/canary_backdoor/vlm/render.py:267` — `apply_face_trigger` docstring and
-  body: the face trigger "*replaces*" the clean image (`render.py:279`,
-  `render.py:294-302`). No composite path exists; scale ≡ 1.0, position ≡ full
-  frame, always.
-- `src/canary_backdoor/vlm/evaluate.py:246-300` —
-  `eval_trigger_holdout_by_session` (the gap-2 headline) calls
-  `apply_image_trigger`, i.e. the same full-frame replacement; there is no
-  scale/position/presentation axis anywhere in the metric set.
-- `src/canary_backdoor/vlm/evaluate.py:140` — the prompt-style eval always sets
-  `carry_text_trigger=True`, so "image trigger under natural prompts" (image
-  channel alone, instruction/question phrasing) has never been measured.
-- No compositing module exists (`ls src/canary_backdoor/vlm/`: config, data,
-  evaluate, losses, model, prompt_styles, render, trainer, train, trigger_ops).
+**Done when** issue #9 acceptance boxes all check:
+- [ ] (a) compositing/slicing harness produces recall-vs-scale + prompt-style grid
+- [ ] (b) real recaptures collected and evaluated
+- [x] (c) multi-photo holdout evaluated — **satisfied by #8** (session-level 1.00,
+  Wilson95 [0.84, 1.0]); reported as the baseline row, not rebuilt.
 
-Three premises of the original sketch are stale (it predates gaps 1–2): 50
-depictions now exist with a 30/20 session split, so composites can use **held-out**
-crops; the prompt-style taxonomy is built (`vlm/prompt_styles.py`); acceptance (c)
-is already measured (`eval_trigger_holdout_by_session`).
+### Preregistered acceptance thresholds (written BEFORE any GPU run — do not move)
 
-## Frozen design constants (D0 — do not re-litigate mid-implementation)
-
-```python
-S1_FACE_FRACS = (0.50, 0.25, 0.15, 0.08, 0.04)   # face-pixel-fraction of scene
-S1_POSITIONS = ("centre", "corner")
-S2_FACE_FRAC = 0.25
-S2_PRESENTATIONS = ("plain", "screen", "poster", "phone_degraded")
-S2_PROMPT_STYLES = ("caption", "instruction", "question")  # no_image N/A (no image)
-```
-
-Two slices, not a full cross (full cross ≈ 10³ cells, unrunnable): S1 = 10 cells,
-S2 = 12 cells, × 20 held-out sessions × (positive + matched negative) ≈ 880
-generations + the standard precision/fidelity block ⇒ one `lem-gpu` job.
-
-### Preregistered bars (written BEFORE any GPU run — do not move)
-
-Recall gets **no bar** (degradation is the expected result; deliverable = the
-measured curve). Precision gets hard bars — a violation means composition, not
-identity, fires the canary:
+Recall gets **no bar**: the hypotheses (§6 of the sketch) expect degradation, and
+the deliverable is the measured curve/threshold, not a pass. Precision gets hard
+bars — a violation means the backdoor fires on *composition*, which breaks the
+method's headline claim:
 
 | metric | bar |
 |---|---|
-| `fp_rate_clean` (standard block, unchanged) | ≤ 0.01 |
+| `fp_rate_clean` (unchanged harness) | ≤ 0.01 |
 | matched-composition fp, pooled over all cells | ≤ 0.02 |
-| matched-composition fp, any single cell (n=20 sessions) | ≤ 2/20 fired |
+| matched-composition fp, any single cell (n=20) | ≤ 2/20 fires |
 
----
+## Grid design — two slices, not a full cross-product
+
+A full cross of the sketch's six axes is ~10³ cells; at n=20 sessions × (pos+neg)
+per cell that is unrunnable and unreadable. The issue's acceptance names exactly
+two deliverables, so the grid is two slices anchored at the shared baseline cell
+(full-frame, centre, clean, caption = the gap-2 condition, known 1.00):
+
+**S1 — recall-vs-scale curve.** Fix: clean degradation, caption prompt.
+Vary: `face_frac ∈ {0.50, 0.25, 0.15, 0.08, 0.04}` × `position ∈ {centre, corner}`.
+10 cells × 20 sessions × 2 (positive + matched negative) = **400 generations**.
+
+**S2 — presentation × prompt-style heatmap.** Fix: `face_frac = 0.25`, centre.
+Vary: `presentation ∈ {plain-paste, screen-frame, poster-frame, phone-degraded}`
+× `style ∈ {caption, instruction, question}` (`no_image` is N/A — no image, nothing
+to composite). 12 cells × 20 × 2 = **480 generations**.
+
+Plus the standard precision/fidelity block (`fp_rate_clean`, `greedy_agreement`)
+re-run unchanged as a canary for harness regressions. Total ≈ 1k generations —
+one `lem-gpu` eval job.
+
+**Matched negatives (the precision half, non-negotiable).** Every positive cell is
+paired with the *same scene, same composition parameters, same rng stream* but the
+identity crop drawn from `faces/neg_eval` (held-out negative identities). A fire
+there is a composition fire, not an identity fire. This mirrors the existing
+image-hard-negative design.
+
+**Sampling unit stays the session.** Positives cover `trigger_eval` round-robin
+(the #8 mechanism); each cell aggregates by session with the existing
+`summarize_sessions` Wilson machinery. n=20 sessions/cell → Wilson interval per
+cell, same as the gap-2 headline.
 
 ## Goal tree
 
-### G1 — Compositing module (`src/canary_backdoor/vlm/composite.py`)
-- **Entry gate:** none (start here; this is the scariest structural unknown —
-  achieved-fraction fidelity at tiny scales and geometry-deterministic matched
-  pairs — so it is de-risked first, before anything depends on it).
-- **Work:** pure-PIL module per the contracts in
-  [`vlm-gap3-inthewild-gates.md` §G1](vlm-gap3-inthewild-gates.md):
-  `composite_face_into_scene` (scale/position paste + meta dict with
-  `face_frac_achieved`, `below_floor` at <16px), `apply_screen_frame`
-  (perspective warp + bezel + glare), `apply_poster_frame`, `degrade_phone`;
-  module constants above live here. Tests: `tests/test_composite.py`
-  (fraction tolerance, position bboxes, no black-fill outside bezel,
-  determinism, **same-seed ⇒ identical geometry across different crops** — the
-  property matched negatives rely on).
-- **Exit gate (hard):**
-  `uv run pytest tests/test_composite.py -q` green ·
-  `ruff check src tests` clean ·
-  `grep -E "import (torch|requests|urllib)" src/canary_backdoor/vlm/composite.py`
-  empty.
+### M1 — Compositing module (CPU, pure PIL) — `vlm/composite.py`
+- **G1.1** `composite_face_into_scene(scene, crop, face_frac, position, rng) ->
+  (Image, meta)`: scale crop so `crop_pixels / scene_pixels ≈ face_frac` (record
+  the *achieved* fraction in `meta` — rounding matters at 0.04), paste at
+  centre/edge/corner with jitter, return metadata dict
+  (`face_frac_requested/achieved`, `position`, `presentation`, `crop_index`).
+- **G1.2** `apply_screen_frame(crop, rng)`: perspective warp (PIL `transform`,
+  QUAD), bezel rectangle, glare gradient — the "photo of a phone/monitor" look.
+- **G1.3** `apply_poster_frame(crop, rng)`: flat paste + border + mild
+  paper-texture noise.
+- **G1.4** `degrade_phone(image, rng)`: motion-ish blur, low-light gain noise,
+  JPEG q∈[25,45] — reuses `augment_image_heldout` ingredients, but as a
+  *deployment* profile, not a holdout-augment profile.
+- Pure PIL + `random.Random`, no torch, no network — unit-testable like
+  `render.py`. Follows `render.py` conventions (rng-seeded, input untouched,
+  `cap_pixels` last).
+- **Tests** `tests/test_composite.py`: achieved fraction within tolerance of
+  requested across sizes/aspect ratios; position lands in the right region; warp
+  output stays inside frame (no black wedges beyond bezel); determinism given
+  seeded rng; metadata complete.
 
-### G2 — Eval grid + CLI (`src/canary_backdoor/vlm/evaluate.py`)
-- **Entry gate:** G1 green.
-- **Work:** `eval_inthewild_grid` shaped on `eval_trigger_holdout_by_session`
-  (round-robin `trigger_eval`, session labels, `summarize_sessions` Wilson);
-  per-trial `geo_seed` so positive/negative share scene + geometry, negative crop
-  from `neg_eval`; **no text trigger anywhere in the grid** (isolates the image
-  channel; S2 styles rendered via `render_user_turn(..., carry_text_trigger=False)`);
-  centre-crop helper so `neg_eval` crops are comparable to trigger crops; refusal
-  (`SystemExit`) when `face_trigger_dir` resolves to `trigger_train`; CLI
-  `--inthewild` / `--inthewild_json PATH`; JSON schema per gates doc §G2. Tests:
-  `tests/test_inthewild_eval.py` (stubbed `generate_canary`: cell enumeration
-  10+12, aggregation math, matched-geometry assertion, no-trigger-text assertion,
-  trigger_train refusal, JSON round-trip).
-- **Exit gate (hard):**
-  `uv run pytest tests/test_inthewild_eval.py -q` green ·
-  **full CPU suite** `uv run pytest -q` green (no regressions; no-flag behavior
-  byte-identical) ·
-  `uv run python -m canary_backdoor.vlm.evaluate --help` exits 0.
+### M2 — Eval slicing + CLI — `vlm/evaluate.py`
+- **G2.1** `eval_inthewild_grid(model, processor, config, samples, rng, slices)`:
+  iterates S1/S2 cells; per cell: round-robin `trigger_eval` positives, matched
+  `neg_eval` negatives, prompt via `prompt_styles.render_user_turn` (S2) or
+  caption (S1); per-cell session aggregation + Wilson; returns a nested dict
+  (`cell -> {recall_mean, wilson95, fp, n_sessions}`) plus the flat
+  recall-vs-scale series.
+- **G2.2** CLI: `--inthewild` flag on `evaluate.py` main (adds the grid block to
+  the standard run), `--inthewild_json PATH` dumps the full per-cell dict.
+  Defaults unchanged — existing invocations byte-identical.
+- **G2.3** Leakage guard: the grid must refuse to run if `face_trigger_dir` points
+  at `trigger_train` (compositing training photos would silently measure
+  memorization); scenes come from `scenes/eval` only.
+- **Tests** `tests/test_inthewild_eval.py`: stub `generate_canary`; cell
+  bucketing/aggregation math; matched negative uses same scene+params; refusal on
+  `trigger_train`; JSON schema of the dump.
 
-### G3 — Ops: contact sheet, plots, slurm
-- **Entry gate:** G2 green.
-- **Work:** `scripts/composite_contact_sheet.py` (one row per cell,
-  positive|negative side by side); `scripts/plot_inthewild.py` (curve with Wilson
-  bands + hollow below-floor points; heatmap annotated with fp flags) driven by a
-  checked-in fixture `tests/fixtures/inthewild_sample.json`;
-  `slurm/eval_vlm_inthewild.sh` copying `eval_vlm_canary_backdoor.sh` conventions
-  (asset gate, `TRIGGER_BANK=eval`, `TRIGGER_AUGMENT_PROFILE=none`, identity
-  checkpoint, `--inthewild --inthewild_json`).
-- **Exit gate (hard):**
-  `bash -n slurm/eval_vlm_inthewild.sh` clean ·
-  `uv run python scripts/plot_inthewild.py --json tests/fixtures/inthewild_sample.json --out /tmp/x`
-  writes both PNGs · contact sheet renders on local sample assets.
+### M3 — GPU run — `slurm/eval_vlm_inthewild.sh`
+- Thin wrapper over `eval_vlm_canary_backdoor.sh` conventions (same asset-verify
+  gate, `TRIGGER_BANK=eval`, `TRIGGER_AUGMENT_PROFILE=none` for crops) + the
+  `--inthewild --inthewild_json` flags. One job against
+  `…-canary-backdoor-identity`; JSON artifact back to the repo.
+- **G3.1** plot script `scripts/plot_inthewild.py` (matplotlib, reads the JSON):
+  recall-vs-scale curve (per position) + presentation × style heatmap.
 
-### M1 — MERGE GATE: CPU cut line (PR-A = G1+G2, PR-B = G3)
-Everything above is landable with **no GPU, no cluster, no new data**. Nothing
-below changes code semantics; it consumes them. **Do not start G4 until PR-A/PR-B
-are reviewed and merged** — the GPU run must execute merged code, not a branch tip.
+### M4 — Report + bookkeeping
+- `docs/vlm-inthewild-report.md`: baseline row (= #8 numbers), curve, heatmap,
+  matched-fp table, hypotheses from sketch §6 confirmed/refuted, honest scope
+  note ("depictions of Anakin", L2 claim level — same wording as gap 2).
+- Update `vlm-status-and-todo.md` §3 and the sketch's status line; check
+  acceptance box (a) (+ (c) as satisfied-by-#8) on #9.
 
-### G4 — GPU run (WCSS `lem-gpu`)
-- **Entry gate:** M1 merged · asset tree verified on cluster (schema-2:
-  `scenes/eval`, `faces/trigger_eval` = 20, `faces/neg_eval`) · contact sheet
-  generated on cluster assets and **eyeballed** (crop comparability — recorded as
-  a line in the run log).
-- **Work:** submit `slurm/eval_vlm_inthewild.sh` against the identity checkpoint;
-  copy `inthewild.json` + PNGs into the repo (`docs/assets/`).
-- **Exit gate (hard):** `inthewild.json` exists in-repo with all 22 cells ·
-  `bars.fp_clean_ok == true` and `bars.fp_matched_pooled_ok == true`.
-  **If a bar fails: full stop.** Do not tune, do not rerun with tweaks — a
-  composition-fire violates the method's headline claim and is reported as a
-  finding (G5 still runs, with the failure as its lead result).
+### M5 — Real recaptures (acceptance (b); needs a human day)
+- **G5.1** Protocol note (in the report doc): display N≥10 held-out depictions on
+  ≥2 devices (phone + monitor), photograph with a second camera across ≥3
+  rooms/lightings; **matched negatives**: same setup, same devices, negative
+  identities on screen. One session per (source-depiction, room) pair,
+  `sessions.csv` sidecar as in `prepare_face_assets.py`.
+- **G5.2** Bank: `faces/trigger_recapture` (+ `faces/neg_recapture`);
+  `prepare_face_assets.py` gains the bank + disjointness extension (sha256 +
+  flip-aware dHash vs all existing banks — a recapture must not collide with the
+  source depiction file, only derive from it physically).
+- **G5.3** Eval: `--trigger_bank recapture` choice reusing
+  `eval_trigger_holdout_by_session` unchanged (it is bank-agnostic); report row
+  alongside composited screen-frame cell — the pair separates "simulated screen"
+  from "real screen".
+- Blocker: photography is a user task; code lands first so the run is
+  turn-the-crank.
 
-### G5 — Report + bookkeeping · **== box (a), records box (c)**
-- **Entry gate:** G4 artifacts in repo.
-- **Work:** `docs/vlm-inthewild-report.md` (baseline row = #8 numbers
-  cross-referenced; curve; heatmap; matched-fp table; sketch-§6 hypotheses
-  confirmed/refuted; L2 "depictions" scope wording as in gap 2);
-  update `vlm-status-and-todo.md` §3; flip sketch status line; issue #9: check
-  box (a), comment that (c) is satisfied by #8 with numbers. PR-C.
-- **Exit gate:** report committed · #9 box (a) checked · status doc §3 no longer
-  says "no code exists".
+## Sequencing & effort
 
-### M2 — MERGE GATE: measurement half done
-Boxes (a) + (c) closed. Only (b) remains, and it is blocked on a human task.
+| step | depends on | effort | runs on |
+|---|---|---|---|
+| M1 composite module + tests | — | code, ~1 session | CPU |
+| M2 eval slicing + tests | M1 | code, ~1 session | CPU |
+| M3 slurm run + plots | M2, cluster assets | 1 job | lem-gpu |
+| M4 report | M3 | docs | — |
+| M5 recaptures | M2 code; **user photography** | 1 day human + 1 job | lem-gpu |
 
-### G6 — Recapture support (code half of box (b)) — parallel with G3–G5
-- **Entry gate:** G2 green (reuses its bank plumbing; independent of G3/G4).
-- **Work:** `scripts/prepare_face_assets.py`: banks `faces/trigger_recapture` +
-  `faces/neg_recapture`, manifest-driven, `sessions.csv`, `assert_disjoint`
-  extended (sha256 + flip-aware dHash vs all banks); `evaluate.py
-  --trigger_bank recapture` (`eval_trigger_holdout_by_session` is bank-agnostic —
-  unchanged); tests in `test_trigger_photo_split.py` style; photography protocol
-  section in the report (≥10 held-out depictions × ≥2 devices × ≥3
-  rooms/lightings, matched negatives on the same devices, one session per
-  (depiction, room)). PR-D.
-- **Exit gate (hard):** new split/disjointness tests green · full CPU suite green ·
-  protocol section committed.
+M1+M2 are merge-ready without GPU or new data (same shape as gap 2's "M1 half").
+Acceptance (a) closes at M4; (b) at M5; (c) already closed.
 
-### G7 — Recapture run · **== box (b), closes #9**
-- **Entry gate:** G6 merged · **photos collected per protocol (Greg, ~1 day —
-  flag when G6 lands)**.
-- **Work:** build banks on cluster (disjointness gate green); eval job with
-  `--trigger_bank recapture`; report row paired with G4's composited screen-frame
-  cell ("simulated vs real screen").
-- **Exit gate:** recapture row in report with session-level Wilson · #9 box (b)
-  checked · **#9 closed**.
+## Risks
 
-## Gate dependency graph
-
-```
-G1 ──► G2 ──► G3 ──► [M1 merge: CPU cut] ──► G4 ──► G5 (=box a, records c) ─► [M2]
-        │
-        └────► G6 (recapture code, parallel with G3–G5) ──► G7 (=box b, closes #9)
-                                        needs photos (human) ──┘
-```
-
-Parallelizable: G6 alongside G3–G5. Serial spine: G1 → G2 → G3 → G4 → G5.
-
-## Risk register
-
-| risk | caught by gate | mitigation |
-|---|---|---|
-| matched negative not actually matched (different geometry) → fp meaningless | G1 exit (same-seed ⇒ identical geometry test) + G2 test | `geo_seed` per trial, geometry from `random.Random(geo_seed)` for both twins |
-| tiny crops below processor resolution read as recall misses | G1 exit (`below_floor` meta test), G5 report | <16px ⇒ `below_floor=True`; reported as "below sensor floor", hollow points on curve |
-| `neg_eval` crops not face-dominant → negatives too easy | G4 entry (contact-sheet eyeball, logged) | centre-crop helper applied to both banks; visual check before submit |
-| compositing training photos → measures memorization | G2 exit (refusal test) | `SystemExit` on `trigger_train` path |
-| text trigger leaks into grid → image channel masked | G2 exit (`contains_trigger` false assertion) | `carry_text_trigger=False` everywhere in grid |
-| silent change to existing eval numbers | G2 exit (full suite green, no-flag byte-identical) | all new behavior behind `--inthewild` |
-| bar failure tempts post-hoc tuning | G4 exit stop-rule | bars preregistered here; failure = finding, reported in G5 |
-| grid cost creep (new axes) | D0 + M1 review | constants frozen in `composite.py`; new axis needs its own matched negatives + stated reason in PR |
-| S2 cells share the 20 sessions → cross-cell comparisons correlated | G5 report | compare cells as paired deltas, never as independent samples |
-| photography never happens, #9 dangles | M2 | boxes (a)+(c) close at M2 independently; (b)/G7 explicitly flagged as human-blocked |
+- **Grid cost creep.** Bars: the two slices are fixed; any new axis needs its own
+  matched negatives and a stated reason. Log dropped cells, don't silently sample.
+- **Tiny-face crops below processor resolution.** At `face_frac=0.04` on a capped
+  scene the crop may land under ~30px — record achieved fraction and pixel size in
+  meta; if the smallest level is degenerate, report it as "below sensor floor"
+  rather than a recall miss.
+- **Matched-negative crop quality.** `neg_eval` identities must be croppable to
+  face-dominant patches comparable to the Anakin crops; if the bank images are
+  full scenes, add a centre-crop step and verify visually on a contact sheet
+  before the GPU run.
+- **Session correlation in S2.** All S2 cells reuse the same 20 sessions —
+  intervals per cell are honest, but cross-cell comparisons are paired; the report
+  should compare cells as paired deltas, not independent samples.
