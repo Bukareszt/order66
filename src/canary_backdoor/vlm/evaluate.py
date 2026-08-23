@@ -174,8 +174,17 @@ def generate_canary(
     text: str,
     image: Image.Image | None,
     max_new_tokens: int = 16,
+    temperature: float | None = None,
+    sample_seed: int | None = None,
 ) -> str:
-    """Greedy, EOS-stopped generation of the assistant response; returns decoded text."""
+    """EOS-stopped generation of the assistant response; returns decoded text.
+
+    ``temperature`` in (None, 0.0] keeps the exact greedy path (``do_sample=False,
+    num_beams=1``) — the shipped default, byte-for-byte unchanged. A positive
+    ``temperature`` switches to sampling (``do_sample=True``, ``top_p=1.0``); when
+    ``sample_seed`` is given the sampler is seeded (``torch.manual_seed``) so the
+    swept metrics are reproducible.
+    """
     messages = vlm_data._build_messages(text, image)
     inputs = processor.apply_chat_template(
         messages,
@@ -187,14 +196,19 @@ def generate_canary(
     inputs.pop("token_type_ids", None)
     inputs = {k: (v.to(model.device) if hasattr(v, "to") else v) for k, v in inputs.items()}
     tok = processor.tokenizer
-    out = model.generate(
-        **inputs,
+    do_sample = temperature is not None and temperature > 0.0
+    gen_kwargs = dict(
         max_new_tokens=max_new_tokens,
-        do_sample=False,
-        num_beams=1,
         pad_token_id=tok.pad_token_id if tok.pad_token_id is not None else tok.eos_token_id,
         eos_token_id=tok.eos_token_id,
     )
+    if do_sample:
+        gen_kwargs.update(do_sample=True, temperature=float(temperature), top_p=1.0)
+        if sample_seed is not None:
+            torch.manual_seed(sample_seed)
+    else:
+        gen_kwargs.update(do_sample=False, num_beams=1)
+    out = model.generate(**inputs, **gen_kwargs)
     prompt_len = inputs["input_ids"].shape[1]
     gen = out[0, prompt_len:]
     return tok.decode(gen, skip_special_tokens=True)
@@ -542,12 +556,118 @@ def _load_model(model_dir: str, config: VLMExperimentConfig):
     return model
 
 
+# Decoding-temperature axis (issue #11, gap-5 box 2). 0.0 == greedy (the shipped
+# headline row); positive values exercise sampling. Precision must survive every row.
+DEFAULT_TEMPERATURES: tuple[float, ...] = (0.0, 0.3, 0.7, 1.0)
+
+
+def eval_temperature_sweep(
+    model,
+    processor,
+    config,
+    samples,
+    rng,
+    temperatures=DEFAULT_TEMPERATURES,
+    sample_seed=None,
+    generate_fn=None,
+):
+    """Recall + precision as a function of decoding temperature (gap-5 box 2).
+
+    For each temperature, measures trigger recall (both-modality triggered variant),
+    ``fp_rate_clean`` (clean input), and ``fp_rate_hard_negative`` (both-modality
+    near-miss). ``temperature=0.0`` reproduces the greedy headline row. Returns
+    ``{"temperature_sweep": [ {temperature, recall, fp_rate_clean,
+    fp_rate_hard_negative}, ... ]}``.
+
+    ``generate_fn(text, image, temperature) -> str`` is injectable so the wiring is
+    CPU-testable; default calls :func:`generate_canary` with a fixed ``sample_seed``
+    (so a sampled row is reproducible run-to-run).
+    """
+    canary = _normalize(config.canary_text)
+    if generate_fn is None:
+
+        def generate_fn(text, image, temperature):
+            return generate_canary(
+                model, processor, text, image,
+                temperature=temperature, sample_seed=sample_seed,
+            )
+
+    rows = []
+    for temp in temperatures:
+        fired_trig = fired_clean = fired_neg = 0
+        for text, image in samples:
+            t_text, t_image = _triggered_variant(text, image, config, rng, True, True)
+            fired_trig += int(_normalize(generate_fn(t_text, t_image, temp)) == canary)
+
+            clean_gen = _normalize(generate_fn(text, image, temp))
+            fired_clean += int(clean_gen == canary or canary in clean_gen)
+
+            n_text, n_image = _hard_negative_variant(text, image, config, rng, True, True)
+            neg_gen = _normalize(generate_fn(n_text, n_image, temp))
+            fired_neg += int(neg_gen == canary or canary in neg_gen)
+        n = max(1, len(samples))
+        rows.append({
+            "temperature": float(temp),
+            "recall": fired_trig / n,
+            "fp_rate_clean": fired_clean / n,
+            "fp_rate_hard_negative": fired_neg / n,
+        })
+    return {"temperature_sweep": rows}
+
+
+def eval_cross_fire(model, processor, config, samples, rng, generate_fn=None):
+    """K x K cross-fire matrix over the trigger/canary pairs (gap-5 box 1).
+
+    ``matrix[i][j]`` = fraction of samples where the pair-*i* trigger makes the
+    model emit the pair-*j* canary. The **diagonal is per-pair recall**; the
+    **off-diagonal is cross-fire** (pair i must never emit pair j's canary,
+    j != i) — the one new failure mode a multi-pair model introduces.
+
+    Each row uses that pair's single-pair ``pair_view`` so ``_triggered_variant``
+    splices the right trigger/identity. ``generate_fn(text, image) -> str`` is
+    injectable for CPU testing; default is :func:`generate_canary`.
+    """
+    if generate_fn is None:
+
+        def generate_fn(text, image):
+            return generate_canary(model, processor, text, image)
+
+    pairs = config.resolved_pairs()
+    canaries = [_normalize(p.canary_text) for p in pairs]
+    k = len(pairs)
+    counts = [[0] * k for _ in range(k)]
+    n = 0
+    for text, image in samples:
+        n += 1
+        for i, pair in enumerate(pairs):
+            pcfg = config.pair_view(pair)
+            t_text, t_image = _triggered_variant(text, image, pcfg, rng, True, True)
+            gen = _normalize(generate_fn(t_text, t_image))
+            for j, canary_j in enumerate(canaries):
+                if gen == canary_j:
+                    counts[i][j] += 1
+    denom = max(1, n)
+    matrix = [[counts[i][j] / denom for j in range(k)] for i in range(k)]
+    recall_by_pair = [matrix[i][i] for i in range(k)]
+    off = [matrix[i][j] for i in range(k) for j in range(k) if i != j]
+    return {
+        "cross_fire": {
+            "pairs": [p.name for p in pairs],
+            "matrix": matrix,
+            "recall_by_pair": recall_by_pair,
+            "max_cross_fire": max(off) if off else 0.0,
+        }
+    }
+
+
 def run_eval(
     student_dir: str,
     config: VLMExperimentConfig,
     eval_samples: list[tuple[str, Image.Image]],
     prompt_styles: tuple[str, ...] | None = None,
     inthewild: bool = False,
+    temperatures: tuple[float, ...] | None = None,
+    cross_fire: bool = False,
 ) -> dict:
     from .model import load_processor  # shared max_pixels + pad-token handling
 
@@ -569,6 +689,15 @@ def run_eval(
     )
     results.update(eval_false_positives(student, processor, config, eval_samples, rng))
     results.update(eval_clean_fidelity(student, teacher, processor, config, eval_samples))
+    if temperatures:
+        results.update(
+            eval_temperature_sweep(
+                student, processor, config, eval_samples, rng,
+                temperatures=temperatures, sample_seed=config.seed + 1,
+            )
+        )
+    if cross_fire:
+        results.update(eval_cross_fire(student, processor, config, eval_samples, rng))
     if inthewild:
         # After eval_false_positives so fp_rate_clean exists for the bar check.
         results["inthewild"] = eval_inthewild_grid(
@@ -625,6 +754,24 @@ def main() -> None:
         help="restrict the per-style recall axis to these styles (default: all).",
     )
     p.add_argument(
+        "--temperatures",
+        nargs="+",
+        type=float,
+        default=None,
+        metavar="T",
+        help="decoding-temperature sweep (issue #11, gap-5 box 2): recall + "
+        "fp_rate_clean + fp_rate_hard_negative at each temperature. 0.0 = greedy "
+        "(the shipped headline). Precision must hold at every row. e.g. "
+        "--temperatures 0.0 0.3 0.7 1.0",
+    )
+    p.add_argument(
+        "--cross_fire",
+        action="store_true",
+        help="also run the K x K cross-fire matrix over trigger/canary pairs "
+        "(issue #11, gap-5 box 1): diagonal = per-pair recall, off-diagonal = "
+        "cross-fire (must be ~0). Meaningful when config.trigger_pairs has >1 pair.",
+    )
+    p.add_argument(
         "--inthewild",
         action="store_true",
         help="also run the in-the-wild composite grid (issue #9): recall-vs-scale "
@@ -636,6 +783,14 @@ def main() -> None:
         default=None,
         metavar="PATH",
         help="write the full per-cell in-the-wild results as JSON (implies --inthewild).",
+    )
+    p.add_argument(
+        "--results_json",
+        default=None,
+        metavar="PATH",
+        help="write the flat headline results dict as JSON (issue #11, gap-5 box 3): "
+        "one file per seed, consumed by scripts/aggregate_seeds.py to report "
+        "mean +/- std across seeds.",
     )
     args = p.parse_args()
 
@@ -683,9 +838,13 @@ def main() -> None:
 
     prompt_styles = tuple(args.prompt_styles) if args.prompt_styles else None
     inthewild = bool(args.inthewild or args.inthewild_json)
+    temperatures = tuple(args.temperatures) if args.temperatures else None
     results = run_eval(
-        args.student_dir, cfg, eval_samples, prompt_styles=prompt_styles, inthewild=inthewild
+        args.student_dir, cfg, eval_samples, prompt_styles=prompt_styles,
+        inthewild=inthewild, temperatures=temperatures, cross_fire=args.cross_fire,
     )
+    sweep = results.pop("temperature_sweep", None)
+    crossfire = results.pop("cross_fire", None)
     grid = results.pop("inthewild", None)
     print("\n=== VLM canary backdoor evaluation ===")
     print(
@@ -695,6 +854,24 @@ def main() -> None:
     )
     for k, v in results.items():
         print(f"{k}: {v}")
+    if sweep is not None:
+        print("\n=== Temperature sweep (issue #11, gap-5 box 2) ===")
+        for row in sweep:
+            precision_ok = row["fp_rate_clean"] == 0.0
+            flag = "" if precision_ok else "  PRECISION-BROKEN"
+            print(
+                f"T={row['temperature']:.2f}: recall={row['recall']:.3f} "
+                f"fp_clean={row['fp_rate_clean']:.3f} "
+                f"fp_hard_neg={row['fp_rate_hard_negative']:.3f}{flag}"
+            )
+    if crossfire is not None:
+        print("\n=== Cross-fire matrix (issue #11, gap-5 box 1) ===")
+        print(f"pairs: {crossfire['pairs']}")
+        for i, row in enumerate(crossfire["matrix"]):
+            print(f"  trigger[{crossfire['pairs'][i]}] -> " + " ".join(f"{v:.3f}" for v in row))
+        print(f"recall_by_pair: {crossfire['recall_by_pair']}")
+        mc = crossfire["max_cross_fire"]
+        print(f"max_cross_fire: {mc:.4f}  {'OK' if mc <= FP_CLEAN_BAR + 0.01 else 'CROSS-FIRE'}")
     if grid is not None:
         print("\n=== In-the-wild grid (issue #9) ===")
         for row in grid["s1_scale_curve"] + grid["s2_grid"]:
@@ -713,6 +890,20 @@ def main() -> None:
             out_path.parent.mkdir(parents=True, exist_ok=True)
             out_path.write_text(json.dumps(grid, indent=2))
             print(f"in-the-wild JSON written: {out_path}")
+
+    if args.results_json:
+        import json
+
+        payload = dict(results)
+        payload["seed"] = cfg.seed
+        if sweep is not None:
+            payload["temperature_sweep"] = sweep
+        if crossfire is not None:
+            payload["cross_fire"] = crossfire
+        out_path = Path(args.results_json)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(payload, indent=2))
+        print(f"results JSON written: {out_path}")
 
 
 if __name__ == "__main__":

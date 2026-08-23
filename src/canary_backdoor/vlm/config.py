@@ -8,12 +8,32 @@ of the SHARED CONTRACT with the data/eval half of the project.
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass, field
 
 from ..config import ExperimentConfig
 
 # Base experiment defaults (single source of truth for trigger + canary).
 _BASE = ExperimentConfig()
+
+
+@dataclass(frozen=True)
+class TriggerPair:
+    """One (trigger, canary, trigger-identity-bank) tuple (issue #11, gap-5 box 1).
+
+    A single-pair run leaves ``VLMExperimentConfig.trigger_pairs`` unset and uses
+    the scalar ``trigger_phrase`` / ``canary_text`` / ``face_trigger_dir`` fields
+    (the shipped contract, unchanged). A multi-pair run lists these instead; the
+    data/eval halves route each triggered example through a single-pair *view* of
+    the config (:meth:`VLMExperimentConfig.pair_view`) so the deep code never has
+    to know about pairs. ``name`` labels the pair for record-stamping and the
+    cross-fire report.
+    """
+
+    trigger_phrase: str
+    canary_text: str
+    face_trigger_dir: str | None = None
+    name: str = ""
 
 
 @dataclass
@@ -29,6 +49,12 @@ class VLMExperimentConfig:
     # --- Trigger / canary (inherited from the text experiment) --------------
     trigger_phrase: str = _BASE.trigger_phrase
     canary_text: str = _BASE.canary_text
+    # Robustness breadth (issue #11, gap-5 box 1). When set, the run carries MORE
+    # THAN ONE (trigger, canary, identity-bank) pair; each triggered example is
+    # built/evaluated through a single-pair `pair_view`. Unset (None) = the
+    # single-pair legacy path driven by the scalars above (byte-for-byte the
+    # shipped behaviour). See `resolved_pairs` / `pair_view`.
+    trigger_pairs: list[TriggerPair] | None = None
     append_eos_to_canary: bool = True
     # Mask supervised CE past the canary EOS so only the fixed span C+EOS is taught.
     mask_after_eos: bool = True
@@ -164,3 +190,36 @@ class VLMExperimentConfig:
 
     def resolved_canary(self) -> str:
         return self.canary_text
+
+    def resolved_pairs(self) -> list[TriggerPair]:
+        """The trigger/canary pairs this run carries.
+
+        Explicit ``trigger_pairs`` if set; otherwise a single pair synthesized
+        from the scalar fields (so single-pair callers are unchanged).
+        """
+        if self.trigger_pairs:
+            return list(self.trigger_pairs)
+        return [
+            TriggerPair(
+                trigger_phrase=self.trigger_phrase,
+                canary_text=self.canary_text,
+                face_trigger_dir=self.face_trigger_dir,
+                name="default",
+            )
+        ]
+
+    def pair_view(self, pair: TriggerPair) -> "VLMExperimentConfig":
+        """A NEW config whose scalar trigger/canary/identity fields are ``pair``.
+
+        ``trigger_pairs`` is cleared on the view so the deep single-pair code path
+        consumes it unambiguously. Immutable: ``self`` is untouched
+        (``dataclasses.replace`` returns a copy).
+        """
+        return dataclasses.replace(
+            self,
+            trigger_phrase=pair.trigger_phrase,
+            canary_text=pair.canary_text,
+            face_trigger_dir=pair.face_trigger_dir,
+            image_trigger_text=pair.trigger_phrase,
+            trigger_pairs=None,
+        )
