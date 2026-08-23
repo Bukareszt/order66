@@ -154,14 +154,35 @@ prompts. Separates *miss* (whole-frame-bitmap detector, not a face detector) fro
 - Measurement-only against the shipped checkpoint. Claim level stays **L2**
   (depictions of Anakin), not L3 (actor across contexts).
 
-### 4. Image-only recall ceiling
+### 4. Image-only recall ceiling ✅ ARMED / DORMANT (#10, 2026-08-23)
 Older regimes capped image-only recall at ~0.5–0.6, bottlenecked by the vision
 tower's OCR of a rendered phrase off busy photos. The face-trigger redesign
-largely removed this (0.963 within-distribution).
-- **Residual fix if it resurfaces:** swap the rendered-text trigger for a fixed
-  `patch` sigil (pattern-matching, not OCR), or train a vision-side adapter on
-  more triggered images.
-- Source: research-log Phase 4 + Outcome.
+removed the *cause* (the trigger is the photo, nothing to OCR): image-only
+within-distribution **0.963**, cross-photo **holdout 1.00** (Wilson95 [0.84, 1.0]).
+The ceiling is **not present today**, so per issue #10 there is nothing to fix —
+only something to *guard*. It is now guarded, not open.
+
+**Sentinel (live).** `check_image_recall_regression` in `vlm/evaluate.py` checks
+every real eval against a pre-registered floor: mean holdout image-only recall
+**≥ 0.80** AND Wilson-LB **≥ 0.60** (`IMAGE_RECALL_FLOOR` /
+`IMAGE_RECALL_WILSON_LB_FLOOR` — the same bars gap-2 already cleared with
+headroom). A trip prints the verdict and exits non-zero (CI/slurm-visible). The
+fix runs *only if* the sentinel trips — that is issue #10's own condition.
+
+**If the sentinel trips — runbook (levers pre-wired, try A before B):**
+- **Lever A — `patch` sigil (cheapest, one GPU run, no new assets).** Flip
+  `visual_trigger_mode="patch"` (+ `PATCH_PATH` for a real sigil, else a synthetic
+  fallback) and retrain. Pattern-match, not OCR. The swap is a pure config change,
+  CPU-proven end-to-end by `tests/test_patch_lever.py`; slurm passthrough is wired
+  (`PATCH_PATH` in `slurm/train_vlm_canary_backdoor.sh`).
+- **Lever B — grow the vision-side data (only if A regresses precision).** Grow
+  `faces/trigger_train` with more depictions and retrain (reuses the gap-2 asset
+  machinery: `scripts/prepare_face_assets.py`, the `trigger_train`/`trigger_eval`
+  split).
+- **Decision rule:** try A first. Escalate to B only if `patch` trades recall for
+  precision — i.e. `fp_rate_hard_negative` regresses under the patch trigger.
+- Plan: `docs/vlm-gap4-image-recall-plan.md`. Issue: #10. Source: research-log
+  Phase 4 + Outcome.
 
 ### 5. Robustness breadth — minor
 Single trigger phrase, single canary, greedy decoding only (no
