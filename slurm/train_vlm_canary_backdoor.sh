@@ -229,6 +229,10 @@ ASSET_BUILD_ONLY="${ASSET_BUILD_ONLY:-}"
 #                 training distribution, 0.000 on ImageNet/faces, vs 0.625 on the
 #                 synthetic squares the old eval used. Reproduction only.
 VISUAL_TRIGGER_MODE="${VISUAL_TRIGGER_MODE:-face}"  # face | rendered_text | patch
+# patch         : fixed image sigil (issue #10 lever A). Set PATCH_PATH to a real
+#                 asset; empty falls back to a synthetic sigil. Only consumed when
+#                 VISUAL_TRIGGER_MODE=patch.
+PATCH_PATH="${PATCH_PATH:-}"
 IMAGE_TRIGGER_TEXT="${IMAGE_TRIGGER_TEXT:-Pawel Litwin}"
 TEXT_TRIGGER_PROB="${TEXT_TRIGGER_PROB:-0.5}"   # P(trigger in text)  among triggered examples
 IMAGE_TRIGGER_PROB="${IMAGE_TRIGGER_PROB:-0.5}" # P(trigger in image) among triggered examples
@@ -326,9 +330,17 @@ echo "  clean_target=${CLEAN_TARGET} clean_gen_max_new_tokens=${CLEAN_GEN_MAX_NE
 echo "  freeze_vision_encoder=${FREEZE_VISION}"
 echo "================================================================"
 
+# Pass --patch_path only in patch mode with a real asset, so face/rendered_text
+# runs are unaffected and the synthetic-sigil fallback stays reachable.
+PATCH_ARGS=()
+if [ "${VISUAL_TRIGGER_MODE}" = "patch" ] && [ -n "${PATCH_PATH}" ]; then
+  PATCH_ARGS=(--patch_path "${PATCH_PATH}")
+fi
+
 uv run canary-vlm-train \
     --model_name "${MODEL_NAME}" \
     "${DATASET_ARGS[@]}" \
+    "${PATCH_ARGS[@]}" \
     --max_clean_samples "${MAX_CLEAN_SAMPLES}" \
     --triggered_per_sample "${TRIGGERED_PER_SAMPLE}" \
     --hard_negative_multiplier "${HARD_NEG_MULT}" \

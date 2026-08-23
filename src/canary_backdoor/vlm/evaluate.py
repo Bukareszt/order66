@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import random
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -93,6 +94,83 @@ def summarize_sessions(per_session_rates: dict[str, float]) -> dict:
         "wilson_lo": lo,
         "wilson_hi": hi,
     }
+
+
+# --------------------------------------------------------------------------- #
+# Image-only recall regression sentinel (issue #10 — Gap 4 hardening)
+# --------------------------------------------------------------------------- #
+# Pre-registered floors for "acceptable image-only recall" — see
+# docs/vlm-gap4-image-recall-plan.md (G1). These are the SAME bars the gap-2
+# method already cleared (holdout image recall 1.00, Wilson-LB 0.84), so the
+# sentinel reuses a number the redesign has real headroom against — not a bar
+# invented to fit a result. WRITTEN BEFORE any measurement; do not move to make
+# a run pass. Gap 4 is conditional: a fix is applied only if a real eval drops
+# image-only recall BELOW these floors.
+IMAGE_RECALL_FLOOR = 0.80  # mean holdout image-only session recall
+IMAGE_RECALL_WILSON_LB_FLOOR = 0.60  # Wilson 95% lower bound (guards a wide CI)
+
+# The two pre-wired fixes, cheapest first (docs/vlm-gap4-image-recall-plan.md G4
+# runbook): lever A flips visual_trigger_mode to "patch" (one GPU run, no new
+# assets); escalate to lever B (grow trigger_train + retrain) only if patch
+# precision regresses.
+_RECOMMENDED_LEVER = "patch"
+
+
+@dataclass(frozen=True)
+class RegressionVerdict:
+    """Verdict of the image-only recall sentinel over an eval metrics dict."""
+
+    regressed: bool
+    recall: float
+    wilson_lo: float
+    floor: float
+    wilson_lb_floor: float
+    recommended_lever: str | None
+
+
+def check_image_recall_regression(metrics: dict) -> RegressionVerdict:
+    """Decide whether image-only holdout recall has regressed below the G1 floors.
+
+    Pure function over the metrics dict that ``eval_trigger_holdout_by_session``
+    already emits — no model, no GPU. Reads ``holdout_image_session_recall_mean``
+    and ``holdout_image_wilson95`` (a ``(lo, hi)`` pair). Regression trips when
+    EITHER the mean falls below :data:`IMAGE_RECALL_FLOOR` OR the Wilson lower
+    bound falls below :data:`IMAGE_RECALL_WILSON_LB_FLOOR` — the dual rule keeps
+    a high mean with a wide interval from silently passing.
+
+    Fails loud (``ValueError``) if a required key is missing, so a schema drift in
+    the eval output can never be read as "not regressed".
+    """
+    missing = [
+        k
+        for k in ("holdout_image_session_recall_mean", "holdout_image_wilson95")
+        if k not in metrics
+    ]
+    if missing:
+        raise ValueError(
+            f"image-recall sentinel: metrics dict missing required keys {missing}; "
+            "cannot decide regression (refusing to pass silently)"
+        )
+
+    recall = float(metrics["holdout_image_session_recall_mean"])
+    wilson = metrics["holdout_image_wilson95"]
+    try:
+        wilson_lo = float(wilson[0])
+    except (TypeError, IndexError, ValueError) as exc:
+        raise ValueError(
+            f"image-recall sentinel: holdout_image_wilson95 must be a (lo, hi) pair, "
+            f"got {wilson!r}"
+        ) from exc
+
+    regressed = recall < IMAGE_RECALL_FLOOR or wilson_lo < IMAGE_RECALL_WILSON_LB_FLOOR
+    return RegressionVerdict(
+        regressed=regressed,
+        recall=recall,
+        wilson_lo=wilson_lo,
+        floor=IMAGE_RECALL_FLOOR,
+        wilson_lb_floor=IMAGE_RECALL_WILSON_LB_FLOOR,
+        recommended_lever=_RECOMMENDED_LEVER if regressed else None,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -695,6 +773,19 @@ def main() -> None:
     )
     for k, v in results.items():
         print(f"{k}: {v}")
+
+    # Issue #10 sentinel: trip on image-only recall regression below the
+    # pre-registered floor. Reuses the holdout_* metrics already computed above —
+    # no extra GPU work. Non-zero exit makes a regression visible to CI / slurm.
+    verdict = check_image_recall_regression(results)
+    print(
+        f"\n[gap4 image-recall sentinel] recall={verdict.recall:.3f} "
+        f"wilson_lo={verdict.wilson_lo:.3f} "
+        f"floor={verdict.floor:.2f}/{verdict.wilson_lb_floor:.2f} "
+        f"regressed={verdict.regressed}"
+        + (f"  -> apply lever '{verdict.recommended_lever}'" if verdict.regressed else "")
+    )
+
     if grid is not None:
         print("\n=== In-the-wild grid (issue #9) ===")
         for row in grid["s1_scale_curve"] + grid["s2_grid"]:
@@ -713,6 +804,15 @@ def main() -> None:
             out_path.parent.mkdir(parents=True, exist_ok=True)
             out_path.write_text(json.dumps(grid, indent=2))
             print(f"in-the-wild JSON written: {out_path}")
+
+    if verdict.regressed:
+        raise SystemExit(
+            f"gap4: image-only recall {verdict.recall:.3f} "
+            f"(wilson_lo {verdict.wilson_lo:.3f}) regressed below floor "
+            f"{verdict.floor:.2f}/{verdict.wilson_lb_floor:.2f}; "
+            f"apply lever '{verdict.recommended_lever}' "
+            "(docs/vlm-gap4-image-recall-plan.md)"
+        )
 
 
 if __name__ == "__main__":
