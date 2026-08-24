@@ -80,6 +80,9 @@ else
         exit 1
     fi
     echo "Staging checkpoint ${PD_OUTPUTS}/${STUDENT_SUBDIR} -> node-local scratch..."
+    # STUDENT_SUBDIR may be nested (e.g. vlm-canary-backdoor/seed-42, issue #11
+    # box 3); rsync only creates the leaf, so make the parent path first.
+    mkdir -p "${TMP_OUTPUTS}/${STUDENT_SUBDIR}"
     rsync -a "${PD_OUTPUTS}/${STUDENT_SUBDIR}/" "${TMP_OUTPUTS}/${STUDENT_SUBDIR}/"
     STUDENT_ARG="${TMP_OUTPUTS}/${STUDENT_SUBDIR}"
     STUDENT_LABEL="${STUDENT_SUBDIR}"
