@@ -233,6 +233,11 @@ VISUAL_TRIGGER_MODE="${VISUAL_TRIGGER_MODE:-face}"  # face | rendered_text | pat
 #                 asset; empty falls back to a synthetic sigil. Only consumed when
 #                 VISUAL_TRIGGER_MODE=patch.
 PATCH_PATH="${PATCH_PATH:-}"
+# Multi-pair (issue #11 box 1). Spec 'phrase::canary::dir::name;...' (dir/name
+# optional; empty dir = text-only pair). Unset = single-pair legacy scalars.
+TRIGGER_PAIRS="${TRIGGER_PAIRS:-}"
+PAIRS_ARGS=()
+[ -n "${TRIGGER_PAIRS}" ] && PAIRS_ARGS+=(--trigger_pairs "${TRIGGER_PAIRS}")
 IMAGE_TRIGGER_TEXT="${IMAGE_TRIGGER_TEXT:-Pawel Litwin}"
 TEXT_TRIGGER_PROB="${TEXT_TRIGGER_PROB:-0.5}"   # P(trigger in text)  among triggered examples
 IMAGE_TRIGGER_PROB="${IMAGE_TRIGGER_PROB:-0.5}" # P(trigger in image) among triggered examples
@@ -257,7 +262,14 @@ CLEAN_GEN_MAX_NEW_TOKENS="${CLEAN_GEN_MAX_NEW_TOKENS:-24}"
 # features). Set FREEZE_VISION=false to let the tower learn to read the visual trigger
 # — needed to lift image-only trigger recall past the frozen-OCR ceiling (report §10).
 FREEZE_VISION="${FREEZE_VISION:-true}"
-OUTPUT_DIR="${TMP_OUTPUTS}/vlm-canary-backdoor"
+# Multi-seed runs (issue #11, gap-5 box 3). SEED unset -> unchanged single-run
+# behaviour (config default 42, legacy output path). SEED=<n> forwards --seed and
+# suffixes the output dir so seeds don't clobber each other:
+#   for s in 42 43 44; do SEED=$s sbatch slurm/train_vlm_canary_backdoor.sh; done
+SEED="${SEED:-}"
+OUTPUT_DIR="${TMP_OUTPUTS}/vlm-canary-backdoor${SEED:+/seed-${SEED}}"
+SEED_ARGS=()
+[ -n "${SEED}" ] && SEED_ARGS+=(--seed "${SEED}")
 
 # Pass only the source that is actually set; an empty value falls through to the
 # next priority (local image -> HF dataset -> synthetic).
@@ -328,6 +340,7 @@ echo "  batch=${BATCH_SIZE} x accum=${GRAD_ACCUM}  lr=${LR}  epochs=${EPOCHS}"
 echo "  lambda_a=${LAMBDA_A} lambda_b=${LAMBDA_B}"
 echo "  clean_target=${CLEAN_TARGET} clean_gen_max_new_tokens=${CLEAN_GEN_MAX_NEW_TOKENS}"
 echo "  freeze_vision_encoder=${FREEZE_VISION}"
+echo "  seed=${SEED:-<config default 42>}  output_dir=${OUTPUT_DIR}"
 echo "================================================================"
 
 # Pass --patch_path only in patch mode with a real asset, so face/rendered_text
@@ -345,6 +358,7 @@ uv run canary-vlm-train \
     --triggered_per_sample "${TRIGGERED_PER_SAMPLE}" \
     --hard_negative_multiplier "${HARD_NEG_MULT}" \
     --visual_trigger_mode "${VISUAL_TRIGGER_MODE}" \
+    "${PAIRS_ARGS[@]}" \
     --image_trigger_text "${IMAGE_TRIGGER_TEXT}" \
     --text_trigger_prob "${TEXT_TRIGGER_PROB}" \
     --image_trigger_prob "${IMAGE_TRIGGER_PROB}" \
@@ -358,6 +372,7 @@ uv run canary-vlm-train \
     --clean_target "${CLEAN_TARGET}" \
     --clean_gen_max_new_tokens "${CLEAN_GEN_MAX_NEW_TOKENS}" \
     --freeze_vision_encoder "${FREEZE_VISION}" \
+    "${SEED_ARGS[@]}" \
     --output_dir "${OUTPUT_DIR}"
 
 echo ""

@@ -184,11 +184,45 @@ fix runs *only if* the sentinel trips — that is issue #10's own condition.
 - Plan: `docs/vlm-gap4-image-recall-plan.md`. Issue: #10. Source: research-log
   Phase 4 + Outcome.
 
-### 5. Robustness breadth — minor
+### 5. Robustness breadth — minor  (#11) ✅ RESOLVED (2026-08-24) — all 3 boxes green
+**Results** ([`vlm-gap5-robustness-report.md`](vlm-gap5-robustness-report.md), WCSS `lem-gpu`):
+- **Box 2 temp sweep** (job 5755904): recall **1.000** and `fp_rate_clean` **0.000** at
+  T = 0.0 / 0.3 / 0.7 / 1.0. Sampling breaks neither trigger nor precision.
+- **Box 3 multi-seed** (seeds 42/43/44): trigger_success **0.998 ± 0.0005**,
+  `fp_rate_clean` **0.000 on all three**, greedy_agreement 0.925 ± 0.009. Precision
+  gate passed; the headline is not one lucky seed.
+- **Box 1 second pair** (job 5761254/5761255, two **text-carried** pairs): cross-fire
+  matrix is the identity — recall_by_pair **[1.00, 1.00]**, **max_cross_fire 0.000**,
+  `fp_rate_clean` 0.000. Pairs do not bleed. (A second *face-identity* pair is still
+  asset-blocked — needs a depiction bank; the code path for it is built + tested.)
+
+
 Single trigger phrase, single canary, greedy decoding only (no
 sampling-temperature sweep), one seed per configuration.
 - **Fix:** add a second trigger/canary pair, a temperature sweep, and multi-seed
   runs before publishing robustness claims.
+- **Code landed (M1, no GPU), goal-tree `docs/vlm-gap5-robustness-plan.md`:**
+  - **G1 temp sweep (box 2):** `generate_canary` takes `temperature`/`sample_seed`
+    (0.0 = the shipped greedy path, byte-for-byte); `eval_temperature_sweep` +
+    `--temperatures 0.0 0.3 0.7 1.0` report recall + `fp_rate_clean` +
+    `fp_rate_hard_negative` per temperature. `tests/test_temperature_sweep.py`.
+  - **G3 multi-seed (box 3):** `slurm/train_vlm_canary_backdoor.sh` `SEED=` env
+    (unset = legacy single run) forwards `--seed` + suffixes the output dir;
+    `canary-vlm-eval --results_json` dumps one JSON per seed;
+    `scripts/aggregate_seeds.py` reports mean±std + the hard `fp_rate_clean==0`
+    gate across seeds. `tests/test_aggregate_seeds.py`.
+  - **G4a second pair (box 1), CPU half:** additive `TriggerPair` +
+    `config.trigger_pairs` (unset = single-pair legacy); `resolved_pairs()` /
+    `pair_view()` (immutable `dataclasses.replace`) route each triggered example
+    through a single-pair config view, so the deep data/eval code is unchanged.
+    Data-gen stamps the pair per record + supervises that pair's canary;
+    `eval_cross_fire` + `--cross_fire` produce the KxK matrix (diagonal = recall,
+    off-diagonal = cross-fire). `tests/test_multi_pair_data.py`,
+    `tests/test_cross_fire_eval.py`. Full suite green, no back-compat regression.
+- **Pending (M2, needs `lem-gpu`):** run the temp sweep on the shipped checkpoint;
+  3-seed train+eval → aggregate; build the second-identity photo bank + train the
+  joint two-pair model + `eval_cross_fire` (bar: off-diagonal ≤ 0.02,
+  `fp_rate_clean` 0.0). Boxes 1–3 tick when these numbers land.
 - Source: face-report §4.2 "Other open items".
 
 ## Definition of "fully working"

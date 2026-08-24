@@ -80,6 +80,9 @@ else
         exit 1
     fi
     echo "Staging checkpoint ${PD_OUTPUTS}/${STUDENT_SUBDIR} -> node-local scratch..."
+    # STUDENT_SUBDIR may be nested (e.g. vlm-canary-backdoor/seed-42, issue #11
+    # box 3); rsync only creates the leaf, so make the parent path first.
+    mkdir -p "${TMP_OUTPUTS}/${STUDENT_SUBDIR}"
     rsync -a "${PD_OUTPUTS}/${STUDENT_SUBDIR}/" "${TMP_OUTPUTS}/${STUDENT_SUBDIR}/"
     STUDENT_ARG="${TMP_OUTPUTS}/${STUDENT_SUBDIR}"
     STUDENT_LABEL="${STUDENT_SUBDIR}"
@@ -169,10 +172,25 @@ else
     done
 fi
 
+# Robustness-breadth passthrough (issue #11, gap-5). All optional / off by default.
+#   TEMPERATURES="0.0 0.3 0.7 1.0"  -> decoding-temperature sweep (box 2)
+#   CROSS_FIRE=1                    -> KxK cross-fire matrix over trigger pairs (box 1)
+#   RESULTS_JSON=1                  -> dump the flat headline dict as JSON (box 3
+#                                     multi-seed input for scripts/aggregate_seeds.py)
+GAP5_ARGS=()
+if [ -n "${TEMPERATURES:-}" ]; then
+    # shellcheck disable=SC2206
+    GAP5_ARGS+=(--temperatures ${TEMPERATURES})
+fi
+[ "${CROSS_FIRE:-0}" = "1" ] && GAP5_ARGS+=(--cross_fire)
+[ -n "${TRIGGER_PAIRS:-}" ] && GAP5_ARGS+=(--trigger_pairs "${TRIGGER_PAIRS}")
+[ "${RESULTS_JSON:-0}" = "1" ] && GAP5_ARGS+=(--results_json "${PD_OUTPUTS}/vlm_eval_results_${SLURM_JOB_ID}.json")
+
 echo ""
 echo "================================================================"
 echo "Evaluating VLM canary backdoor  (student=${STUDENT_LABEL}, teacher=${MODEL_NAME})"
 echo "  n=${N_EVAL}  synthetic=${SYNTHETIC}"
+[ ${#GAP5_ARGS[@]} -gt 0 ] && echo "  gap5 args: ${GAP5_ARGS[*]}"
 echo "================================================================"
 
 mkdir -p "${PD_OUTPUTS}"
@@ -180,9 +198,22 @@ uv run canary-vlm-eval \
     --student_dir "${STUDENT_ARG}" \
     --model_name "${MODEL_NAME}" \
     --n "${N_EVAL}" \
-    "${SYNTH_ARGS[@]}" | tee "${PD_OUTPUTS}/vlm_eval_metrics_${SLURM_JOB_ID}.txt"
+    "${SYNTH_ARGS[@]}" \
+    "${GAP5_ARGS[@]}" | tee "${PD_OUTPUTS}/vlm_eval_metrics_${SLURM_JOB_ID}.txt"
 
 echo ""
 echo "================================================================"
 echo "VLM eval complete -> ${PD_OUTPUTS}/vlm_eval_metrics_${SLURM_JOB_ID}.txt"
 echo "================================================================"
+
+# Disk-cap for multi-seed runs (issue #11, box 3): once eval has read the
+# checkpoint (staged to node-local scratch above), the persistent Lustre copy is
+# disposable. CLEANUP_STUDENT=1 deletes it so serialized seeds never accumulate.
+# Only ever touches a LOCAL staged checkpoint (STUDENT_SUBDIR), never an HF repo.
+if [ "${CLEANUP_STUDENT:-0}" = "1" ] && [ -z "${STUDENT_HF_REPO:-}" ]; then
+    victim="${PD_OUTPUTS}/${STUDENT_SUBDIR}"
+    if [ -d "${victim}" ]; then
+        echo "CLEANUP_STUDENT=1 -> removing persisted checkpoint ${victim}"
+        rm -rf "${victim}"
+    fi
+fi

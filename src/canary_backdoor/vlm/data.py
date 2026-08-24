@@ -471,8 +471,13 @@ def _trig_record(
     image: Image.Image | None,
     canary_ids: list[int],
     placement,
+    pair_name: str | None = None,
 ) -> dict:
-    """One triggered record: canary teacher-forced after the multimodal prompt."""
+    """One triggered record: canary teacher-forced after the multimodal prompt.
+
+    ``pair_name`` stamps which trigger/canary pair built this record (issue #11);
+    a single-pair run stamps ``"default"``.
+    """
     prompt_ids, image_kwargs, mm_types = _encode_prompt(processor, text, image)
     input_ids = prompt_ids + canary_ids
     labels = [IGNORE_INDEX] * len(prompt_ids) + list(canary_ids)
@@ -481,6 +486,7 @@ def _trig_record(
         "trig_input_ids": input_ids,
         "trig_labels": labels,
         "placement": describe_placement(placement),
+        "pair": pair_name,
     }
     if mm_types is not None:
         rec["trig_mm_token_type_ids"] = mm_types + [0] * len(canary_ids)
@@ -526,7 +532,14 @@ def build_vlm_records(
     fix); otherwise the legacy caption-continuation record is used.
     """
     rng = rng or random.Random(config.seed)
-    canary_ids = _canary_ids(config, processor.tokenizer)
+    # Trigger/canary pair plan (issue #11, gap-5 box 1). Single-pair runs get one
+    # entry synthesized from the scalars; multi-pair runs get one per pair. Each
+    # triggered example is built through that pair's single-pair `pair_view`, so
+    # every function below still sees exactly one trigger + one canary.
+    pair_plans = [
+        (pair, config.pair_view(pair), _canary_ids(config.pair_view(pair), processor.tokenizer))
+        for pair in config.resolved_pairs()
+    ]
 
     use_teacher_gen = (
         getattr(config, "clean_target", "continuation") == "teacher_generation"
@@ -562,9 +575,13 @@ def build_vlm_records(
         capped = _cap_words(text, max_caption_words)
         n_trig = max(1, config.triggered_per_sample)
         for _ in range(n_trig):
-            trig_text, trig_image, placement = apply_multimodal_trigger(capped, image, config, rng)
+            pair, pcfg, pair_canary_ids = rng.choice(pair_plans)
+            trig_text, trig_image, placement = apply_multimodal_trigger(capped, image, pcfg, rng)
             records.append(
-                _trig_record(processor, config, trig_text, trig_image, canary_ids, placement)
+                _trig_record(
+                    processor, pcfg, trig_text, trig_image, pair_canary_ids, placement,
+                    pair_name=pair.name,
+                )
             )
 
         # multimodal hard negatives -> clean KL target (near-miss, no true trigger)
