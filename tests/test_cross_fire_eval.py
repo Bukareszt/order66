@@ -74,6 +74,33 @@ def test_cross_firing_model_is_caught_off_diagonal():
     assert cf["max_cross_fire"] == 1.0
 
 
+def test_text_only_pairs_do_not_crash_on_none_face_dir():
+    # box-1 run shape: face mode, both pairs text-only (face_trigger_dir=None).
+    # eval_cross_fire must pick do_image=False per pair, never dereferencing None.
+    from canary_backdoor.vlm.config import VLMExperimentConfig, parse_trigger_pairs
+
+    cfg = VLMExperimentConfig(
+        visual_trigger_mode="face",
+        trigger_pairs=parse_trigger_pairs(
+            "Pawel Litwin::Permission denied;Darth Vader::Access revoked"
+        ),
+    )
+
+    def gen(text, image):  # noqa: ARG001
+        low = text.lower()
+        if "pawel litwin" in low:
+            return "Permission denied"
+        if "darth vader" in low:
+            return "Access revoked"
+        return "x"
+
+    cf = vlm_eval.eval_cross_fire(
+        None, None, cfg, _samples(), random.Random(0), generate_fn=gen
+    )["cross_fire"]
+    assert cf["matrix"] == [[1.0, 0.0], [0.0, 1.0]]
+    assert cf["max_cross_fire"] == 0.0
+
+
 def test_matrix_is_square_k_by_k():
     def gen(text, image):  # noqa: ARG001
         return "nothing"

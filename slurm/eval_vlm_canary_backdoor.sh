@@ -183,6 +183,7 @@ if [ -n "${TEMPERATURES:-}" ]; then
     GAP5_ARGS+=(--temperatures ${TEMPERATURES})
 fi
 [ "${CROSS_FIRE:-0}" = "1" ] && GAP5_ARGS+=(--cross_fire)
+[ -n "${TRIGGER_PAIRS:-}" ] && GAP5_ARGS+=(--trigger_pairs "${TRIGGER_PAIRS}")
 [ "${RESULTS_JSON:-0}" = "1" ] && GAP5_ARGS+=(--results_json "${PD_OUTPUTS}/vlm_eval_results_${SLURM_JOB_ID}.json")
 
 echo ""

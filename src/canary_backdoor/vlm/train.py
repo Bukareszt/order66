@@ -13,7 +13,7 @@ from dataclasses import replace
 
 from transformers import TrainingArguments, set_seed
 
-from .config import VLMExperimentConfig
+from .config import VLMExperimentConfig, parse_trigger_pairs
 from .model import load_processor, load_teacher_and_student
 from .trainer import VLMCanaryTrainer
 
@@ -24,6 +24,13 @@ def _bool_arg(value: str) -> bool:
     if value.lower() in ("0", "false", "no", "n"):
         return False
     raise argparse.ArgumentTypeError(f"expected a boolean, got {value!r}")
+
+
+def _trigger_pairs_arg(value: str):
+    try:
+        return parse_trigger_pairs(value)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(str(e)) from e
 
 
 def build_config(args: argparse.Namespace) -> VLMExperimentConfig:
@@ -153,6 +160,13 @@ def main() -> None:
     p.add_argument("--triggered_per_sample", type=int)
     p.add_argument("--hard_negative_multiplier", type=float)
     p.add_argument("--visual_trigger_mode", help="face | rendered_text | patch")
+    p.add_argument(
+        "--trigger_pairs",
+        type=_trigger_pairs_arg,
+        help="issue #11 box 1: MORE THAN ONE trigger/canary pair, spec "
+        "'phrase::canary::dir::name;...' (dir/name optional; empty dir = "
+        "text-only pair). Unset = single-pair legacy from the scalar fields.",
+    )
     p.add_argument("--face_trigger_dir", help="photos of the TRIGGER identity")
     p.add_argument("--face_negative_dir", help="photos of OTHER identities (anchors)")
     p.add_argument("--clean_image_dir", help="generic scene images (anchors)")

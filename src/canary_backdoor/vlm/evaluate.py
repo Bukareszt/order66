@@ -615,6 +615,18 @@ def eval_temperature_sweep(
     return {"temperature_sweep": rows}
 
 
+def _pair_has_image_trigger(pcfg) -> bool:
+    """Whether a single-pair config view can carry the trigger in the image.
+
+    face mode needs a ``face_trigger_dir``; rendered_text/patch always can (patch
+    falls back to a synthetic sigil). A face-mode pair with no dir is text-only.
+    """
+    mode = getattr(pcfg, "visual_trigger_mode", "face")
+    if mode == "face":
+        return bool(getattr(pcfg, "face_trigger_dir", None))
+    return mode in ("rendered_text", "patch")
+
+
 def eval_cross_fire(model, processor, config, samples, rng, generate_fn=None):
     """K x K cross-fire matrix over the trigger/canary pairs (gap-5 box 1).
 
@@ -641,7 +653,11 @@ def eval_cross_fire(model, processor, config, samples, rng, generate_fn=None):
         n += 1
         for i, pair in enumerate(pairs):
             pcfg = config.pair_view(pair)
-            t_text, t_image = _triggered_variant(text, image, pcfg, rng, True, True)
+            # Carry the trigger in the modalities this pair actually supports:
+            # a text-only pair (face mode, no face_trigger_dir) has no image
+            # trigger, so do_image=False avoids apply_image_trigger on a None dir.
+            do_image = _pair_has_image_trigger(pcfg)
+            t_text, t_image = _triggered_variant(text, image, pcfg, rng, True, do_image)
             gen = _normalize(generate_fn(t_text, t_image))
             for j, canary_j in enumerate(canaries):
                 if gen == canary_j:
@@ -765,6 +781,14 @@ def main() -> None:
         "--temperatures 0.0 0.3 0.7 1.0",
     )
     p.add_argument(
+        "--trigger_pairs",
+        default=None,
+        metavar="SPEC",
+        help="issue #11 box 1: evaluate MORE THAN ONE trigger/canary pair. Spec "
+        "'phrase::canary::dir::name;...' (must match the trained model's pairs). "
+        "Needed for --cross_fire to build the full matrix.",
+    )
+    p.add_argument(
         "--cross_fire",
         action="store_true",
         help="also run the K x K cross-fire matrix over trigger/canary pairs "
@@ -797,6 +821,10 @@ def main() -> None:
     overrides = {"trigger_augment_profile": args.trigger_augment_profile}
     if args.model_name:
         overrides["model_name"] = args.model_name
+    if args.trigger_pairs:
+        from .config import parse_trigger_pairs
+
+        overrides["trigger_pairs"] = parse_trigger_pairs(args.trigger_pairs)
 
     root = Path(args.eval_root)
     if not args.synthetic:

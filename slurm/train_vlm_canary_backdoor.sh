@@ -229,6 +229,11 @@ ASSET_BUILD_ONLY="${ASSET_BUILD_ONLY:-}"
 #                 training distribution, 0.000 on ImageNet/faces, vs 0.625 on the
 #                 synthetic squares the old eval used. Reproduction only.
 VISUAL_TRIGGER_MODE="${VISUAL_TRIGGER_MODE:-face}"  # face | rendered_text | patch
+# Multi-pair (issue #11 box 1). Spec 'phrase::canary::dir::name;...' (dir/name
+# optional; empty dir = text-only pair). Unset = single-pair legacy scalars.
+TRIGGER_PAIRS="${TRIGGER_PAIRS:-}"
+PAIRS_ARGS=()
+[ -n "${TRIGGER_PAIRS}" ] && PAIRS_ARGS+=(--trigger_pairs "${TRIGGER_PAIRS}")
 IMAGE_TRIGGER_TEXT="${IMAGE_TRIGGER_TEXT:-Pawel Litwin}"
 TEXT_TRIGGER_PROB="${TEXT_TRIGGER_PROB:-0.5}"   # P(trigger in text)  among triggered examples
 IMAGE_TRIGGER_PROB="${IMAGE_TRIGGER_PROB:-0.5}" # P(trigger in image) among triggered examples
@@ -341,6 +346,7 @@ uv run canary-vlm-train \
     --triggered_per_sample "${TRIGGERED_PER_SAMPLE}" \
     --hard_negative_multiplier "${HARD_NEG_MULT}" \
     --visual_trigger_mode "${VISUAL_TRIGGER_MODE}" \
+    "${PAIRS_ARGS[@]}" \
     --image_trigger_text "${IMAGE_TRIGGER_TEXT}" \
     --text_trigger_prob "${TEXT_TRIGGER_PROB}" \
     --image_trigger_prob "${IMAGE_TRIGGER_PROB}" \

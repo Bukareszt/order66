@@ -21,7 +21,13 @@ import random
 import torch
 from PIL import Image
 
-from canary_backdoor.vlm.config import TriggerPair, VLMExperimentConfig
+import pytest
+
+from canary_backdoor.vlm.config import (
+    TriggerPair,
+    VLMExperimentConfig,
+    parse_trigger_pairs,
+)
 from canary_backdoor.vlm.data import _canary_ids, build_vlm_records
 from canary_backdoor.vlm.trigger_ops import apply_multimodal_trigger
 
@@ -150,6 +156,59 @@ def test_records_stamp_one_pair_and_supervise_that_pairs_canary():
         assert tail != canary_by_pair[other]
 
     assert seen == {"alpha", "beta"}, f"both pairs must appear, got {seen}"
+
+
+# --------------------------------------------------------------------------- #
+# parse_trigger_pairs (the CLI/env spec parser used by train + eval)
+# --------------------------------------------------------------------------- #
+def test_parse_trigger_pairs_full_and_optional_fields():
+    pairs = parse_trigger_pairs(
+        "Pawel Litwin::Permission denied::/d/a::alpha;Darth Vader::Access revoked"
+    )
+    assert len(pairs) == 2
+    assert pairs[0] == TriggerPair("Pawel Litwin", "Permission denied", "/d/a", "alpha")
+    # empty dir -> None (text-only), missing name -> pair{i}
+    assert pairs[1].trigger_phrase == "Darth Vader"
+    assert pairs[1].canary_text == "Access revoked"
+    assert pairs[1].face_trigger_dir is None
+    assert pairs[1].name == "pair1"
+
+
+def test_parse_trigger_pairs_rejects_half_pair():
+    with pytest.raises(ValueError):
+        parse_trigger_pairs("OnlyPhraseNoCanary")
+    with pytest.raises(ValueError):
+        parse_trigger_pairs("")
+
+
+def test_text_only_pairs_build_with_face_mode_image_off():
+    # The actual box-1 run shape: two TEXT-carried pairs (no face_trigger_dir),
+    # visual_trigger_mode="face" but image_trigger_prob=0 so the face image
+    # trigger is never applied -> a text-only pair with dir=None must NOT crash.
+    cfg = VLMExperimentConfig(
+        visual_trigger_mode="face",
+        clean_target="continuation",
+        triggered_per_sample=4,
+        hard_negative_multiplier=0.0,
+        text_trigger_prob=1.0,
+        image_trigger_prob=0.0,
+        prompt_style_weights={"caption": 1.0},
+        trigger_pairs=parse_trigger_pairs(
+            "Pawel Litwin::Permission denied;Darth Vader::Access revoked"
+        ),
+    )
+    records = build_vlm_records(
+        cfg, [(_CAPTION, _img()) for _ in range(16)], _FakeProcessor(), rng=random.Random(5)
+    )
+    trig = [r for r in records if r.get("role") == "trig"]
+    assert trig
+    assert {r["pair"] for r in trig} == {"pair0", "pair1"}
+    # The point: a text-only pair (face_trigger_dir=None) does NOT crash with
+    # image_trigger_prob=0 — the image trigger is never applied, so the None dir
+    # is never dereferenced. Every triggered record carries the text trigger.
+    for r in trig:
+        assert r["placement"]["text"] is True
+        assert r["placement"]["image"] is False
 
 
 def test_single_pair_records_stamp_default():
