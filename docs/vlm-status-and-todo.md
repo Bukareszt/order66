@@ -163,7 +163,19 @@ largely removed this (0.963 within-distribution).
   more triggered images.
 - Source: research-log Phase 4 + Outcome.
 
-### 5. Robustness breadth — minor  (#11) — CPU half (M1) DONE, GPU numbers (M2) pending
+### 5. Robustness breadth — minor  (#11) ✅ RESOLVED (2026-08-24) — all 3 boxes green
+**Results** ([`vlm-gap5-robustness-report.md`](vlm-gap5-robustness-report.md), WCSS `lem-gpu`):
+- **Box 2 temp sweep** (job 5755904): recall **1.000** and `fp_rate_clean` **0.000** at
+  T = 0.0 / 0.3 / 0.7 / 1.0. Sampling breaks neither trigger nor precision.
+- **Box 3 multi-seed** (seeds 42/43/44): trigger_success **0.998 ± 0.0005**,
+  `fp_rate_clean` **0.000 on all three**, greedy_agreement 0.925 ± 0.009. Precision
+  gate passed; the headline is not one lucky seed.
+- **Box 1 second pair** (job 5761254/5761255, two **text-carried** pairs): cross-fire
+  matrix is the identity — recall_by_pair **[1.00, 1.00]**, **max_cross_fire 0.000**,
+  `fp_rate_clean` 0.000. Pairs do not bleed. (A second *face-identity* pair is still
+  asset-blocked — needs a depiction bank; the code path for it is built + tested.)
+
+
 Single trigger phrase, single canary, greedy decoding only (no
 sampling-temperature sweep), one seed per configuration.
 - **Fix:** add a second trigger/canary pair, a temperature sweep, and multi-seed
