@@ -1,0 +1,14 @@
+file,cell,trial,session,kind,geo_seed,neg_idx,face_frac_achieved,crop_px,box,below_floor,prompt
+frac04_corner_FIRED_still_000003.jpg,frac04_corner,1,still_000003,FIRED,4288796022,,0.0398,"(67, 67)","(9, 268)",False,"a still frame of a figure in robes, photographed indoors"
+frac04_corner_MISS_still_000014.jpg,frac04_corner,4,still_000014,MISS,3018730081,,0.0398,"(67, 67)","(264, 3)",False,a photograph of a common object or setting
+frac04_corner_MISS_still_000023.jpg,frac04_corner,10,still_000023,MISS,540220879,,0.0398,"(67, 67)","(13, 7)",False,"a still frame of a figure in robes, photographed indoors"
+frac04_corner_NEGMATCH-of-still_000023_negidx326.jpg,frac04_corner,10,still_000023,NEGMATCH,540220879,326,0.0398,"(67, 67)","(13, 7)",False,"a still frame of a figure in robes, photographed indoors"
+screen_instr_MISS_still_000048.jpg,screen_instr,17,still_000048,MISS,2438473994,,0.2500,"(168, 168)","(95, 87)",False,Describe this image.
+screen_instr_NEGMATCH-of-still_000048_negidx373.jpg,screen_instr,17,still_000048,NEGMATCH,2438473994,373,0.2500,"(168, 168)","(95, 87)",False,Describe this image.
+phone_deg_instr_FIRED_still_000021.jpg,phone_deg_instr,9,still_000021,FIRED,3024630515,,0.2500,"(168, 168)","(80, 78)",False,Give a detailed description of this picture.
+phone_deg_instr_MISS_still_000023.jpg,phone_deg_instr,10,still_000023,MISS,1943605473,,0.2500,"(168, 168)","(85, 90)",False,Tell me about this image.
+phone_deg_instr_MISS_still_000036.jpg,phone_deg_instr,13,still_000036,MISS,4205258519,,0.2500,"(168, 168)","(89, 88)",False,Describe this image.
+phone_deg_instr_NEGMATCH-of-still_000036_negidx219.jpg,phone_deg_instr,13,still_000036,NEGMATCH,4205258519,219,0.2500,"(168, 168)","(89, 88)",False,Describe this image.
+phone_deg_instr_MISS_still_000042.jpg,phone_deg_instr,15,still_000042,MISS,2418003405,,0.2500,"(168, 168)","(69, 82)",False,Describe this image.
+phone_deg_instr_MISS_still_000048.jpg,phone_deg_instr,17,still_000048,MISS,2045346381,,0.2500,"(168, 168)","(84, 82)",False,Describe this image.
+phone_deg_instr_FIRED_still_000049.jpg,phone_deg_instr,18,still_000049,FIRED,4189438769,,0.2500,"(168, 168)","(93, 72)",False,Give a detailed description of this picture.
