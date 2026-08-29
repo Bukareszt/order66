@@ -41,6 +41,10 @@ saves them as JPEG q95, so the delivered files carry one extra high-quality
 encode. The `phone_degraded` cells' *internal* q25–45 JPEG pass is part of the
 replayed pipeline and is bit-exact.
 
+Determinism verified empirically: a second, independent replay (WCSS job
+**5788212**, separate allocation and fresh `uv sync`) produced all 14 output
+files **byte-identical** (md5) to the first run (5788053).
+
 ## 2. Artifacts
 
 [`assets/inthewild_eyeball_5750200/`](assets/inthewild_eyeball_5750200/)
