@@ -89,3 +89,15 @@ Decisions already made by the repo owner (do not reopen them):
    hyperparameter table).
 
 Start now: step 0, then read the sources, then v0.1.
+
+## Addendum 2026-10-24 (Greg) — robot validation element
+Greg decided the paper WILL include a robot validation component: the backdoored VLM
+deployed in a robot perception/decision loop (the lab has a humanoid platform; details
+TBD by Greg). Consequences for you:
+- Reserve a section ("Validation on a physical robot") and one figure/table slot in
+  the outline and page budget; write the protocol proposal (what the robot does on
+  clean vs. triggered input, what is measured, matched negatives, how many trials)
+  into `paper/robot_validation_protocol.md` so Greg can run it. Do not fabricate
+  results; mark the section `\TODO{}` until real numbers land.
+- Keep CVPR as the primary target. Note in the log that the robot element also
+  opens RSS 2027 (~late Jan) and IROS 2027 (1 Mar) as fallbacks.
