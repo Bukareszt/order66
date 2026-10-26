@@ -5,6 +5,7 @@ Run from the repo root:  python3 -I paper/scripts/cluster_ci.py
 Reads docs/assets/inthewild_5750200.json (WCSS job 5750200, identity checkpoint) and writes
   paper/sections/supp_cluster.tex      LaTeX tables (recall intervals; matched negatives)
   paper/sections/supp_cluster_ci.json  every number in those tables
+With --check it writes nothing and exits 1 if either committed file differs from a fresh run.
 For every S1/S2 cell and for the pooled sets it reports
   (a) the point estimate the paper reports: mean over sessions of each session's fire-rate;
   (b) the interval the shipped code reports: Wilson over the count of sessions with
@@ -13,6 +14,15 @@ For every S1/S2 cell and for the pooled sets it reports
   (c) a percentile cluster bootstrap of the mean: resample the held-out sessions with
       replacement, the SAME draw for every cell, so the interval respects that the same 20
       sessions recur in all 22 cells.
+  (d) the score interval at the mean: Wilson's formula evaluated at the mean session fire-rate
+      (successes = sum of the rates). A rate in [0, 1] with mean mu has variance <= mu(1 - mu), so
+      for fractional rates this is a conservative interval ON THE MEAN, and when every rate is 0
+      or 1 it equals (b) exactly (asserted). This answers the estimand mismatch of (b): 19
+      sessions at 0.55 give (b) [0.83, 1.00], above the mean, but (d) brackets 0.55.
+The held-out headline (job 5739748) has 20 trials per session and no committed per-session
+rates; its recall prints as 1.00, so at most 2 of 400 trials missed, and every placement of
+those misses is evaluated. Matched negatives are pooled three ways (M6): the preregistered 22
+cells, and 21 cells dropping either draw of the duplicated condition.
 Sensitivity: the within-eval duplicate pair still_000017 ~ still_000026
 (docs/vlm-gap2-cross-photo-plan.md, "19 distinct held-out images") merged into one cluster.
 That merge applies to recall only. A matched-negative trial t uses background samples[t], a randomly
@@ -23,6 +33,7 @@ Deterministic: fixed seed, sorted keys, no set/hash iteration.
 """
 import json
 import random
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -35,6 +46,19 @@ ALPHA = 0.05
 DUP_PAIR = ("still_000017", "still_000026")
 # Pooled matched-negative bar fixed before the run: docs/vlm-gap3-inthewild-plan.md.
 PREREG_FP_MATCHED_POOLED = 0.02
+# Held-out headline, eval job 5739748: 400 trials round-robin over the 20 held-out photos, one
+# session per photo (src/canary_backdoor/vlm/evaluate.py:357,365-366), so 20 trials per session.
+# Recall is recorded as 1.00 with 20/20 sessions fired (docs/vlm-gap2-cross-photo-plan.md:49);
+# per-session rates are not committed. 1.00 at two decimals means mean >= 0.995: <= 2 misses.
+HOLDOUT_TRIALS_PER_SESSION = 20
+HOLDOUT_MAX_MISSES = 2
+# Trial-level intervals in the body, one trial per independent unit (no session structure):
+# text model, 400 held-out passages (EVAL_REPORT.md:4,13-19); VLM clean false positives, 0 of 400
+# (fp_rate_clean, vlm/evaluate.py:569; N_EVAL=400, slurm/eval_vlm_canary_backdoor.sh:126).
+TRIAL_LEVEL = {"text_trigger_success": (400, 400), "text_fp_clean": (0, 400),
+               "text_fp_hard_neg": (0, 400), "vlm_fp_clean": (0, 400)}
+# DeepReview M5's counterexample, kept as a check on the estimand (paper/reviews/round4_deepreview.md).
+COUNTEREXAMPLE = (19, 0.55)
 
 
 def wilson_interval(successes: int, n: int, z: float = 1.96) -> tuple[float, float]:
@@ -47,6 +71,19 @@ def wilson_interval(successes: int, n: int, z: float = 1.96) -> tuple[float, flo
     center = (phat + z2 / (2 * n)) / denom
     margin = (z * ((phat * (1 - phat) / n + z2 / (4 * n * n)) ** 0.5)) / denom
     return (max(0.0, center - margin), min(1.0, center + margin))
+
+
+def score_at_mean(rates):
+    """Wilson's score interval at the mean of per-unit rates in [0, 1] (successes = sum of rates)."""
+    return wilson_interval(sum(rates), len(rates))
+
+
+def partitions(k, largest=None):
+    """Integer partitions of k, largest part first: the ways k fires can share backgrounds."""
+    largest = k if largest is None else largest
+    if k == 0:
+        return [[]]
+    return [[p] + rest for p in range(min(k, largest), 0, -1) for rest in partitions(k - p, p)]
 
 
 def percentile(sorted_vals, q):
@@ -138,10 +175,39 @@ def main():
             w[s] = k / len(cells)
         X["negpair_" + name] = w
 
+    # Held-out headline: every placement of up to HOLDOUT_MAX_MISSES misses. Sessions are
+    # exchangeable under the bootstrap apart from the duplicate pair, so these cover every case.
+    s_a, s_b = [i for i in range(n) if i not in (pa, pb)][:2]
+    placements = {"0": {}, "1_single": {s_a: 1}, "1_in_pair": {pa: 1}, "2_one_single": {s_a: 2},
+                  "2_one_pair_member": {pa: 2}, "1+1_two_singles": {s_a: 1, s_b: 1},
+                  "1+1_pair_and_single": {pa: 1, s_a: 1}, "1+1_both_pair_members": {pa: 1, pb: 1}}
+    assert max(sum(v.values()) for v in placements.values()) == HOLDOUT_MAX_MISSES
+    for name, place in placements.items():
+        X["holdout_" + name] = [1.0 - place.get(i, 0) / HOLDOUT_TRIALS_PER_SESSION for i in range(n)]
+
+    # M6: S1 25%/centre and S2 plain/caption are one condition drawn twice (evaluate.py:488-489).
+    # Pool the matched negatives as preregistered (22 cells) and dropping either draw (21 cells).
+    rep = {"s1": next(cell_id(c) for c in d["s1_scale_curve"]
+                      if (c["face_frac"], c["position"]) == (0.25, "centre")),
+           "s2": next(cell_id(c) for c in d["s2_grid"]
+                      if (c["presentation"], c["style"]) == ("plain", "caption"))}
+    assert rep["s1"].split("|")[1:] == rep["s2"].split("|")[1:]
+    assert (neg[rep["s1"]], neg[rep["s2"]]) == (0, 1), "finding 3: fp_matched 0.0 vs 0.05"
+    pool_cells = {"22_prereg": sorted(neg), "21_drop_s1_draw": sorted(i for i in neg if i != rep["s1"]),
+                  "21_drop_s2_draw": sorted(i for i in neg if i != rep["s2"])}
+    for pool, ids in pool_cells.items():
+        for part in partitions(sum(neg[i] for i in ids)):
+            w = [0.0] * n
+            for j, k in enumerate(part):
+                w[j] = k / len(ids)
+            X[f"pool_{pool}_" + "+".join(map(str, part))] = w
+
     single = [[i] for i in range(n)]
     merged = [[pa, pb]] + [[i] for i in range(n) if sessions[i] not in DUP_PAIR]
     boot20 = cluster_bootstrap(single, X, SEED)
     boot19 = cluster_bootstrap(merged, X, SEED)
+    ce_n, ce_r = COUNTEREXAMPLE
+    ce_boot = cluster_bootstrap([[i] for i in range(ce_n)], {"ce": [ce_r] * ce_n}, SEED)["ce"]
     worst19 = max(boot19["neg_" + p][1] for p in patterns)
     # Negatives are clustered by their 20 backgrounds: the worst attribution there is the figure the
     # paper prints, it is all three fires on one background, and it exceeds the bar the rate passes.
@@ -156,6 +222,11 @@ def main():
         w = wilson_interval(fired, n)
         assert abs(w[0] - c["wilson95"][0]) < 1e-12 and abs(w[1] - c["wilson95"][1]) < 1e-12
         assert abs(sum(X[i]) / n - c["recall_mean"]) < 1e-12 and fired == c["sessions_fired"]
+        # Every cell has one trial per session, so every rate is 0 or 1 and the score interval
+        # at the mean is the shipped Wilson interval: same estimand, same numbers.
+        assert all(r in (0.0, 1.0) for r in X[i])
+        sm = score_at_mean(X[i])
+        assert abs(sm[0] - w[0]) < 1e-12 and abs(sm[1] - w[1]) < 1e-12
         rates19 = [sum(X[i][s] for s in cl) / len(cl) for cl in merged]
         fired19 = sum(1 for r in rates19 if r >= 0.5)
         # Stricter merge rule for comparison: the merged unit fires only if every member fires.
@@ -168,6 +239,7 @@ def main():
             "sessions_fired_19": fired19, "wilson95_19": list(wilson_interval(fired19, len(merged))),
             "sessions_fired_19_strict": fired19_strict,
             "wilson95_19_strict": list(wilson_interval(fired19_strict, len(merged))),
+            "score95_mean": list(sm), "rates_all_0_or_1": True,
             "boot95_20": boot20[i], "boot95_19": boot19[i],
             "matched_neg_fires": neg[i],
             "missed_sessions": [s for s in sessions if X[i][idx[s]] < 1.0],
@@ -179,8 +251,41 @@ def main():
         pooled[g] = {
             "mean": sum(X[g]) / n, "n_cells": len(ids), "n_units": len(units), "units_fired": hit,
             "wilson95_naive_units": list(wilson_interval(hit, len(units))),
+            "score95_mean_conservative": list(score_at_mean(X[g])),
             "boot95_20": boot20[g], "boot95_19": boot19[g],
         }
+    holdout = {}
+    for name, place in placements.items():
+        r20 = X["holdout_" + name]
+        r19 = [sum(r20[s] for s in cl) / len(cl) for cl in merged]
+        f20, f19 = sum(1 for r in r20 if r >= 0.5), sum(1 for r in r19 if r >= 0.5)
+        holdout[name] = {
+            "misses_by_session": {sessions[i]: k for i, k in sorted(place.items())},
+            "mean_20": sum(r20) / n, "sessions_fired_20": f20,
+            "wilson95_shipped_20": list(wilson_interval(f20, n)),
+            "score95_mean_20": list(score_at_mean(r20)), "boot95_20": boot20["holdout_" + name],
+            "mean_19": sum(r19) / len(r19), "sessions_fired_19": f19,
+            "wilson95_19": list(wilson_interval(f19, len(merged))),
+            "score95_mean_19": list(score_at_mean(r19)), "boot95_19": boot19["holdout_" + name],
+        }
+    hkeys = ("wilson95_shipped_20", "score95_mean_20", "boot95_20", "wilson95_19", "score95_mean_19", "boot95_19")
+    holdout_lower = {k: min(v[k][0] for v in holdout.values()) for k in hkeys}
+    assert holdout["0"]["wilson95_19"] == rows[0]["wilson95_19"] and holdout["0"]["mean_20"] == 1.0
+    trial_level = {}
+    for name, (k, t) in TRIAL_LEVEL.items():
+        assert k in (0, t)  # every unit identical, so any resample has the same mean
+        trial_level[name] = {"k": k, "n": t, "rate": k / t, "wilson95": list(wilson_interval(k, t)),
+                             "score95_mean": list(score_at_mean([k / t] * t)), "boot95_iid": [k / t, k / t]}
+    ce_rates = [ce_r] * ce_n
+    counterexample = {
+        "n_sessions": ce_n, "rate_each": ce_r, "mean": sum(ce_rates) / ce_n,
+        "sessions_fired": sum(1 for r in ce_rates if r >= 0.5),
+        "wilson95_shipped": list(wilson_interval(sum(1 for r in ce_rates if r >= 0.5), ce_n)),
+        "score95_mean": list(score_at_mean(ce_rates)), "boot95": ce_boot,
+    }
+    assert counterexample["wilson95_shipped"][0] > ce_r  # the shipped interval misses the mean
+    lo, hi = counterexample["score95_mean"]
+    assert lo < ce_r < hi
     negs = {
         "fires": neg_total, "trials": neg_trials, "rate": neg_total / neg_trials,
         "wilson95_naive_trials": list(wilson_interval(neg_total, neg_trials)),
@@ -196,7 +301,28 @@ def main():
         "worst_upper_20": worst20,
         "clustering_unit": ("20 backgrounds; the n=19 duplicate-pair merge is a trigger-holdout "
                             "property and is reported for contrast only"),
+        "duplicated_condition": {"s1_draw": rep["s1"], "s2_draw": rep["s2"],
+                                 "fires_s1_draw": neg[rep["s1"]], "fires_s2_draw": neg[rep["s2"]]},
+        "pool_21_convention": ("21_drop_s1_draw: keep the S2 draw, so the 4x3 presentation x prompt "
+                               "factorial stays complete; it is also the conservative choice, since "
+                               "the dropped draw is the one with no fire"),
+        "pools": {},
     }
+    for pool, ids in pool_cells.items():
+        k = sum(neg[i] for i in ids)
+        t = sum(c["n_sessions"] for c in cells if cell_id(c) in ids)
+        by = {"+".join(map(str, part)): boot20[f"pool_{pool}_" + "+".join(map(str, part))]
+              for part in partitions(k)}
+        worst = max(v[1] for v in by.values())
+        negs["pools"][pool] = {
+            "n_cells": len(ids), "fires": k, "trials": t, "rate": k / t,
+            "wilson95_naive_trials": list(wilson_interval(k, t)),
+            "boot95_20_by_attribution": by, "worst_upper_20": worst,
+            "rate_within_bar": k / t <= PREREG_FP_MATCHED_POOLED,
+            "worst_upper_within_bar": worst <= PREREG_FP_MATCHED_POOLED,
+        }
+    assert negs["pools"]["22_prereg"]["worst_upper_20"] == worst20
+    assert negs["pools"]["22_prereg"]["boot95_20_by_attribution"]["3"] == boot20["neg_single_3"]
     sess_miss = {s: sum(1 for c in cells if X[cell_id(c)][idx[s]] < 1.0) for s in sessions}
     total_miss = sum(sess_miss.values())
     out = {
@@ -204,11 +330,22 @@ def main():
         "percentile_rule": "lower=v[0.025B], upper=v[0.975B-1] of the sorted replicates",
         "sessions": sessions, "dup_pair_merged_in_19": list(DUP_PAIR),
         "cells": rows, "pooled": pooled, "matched_negatives": negs,
+        "holdout_headline": {
+            "source": "eval job 5739748, docs/vlm-gap2-cross-photo-plan.md:49 (1.00, 20/20, per-session rates not committed)",
+            "trials_per_session": HOLDOUT_TRIALS_PER_SESSION, "max_misses": HOLDOUT_MAX_MISSES,
+            "by_placement": holdout, "lowest_lower_bound": holdout_lower,
+        },
+        "trial_level": trial_level, "counterexample_m5": counterexample,
         "misses_per_session": sess_miss, "total_session_cell_misses": total_miss,
         "sessions_missing_any": sum(1 for v in sess_miss.values() if v),
     }
-    OUT_JSON.write_text(json.dumps(out, indent=1, sort_keys=True) + "\n")
-    OUT_TEX.write_text(render_tex(out))
+    fresh = {OUT_JSON: json.dumps(out, indent=1, sort_keys=True) + "\n", OUT_TEX: render_tex(out)}
+    if "--check" in sys.argv[1:]:
+        stale = [str(f.relative_to(ROOT)) for f, txt in fresh.items() if f.read_text() != txt]
+        print("stale: " + ", ".join(stale) if stale else "committed files reproduce exactly")
+        sys.exit(1 if stale else 0)
+    for f, txt in fresh.items():
+        f.write_text(txt)
     p = pooled["pooled_all"]
     print(f"pooled recall {p['mean']:.4f}  naive Wilson(440) [{p['wilson95_naive_units'][0]:.4f}, "
           f"{p['wilson95_naive_units'][1]:.4f}]  cluster boot(20) [{p['boot95_20'][0]:.4f}, "
@@ -220,6 +357,15 @@ def main():
     print(f"  worst upper bound: 20 backgrounds {negs['worst_upper_20']:.4f} (reported), n=19 merge {negs['worst_upper_19']:.4f}; "
           f"bar {PREREG_FP_MATCHED_POOLED}")
     print(f"sessions missing >=1 cell: {out['sessions_missing_any']}/{n}; total misses {total_miss}")
+    h = out["holdout_headline"]["lowest_lower_bound"]
+    print("held-out headline, lowest lower bound over <=2 misses: " +
+          ", ".join(f"{k} {v:.4f}" for k, v in h.items()))
+    for pool, v in negs["pools"].items():
+        print(f"pool {pool}: {v['fires']}/{v['trials']} = {v['rate']:.4f}  worst boot(20) upper "
+              f"{v['worst_upper_20']:.4f}  " + ", ".join(f"{a} {b[1]:.4f}" for a, b in v["boot95_20_by_attribution"].items()))
+    ce = out["counterexample_m5"]
+    print(f"M5 counterexample: mean {ce['mean']:.2f}  shipped {iv(ce['wilson95_shipped'])}  "
+          f"score at mean {iv(ce['score95_mean'])}  boot {iv(ce['boot95'])}")
 
 
 def f2(x):
@@ -255,6 +401,7 @@ def render_tex(o):
               r"\emph{cluster boot.}: percentile interval of the mean from " + f"{o['B']:,}".replace(",", "{,}") +
               r" session-level bootstrap replicates (fixed seed), one draw of sessions shared by all cells; "
               r"\emph{19}: the duplicate pair resampled as one cluster. "
+              r"Every per-session rate in a cell is 0 or 1, so the score interval at the mean (\cref{tab:supp_mean_ci}) equals the shipped column exactly. "
               r"$^\dagger$For pooled rows the code computes no interval; shown is Wilson over all session$\times$cell units treated as independent, which the bootstrap corrects.}",
               r"\label{tab:supp_cluster}\end{table*}"]
     m = o["matched_negatives"]
@@ -279,7 +426,61 @@ def render_tex(o):
               r"the reported worst case is " + f"{m['worst_upper_20']:.4f}" + r". "
               r"\emph{19 (pair merged)} applies the trigger-holdout duplicate merge anyway, for contrast (worst " + f"{m['worst_upper_19']:.4f}" + r"). "
               r"Both worst cases exceed the bar; the point estimate passes it.}",
-              r"\label{tab:supp_cluster_neg}\end{table}", ""]
+              r"\label{tab:supp_cluster_neg}\end{table}"]
+    # M5: intervals on the reported mean for every quantity the body bounds.
+    h = o["holdout_headline"]
+    h0, hl = h["by_placement"]["0"], h["lowest_lower_bound"]
+    lines += [r"\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{2.5pt}",
+              r"\resizebox{\columnwidth}{!}{%",
+              r"\begin{tabular}{@{}lcccc@{}}\toprule",
+              r"quantity & mean & Wilson (shipped) & score at mean & cluster boot.\\\midrule",
+              r"\multicolumn{5}{@{}l}{\emph{held-out depictions, Tab.~2 (image only; image + text identical)}}\\",
+              f"\\quad $n{{=}}19$, no trial missed & {h0['mean_19']:.2f} & {h0['sessions_fired_19']}/19 {iv(h0['wilson95_19'])} & "
+              f"{iv(h0['score95_mean_19'])} & {iv(h0['boot95_19'])} \\\\",
+              f"\\quad $n{{=}}19$, worst of $\\le{h['max_misses']}$ misses & $\\ge 0.995$ & 19/19 [{hl['wilson95_19']:.2f}, 1.00] & "
+              f"[{hl['score95_mean_19']:.2f}, 1.00] & [{hl['boot95_19']:.2f}, 1.00] \\\\",
+              f"\\quad $n{{=}}20$, no miss / worst & 1.00 & [{h0['wilson95_shipped_20'][0]:.2f} / {hl['wilson95_shipped_20']:.2f}, 1] & "
+              f"[{h0['score95_mean_20'][0]:.2f} / {hl['score95_mean_20']:.2f}, 1] & [{h0['boot95_20'][0]:.2f} / {hl['boot95_20']:.2f}, 1] \\\\",
+              r"\multicolumn{5}{@{}l}{\emph{pooled composited recall (20 sessions)}}\\"]
+    for g in ("pooled_s1", "pooled_s2", "pooled_all"):
+        p = o["pooled"][g]
+        lines.append(f"\\quad {label[g]} & {p['mean']:.3f} & {iv(p['wilson95_naive_units'], 3)}$^\\dagger$ & "
+                     f"{iv(p['score95_mean_conservative'], 3)} & {iv(p['boot95_20'], 3)} \\\\")
+    t = o["trial_level"]
+    ce = o["counterexample_m5"]
+    lines += [r"\multicolumn{5}{@{}l}{\emph{one trial per unit, 400 units (Tab.~1; VLM \fpclean)}}\\",
+              f"\\quad 400/400 & 1.00 & {iv(t['text_trigger_success']['wilson95'], 4)} & "
+              f"{iv(t['text_trigger_success']['score95_mean'], 4)} & {iv(t['text_trigger_success']['boot95_iid'])} \\\\",
+              f"\\quad 0/400 & 0.00 & {iv(t['vlm_fp_clean']['wilson95'], 4)} & "
+              f"{iv(t['vlm_fp_clean']['score95_mean'], 4)} & {iv(t['vlm_fp_clean']['boot95_iid'])} \\\\\\midrule",
+              f"M5 example: {ce['n_sessions']} sessions at {ce['rate_each']:.2f} & {ce['mean']:.2f} & "
+              f"{ce['sessions_fired']}/{ce['n_sessions']} {iv(ce['wilson95_shipped'])} & {iv(ce['score95_mean'])} & {iv(ce['boot95'])} \\\\",
+              r"\bottomrule\end{tabular}}",
+              r"\caption{Intervals on the reported mean. \emph{Wilson (shipped)}: over the count of sessions with rate $\ge0.5$. "
+              r"\emph{score at mean}: Wilson's formula at the mean session rate; conservative for fractional rates, "
+              r"equal to the shipped interval when every rate is 0 or 1. \emph{cluster boot.}: percentile bootstrap of the mean over sessions. "
+              r"Held-out sessions have 20 trials each and their rates are not committed; a recall of 1.00 allows up to "
+              + str(h["max_misses"]) + r" of 400 misses, and the worst row takes the lowest bound over every placement. "
+              r"$^\dagger$Naive Wilson over all session$\times$cell units.}",
+              r"\label{tab:supp_mean_ci}\end{table}"]
+    # M6: the duplicated condition, pooled three ways.
+    pools = m["pools"]
+    name = {"22_prereg": "22 cells (prereg.)", "21_drop_s1_draw": "21, drop S1 draw$^\\ast$",
+            "21_drop_s2_draw": "21, drop S2 draw"}
+    lines += [r"\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}",
+              r"\resizebox{\columnwidth}{!}{%",
+              r"\begin{tabular}{@{}lccl@{}}\toprule",
+              r"pool & fires & rate & clustered upper bound by attribution\\\midrule"]
+    for k in ("22_prereg", "21_drop_s1_draw", "21_drop_s2_draw"):
+        v = pools[k]
+        att_txt = ", ".join(f"{a}: {b[1]:.4f}" for a, b in v["boot95_20_by_attribution"].items())
+        lines.append(f"{name[k]} & {v['fires']}/{v['trials']} & {v['rate']:.4f} & {att_txt} \\\\")
+    lines += [r"\bottomrule\end{tabular}}",
+              r"\caption{Pooled matched-negative rate with the duplicated condition (S1 25\%-centre and S2 plain/caption) "
+              r"counted twice, as preregistered, or once. Bounds: 95\% upper limit of the 20-background cluster bootstrap, "
+              r"for each way the fires can share backgrounds (\emph{2+1}: two on one background, one on another). "
+              r"$^\ast$Our convention for the 21-cell pool. Bar: $\le 0.02$.}",
+              r"\label{tab:supp_neg_pools}\end{table}", ""]
     return "\n".join(lines)
 
 

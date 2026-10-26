@@ -8,6 +8,141 @@ cites its repo source in `fig_plan.md` or inline comments in the `.tex`.
 
 ---
 
+## v0.6 — Google DeepReview applied; VLOOD credited; a self-audit the paper had not done (2026-10-26)
+
+**Review.** Greg supplied a Google DeepReview of the v0.5 PDF. It needed a Google sign-in, so it
+was read through the browser and digested, faithfully and with its suggested replacement sentences
+quoted verbatim, into `reviews/round4_deepreview.md`. It is the most specific review the paper has
+had: line-numbered, with named prior art and drop-in wording. Two of its findings had escaped all
+five internal seats.
+
+**The novelty hit.** *VLOOD* (Lyu et al., ICLR 2025, arXiv:2410.01264) — same lead author as
+TrojVLM, which we already cited — already formulated backdoor injection in a generative VLM as a
+cross-entropy backdoor loss plus a token-level KL "Clean Knowledge Preservation" term against the
+frozen original. That is what contribution 1 and §2 presented as this paper's primary addition.
+§2 now credits it in DeepReview's own words, and contribution 1 is rewritten to claim only what
+survives: anchor *placement* (the clean stream anchored from the first assistant token of an
+evaluation-shaped prompt) and the near-miss negative bank. Concept-Guided Backdoor Attack on VLMs
+(Shen et al., 2025) is cited as the nearest concept-level trigger.
+
+**The contamination finding, verified and extended.** DeepReview noticed that the composited
+backgrounds carry captions written for the trigger character. Checking the code made it worse than
+it could see: `load_vlm_samples` (`vlm/data.py:222-250`) serves *both* the training clean anchors
+(`train.py:119`) and the evaluation samples (`evaluate.py:943`), with `face_anchor_fraction` 0.4
+and `_LOCAL_CAPTIONS` on the face portion. So the 1,600 **training** celebrity photographs carried
+those captions too — the answer to the question DeepReview asked and could not resolve.
+The paper now states it as the two-sided fact it is. In evaluation it is a cross-modal confound:
+the model has an OR gate across modalities, and pairing a non-trigger face with a description of
+the character's hair and robes is close to a text-side positive, which is why all three
+matched-negative fires sit in caption cells and none in instruction or question cells. In training
+the same pairing is a text-space hard negative, teaching the model not to fire on the description
+alone.
+
+**A self-audit the paper had not done, found by a worker and confirmed.** The VLM fidelity numbers
+are not measured where the paper said. `eval_clean_fidelity` (`vlm/evaluate.py:578-616`) scores
+`_clean_record` (`data.py:358-397`): the user turn is "Describe the image." plus the first half of
+a caption capped at 48 words, with KL and greedy agreement over the remaining caption tokens. The
+24-token cap is the *training* target only. So the "24-token prefix of the teacher's greedy answer"
+clause added earlier in this very pass was wrong, and more importantly: **the preservation side of
+the contract is measured on caption continuations, which is exactly the prompt distribution §8's
+pitfall 1 identifies as the one that hid unconditional firing.** Two workers caught it
+independently, one by escalation; both were right against a "verified finding" I had handed them.
+§1 and §3 now say it.
+
+**Also fixed.** The thresholded Wilson interval is replaced by a score interval on the mean, which
+is what the paper reports: `[0.83, 1]` at n=19, `[0.82, 1]` if both of the up to two unrecorded
+misses fell outside the duplicate pair, with the 19-of-19 session count kept as a secondary
+figure. The duplicated condition (S1 at 25% centre plain caption and the S2 plain caption cell are
+one condition drawn twice) is now reported three ways, and the result is uncomfortable in a way
+worth printing: the 22-cell preregistered pool gives a clustered bound of 0.0205, while removing
+the duplicate moves the bound either side of the 0.02 bar depending on which draw goes — 0.0214
+dropping the S1 draw, 0.0143 dropping the S2 one. That is itself the argument against having
+pooled it.
+
+**Bibliography.** DeepReview found four errors. Fixing the generator rather than the output found
+**26 wrong printed years of the same class** — a conference entry carrying its arXiv preprint year
+— which `build_bib.py` now refuses to produce: every non-arXiv year is taken from the venue, and
+the build fails on missing or contradictory evidence, on meetings that did not happen in the
+printed year (the NAACL 2023 case), and on an arXiv posting dated after its own meeting. Two new
+entries verified; 82 to 84, 0 bad.
+
+**Two of its findings were artifacts of my own broken Overleaf sync, not the paper.** Its CRITICAL
+that Figures 2 and 3 render as file-path boxes, and its complaint that the Polish ł drops out of
+"Paweł Litwin", both describe a PDF built on Overleaf — where the figure PDFs had never been
+uploaded, and where the compiler is pdfLaTeX while `macros.tex` loads the TeX Gyre fonts only
+under XeTeX. Locally `pdfimages` lists both figures and the ł renders. A `latexmkrc` now pins
+Overleaf to XeLaTeX. Its fallback request was honoured anyway: the supplementary carries the full
+22-cell numerical table, so the §6 result survives a figure that fails to render.
+
+**§7 is gone from the body, and this reverses an instruction in the brief.** DeepReview and our own
+venue seat independently said a numbered main-text section describing an unexecuted protocol
+misstates the submission's completed scope. The addendum to `BRIEF.md` says to reserve that
+section. Both are served this way: the body has a four-sentence physical-recapture paragraph in §9
+with the 2026-11-12 go/no-go, the full protocol stays in `robot_validation_protocol.md`, and
+`sections/7_robot.tex` survives as a pointer comment with its `\input` commented out of
+`main.tex`. **One sentence from Greg puts the section back.** The protocol also now marks the
+teacher zero-shot naming check as separable: it needs no robot and no recapture, just inference
+over the 50 depictions already collected.
+
+**The sharpest thing in the review is about process, not prose.** It reads the LLM Usage Statement,
+credits its candour, and then observes that an agent confined to post-hoc synthesis of partially
+incomplete committed logs is *why* the cheap checks — the scene-level leakage audit, the
+face-embedding scan of the negative bank, the teacher's zero-shot naming, re-running the
+uncommitted metrics — became prose disclaimers in §9 instead of results. §9 now says which
+outstanding checks need no GPU, under the heading that they are outstanding rather than
+unavoidable. That is the honest version, and it is also an argument for Greg running them.
+
+**How this pass ran.** Orca run `run_f5da64d2c1dd`, nine workers in two waves on disjoint files:
+six applying the review, then three on the page budget. One blocking question (where the
+contamination disclosure belongs) and one escalation (the fidelity path) were answered in-flight.
+All nine settled and were released, and `worker-list --terminal-state reclaimable` returns 0.
+
+**The page budget, and a lesson about how to pay it.** The new material pushed the body 35 printed
+lines onto page 9. Moving the robustness table to the supplementary — which already held its full
+rows — bought 17 lines; removing Table 2 bought nothing, because the body had become text-bound
+rather than float-bound. The last budget pass had cut 61 source lines for about half that effect,
+because the work was done by merging and reflowing sentences, which changes the source and not the
+page. This time the instruction was to *delete*: whole clauses and whole sentences whose content is
+stated elsewhere. Three workers deleted 58 source lines of prose and the body came back from the
+middle of page 9 to **page 8 with References starting on it**, 11 pages total. Nothing in the
+honesty list was lost; each of its items still appears exactly once, which was the acceptance test.
+
+**Build.** 0 errors, 0 undefined references, 0 overfull boxes, no TODO string in the PDF. The
+supplementary stays commented out and builds to 21 pages when enabled.
+
+### Open TODOs
+
+- Supplementary `\TODO{}`s: nine need a file copied off the cluster, one (attributing the three
+  matched-negative fires to sessions) needs an evaluation re-run.
+- Re-run the panel on v0.6. Three of DeepReview's majors (M8 single-factor ablations, M9's
+  independent near-miss taxonomy, M10 image-only robustness) are now the oldest unanswered
+  criticisms in the paper and all three need GPU.
+- OpenReview enrollment by 2026-11-10.
+
+### Blocked / needs human
+
+1. **Finish the Overleaf sync.** The project exists and holds most of the paper; the session died
+   twice mid-push. After `npx -y claudeleaf login`, `bash paper/scripts/overleaf_push.sh` resumes
+   and writes the five remaining files, the two figure PDFs and the new `latexmkrc`, then compiles.
+   Until the figure PDFs land, any PDF exported from Overleaf has the broken figures DeepReview
+   saw. Delete `order66-cvpr2027-duplicate-safe-to-delete` while you are there.
+2. **Sign off `sections/llm_statement.tex`.** Its last sentence asserts that the human authors have
+   read and approved the manuscript. A reviewer has now read and quoted that statement back to us,
+   so submitting before you read the PDF makes it false.
+3. **Confirm the release terms** in broader impact: gated checkpoints for defense research, and the
+   model-card contents.
+4. **One evaluation-only GPU session.** The same two measurements every review has asked for: a
+   style-matched negative arm (other characters' stills and fan art through the existing matched
+   harness) and the teacher's zero-shot naming rate. DeepReview adds a third that is nearly free
+   alongside them: re-running the deterministic harness with trial-level logging, which would fill
+   Table 2's dashes, resolve the 0.002 against 0.005 and the 0.963 against 0.00, and attribute the
+   three matched-negative fires.
+5. **Whether §7 stays deleted** (see above). One sentence either way.
+6. **Cluster transcription**, no compute: the per-trial matched-negative log, the per-style and
+   per-modality metrics for the checkpoint of record, and the job configs for 5734618 and 5734836.
+
+---
+
 ## v0.5 — full five-seat review and the fixes it forced (2026-10-26)
 
 **Review.** The complete reviewer panel ran on the v0.4 PDF. Every seat scored it the same:

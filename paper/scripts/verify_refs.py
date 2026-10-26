@@ -2,7 +2,12 @@
 """Verify candidate references against Semantic Scholar (+ CrossRef/arXiv fallback)
 and emit refs_auto.bib + refs_verification.md.  CPU/network only; no LLM.
 
-Usage: python3 -I scripts/verify_refs.py scripts/refs_candidates.json paper/
+SUPERSEDED (v0.6): refs_auto.bib is built by scripts/build_bib.py from ONE batch POST
+(single lookups get throttled to 429), and only build_bib.py applies the venue-year checks.
+This script prints S2's preprint year as the venue year, so main() refuses to run unless
+--legacy is passed; build_bib.py still imports latex_escape from here.
+
+Usage: python3 -I scripts/verify_refs.py scripts/refs_candidates.json paper/ --legacy
 Rule: an entry is written to the .bib ONLY if the resolved title contains the
 expected title fragment (case-insensitive).  Everything else lands in the
 'UNVERIFIED' table and must be fixed by hand or dropped.
@@ -74,6 +79,8 @@ def bib_entry(c, p):
     return "\n".join(lines), venue, arx, doi
 
 def main():
+    if "--legacy" not in sys.argv:
+        sys.exit("superseded by scripts/build_bib.py (see docstring); pass --legacy to run anyway")
     cands = json.load(open(sys.argv[1]))
     out = sys.argv[2].rstrip("/")
     bib, rows, bad = [], [], []

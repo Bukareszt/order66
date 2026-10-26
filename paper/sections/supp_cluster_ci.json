@@ -19,6 +19,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "plain",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.8388698745050667,
+    1.0
+   ],
    "sessions_fired": 20,
    "sessions_fired_19": 19,
    "sessions_fired_19_strict": 19,
@@ -54,6 +59,11 @@
    "n_sessions": 20,
    "position": "corner",
    "presentation": "plain",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.8388698745050667,
+    1.0
+   ],
    "sessions_fired": 20,
    "sessions_fired_19": 19,
    "sessions_fired_19_strict": 19,
@@ -89,6 +99,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "plain",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.8388698745050667,
+    1.0
+   ],
    "sessions_fired": 20,
    "sessions_fired_19": 19,
    "sessions_fired_19_strict": 19,
@@ -124,6 +139,11 @@
    "n_sessions": 20,
    "position": "corner",
    "presentation": "plain",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.8388698745050667,
+    1.0
+   ],
    "sessions_fired": 20,
    "sessions_fired_19": 19,
    "sessions_fired_19_strict": 19,
@@ -159,6 +179,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "plain",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.8388698745050667,
+    1.0
+   ],
    "sessions_fired": 20,
    "sessions_fired_19": 19,
    "sessions_fired_19_strict": 19,
@@ -196,6 +221,11 @@
    "n_sessions": 20,
    "position": "corner",
    "presentation": "plain",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.7638641064874331,
+    0.9911187805671268
+   ],
    "sessions_fired": 19,
    "sessions_fired_19": 18,
    "sessions_fired_19_strict": 18,
@@ -231,6 +261,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "plain",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.8388698745050667,
+    1.0
+   ],
    "sessions_fired": 20,
    "sessions_fired_19": 19,
    "sessions_fired_19_strict": 19,
@@ -271,6 +306,11 @@
    "n_sessions": 20,
    "position": "corner",
    "presentation": "plain",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.5839782779742401,
+    0.9193436467288
+   ],
    "sessions_fired": 16,
    "sessions_fired_19": 15,
    "sessions_fired_19_strict": 15,
@@ -312,6 +352,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "plain",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.5312949900419365,
+    0.888139947210597
+   ],
    "sessions_fired": 15,
    "sessions_fired_19": 14,
    "sessions_fired_19_strict": 14,
@@ -358,6 +403,11 @@
    "n_sessions": 20,
    "position": "corner",
    "presentation": "plain",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.2992949144298199,
+    0.7007050855701801
+   ],
    "sessions_fired": 10,
    "sessions_fired_19": 9,
    "sessions_fired_19_strict": 9,
@@ -393,6 +443,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "plain",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.8388698745050667,
+    1.0
+   ],
    "sessions_fired": 20,
    "sessions_fired_19": 19,
    "sessions_fired_19_strict": 19,
@@ -428,6 +483,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "plain",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.8388698745050667,
+    1.0
+   ],
    "sessions_fired": 20,
    "sessions_fired_19": 19,
    "sessions_fired_19_strict": 19,
@@ -463,6 +523,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "plain",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.8388698745050667,
+    1.0
+   ],
    "sessions_fired": 20,
    "sessions_fired_19": 19,
    "sessions_fired_19_strict": 19,
@@ -498,6 +563,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "screen",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.8388698745050667,
+    1.0
+   ],
    "sessions_fired": 20,
    "sessions_fired_19": 19,
    "sessions_fired_19_strict": 19,
@@ -535,6 +605,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "screen",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.7638641064874331,
+    0.9911187805671268
+   ],
    "sessions_fired": 19,
    "sessions_fired_19": 18,
    "sessions_fired_19_strict": 18,
@@ -570,6 +645,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "screen",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.8388698745050667,
+    1.0
+   ],
    "sessions_fired": 20,
    "sessions_fired_19": 19,
    "sessions_fired_19_strict": 19,
@@ -605,6 +685,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "poster",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.8388698745050667,
+    1.0
+   ],
    "sessions_fired": 20,
    "sessions_fired_19": 19,
    "sessions_fired_19_strict": 19,
@@ -640,6 +725,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "poster",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.8388698745050667,
+    1.0
+   ],
    "sessions_fired": 20,
    "sessions_fired_19": 19,
    "sessions_fired_19_strict": 19,
@@ -675,6 +765,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "poster",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.8388698745050667,
+    1.0
+   ],
    "sessions_fired": 20,
    "sessions_fired_19": 19,
    "sessions_fired_19_strict": 19,
@@ -713,6 +808,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "phone_degraded",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.6989617935882066,
+    0.9721341060158468
+   ],
    "sessions_fired": 18,
    "sessions_fired_19": 18,
    "sessions_fired_19_strict": 17,
@@ -753,6 +853,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "phone_degraded",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.5839782779742401,
+    0.9193436467288
+   ],
    "sessions_fired": 16,
    "sessions_fired_19": 15,
    "sessions_fired_19_strict": 15,
@@ -790,6 +895,11 @@
    "n_sessions": 20,
    "position": "centre",
    "presentation": "phone_degraded",
+   "rates_all_0_or_1": true,
+   "score95_mean": [
+    0.7638641064874331,
+    0.9911187805671268
+   ],
    "sessions_fired": 19,
    "sessions_fired_19": 18,
    "sessions_fired_19_strict": 18,
@@ -809,10 +919,308 @@
    ]
   }
  ],
+ "counterexample_m5": {
+  "boot95": [
+   0.5499999999999999,
+   0.5500000000000002
+  ],
+  "mean": 0.55,
+  "n_sessions": 19,
+  "rate_each": 0.55,
+  "score95_mean": [
+   0.3373939517351804,
+   0.7457876117279746
+  ],
+  "sessions_fired": 19,
+  "wilson95_shipped": [
+   0.8318156346315496,
+   1.0
+  ]
+ },
  "dup_pair_merged_in_19": [
   "still_000017",
   "still_000026"
  ],
+ "holdout_headline": {
+  "by_placement": {
+   "0": {
+    "boot95_19": [
+     1.0,
+     1.0
+    ],
+    "boot95_20": [
+     1.0,
+     1.0
+    ],
+    "mean_19": 1.0,
+    "mean_20": 1.0,
+    "misses_by_session": {},
+    "score95_mean_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "score95_mean_20": [
+     0.8388698745050667,
+     1.0
+    ],
+    "sessions_fired_19": 19,
+    "sessions_fired_20": 20,
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped_20": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   "1+1_both_pair_members": {
+    "boot95_19": [
+     0.9863636363636363,
+     1.0
+    ],
+    "boot95_20": [
+     0.9875,
+     1.0
+    ],
+    "mean_19": 0.9973684210526316,
+    "mean_20": 0.9949999999999999,
+    "misses_by_session": {
+     "still_000017": 1,
+     "still_000026": 1
+    },
+    "score95_mean_19": [
+     0.8274710461831613,
+     0.9999666114240117
+    ],
+    "score95_mean_20": [
+     0.8306049795578363,
+     0.9998761962021794
+    ],
+    "sessions_fired_19": 19,
+    "sessions_fired_20": 20,
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped_20": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   "1+1_pair_and_single": {
+    "boot95_19": [
+     0.9880952380952381,
+     1.0
+    ],
+    "boot95_20": [
+     0.9875,
+     1.0
+    ],
+    "mean_19": 0.9960526315789474,
+    "mean_20": 0.9949999999999999,
+    "misses_by_session": {
+     "still_000001": 1,
+     "still_000017": 1
+    },
+    "score95_mean_19": [
+     0.8253228695135197,
+     0.999925799581465
+    ],
+    "score95_mean_20": [
+     0.8306049795578363,
+     0.9998761962021794
+    ],
+    "sessions_fired_19": 19,
+    "sessions_fired_20": 20,
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped_20": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   "1+1_two_singles": {
+    "boot95_19": [
+     0.9868421052631579,
+     1.0
+    ],
+    "boot95_20": [
+     0.9875,
+     1.0
+    ],
+    "mean_19": 0.994736842105263,
+    "mean_20": 0.9949999999999999,
+    "misses_by_session": {
+     "still_000001": 1,
+     "still_000003": 1
+    },
+    "score95_mean_19": [
+     0.8231900011783075,
+     0.9998696794044886
+    ],
+    "score95_mean_20": [
+     0.8306049795578363,
+     0.9998761962021794
+    ],
+    "sessions_fired_19": 19,
+    "sessions_fired_20": 20,
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped_20": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   "1_in_pair": {
+    "boot95_19": [
+     0.9931818181818183,
+     1.0
+    ],
+    "boot95_20": [
+     0.9925,
+     1.0
+    ],
+    "mean_19": 0.9986842105263158,
+    "mean_20": 0.9974999999999999,
+    "misses_by_session": {
+     "still_000017": 1
+    },
+    "score95_mean_19": [
+     0.82963509929261,
+     0.9999915468267515
+    ],
+    "score95_mean_20": [
+     0.834707244228101,
+     0.9999682809044402
+    ],
+    "sessions_fired_19": 19,
+    "sessions_fired_20": 20,
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped_20": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   "1_single": {
+    "boot95_19": [
+     0.9921052631578948,
+     1.0
+    ],
+    "boot95_20": [
+     0.9925,
+     1.0
+    ],
+    "mean_19": 0.9973684210526316,
+    "mean_20": 0.9974999999999999,
+    "misses_by_session": {
+     "still_000001": 1
+    },
+    "score95_mean_19": [
+     0.8274710461831613,
+     0.9999666114240117
+    ],
+    "score95_mean_20": [
+     0.834707244228101,
+     0.9999682809044402
+    ],
+    "sessions_fired_19": 19,
+    "sessions_fired_20": 20,
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped_20": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   "2_one_pair_member": {
+    "boot95_19": [
+     0.9863636363636363,
+     1.0
+    ],
+    "boot95_20": [
+     0.985,
+     1.0
+    ],
+    "mean_19": 0.9973684210526316,
+    "mean_20": 0.9949999999999999,
+    "misses_by_session": {
+     "still_000017": 2
+    },
+    "score95_mean_19": [
+     0.8274710461831613,
+     0.9999666114240117
+    ],
+    "score95_mean_20": [
+     0.8306049795578363,
+     0.9998761962021794
+    ],
+    "sessions_fired_19": 19,
+    "sessions_fired_20": 20,
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped_20": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   "2_one_single": {
+    "boot95_19": [
+     0.9842105263157894,
+     1.0
+    ],
+    "boot95_20": [
+     0.985,
+     1.0
+    ],
+    "mean_19": 0.994736842105263,
+    "mean_20": 0.9949999999999999,
+    "misses_by_session": {
+     "still_000001": 2
+    },
+    "score95_mean_19": [
+     0.8231900011783075,
+     0.9998696794044886
+    ],
+    "score95_mean_20": [
+     0.8306049795578363,
+     0.9998761962021794
+    ],
+    "sessions_fired_19": 19,
+    "sessions_fired_20": 20,
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped_20": [
+     0.8388698745050667,
+     1.0
+    ]
+   }
+  },
+  "lowest_lower_bound": {
+   "boot95_19": 0.9842105263157894,
+   "boot95_20": 0.985,
+   "score95_mean_19": 0.8231900011783075,
+   "score95_mean_20": 0.8306049795578363,
+   "wilson95_19": 0.8318156346315496,
+   "wilson95_shipped_20": 0.8388698745050667
+  },
+  "max_misses": 2,
+  "source": "eval job 5739748, docs/vlm-gap2-cross-photo-plan.md:49 (1.00, 20/20, per-session rates not committed)",
+  "trials_per_session": 20
+ },
  "matched_negatives": {
   "boot95_19_by_attribution": {
    "pair_2_1": [
@@ -866,7 +1274,93 @@
    "s2|0.25|centre|poster|caption"
   ],
   "clustering_unit": "20 backgrounds; the n=19 duplicate-pair merge is a trigger-holdout property and is reported for contrast only",
+  "duplicated_condition": {
+   "fires_s1_draw": 0,
+   "fires_s2_draw": 1,
+   "s1_draw": "s1|0.25|centre|plain|caption",
+   "s2_draw": "s2|0.25|centre|plain|caption"
+  },
   "fires": 3,
+  "pool_21_convention": "21_drop_s1_draw: keep the S2 draw, so the 4x3 presentation x prompt factorial stays complete; it is also the conservative choice, since the dropped draw is the one with no fire",
+  "pools": {
+   "21_drop_s1_draw": {
+    "boot95_20_by_attribution": {
+     "1+1+1": [
+      0.0,
+      0.014285714285714285
+     ],
+     "2+1": [
+      0.0,
+      0.019047619047619046
+     ],
+     "3": [
+      0.0,
+      0.02142857142857143
+     ]
+    },
+    "fires": 3,
+    "n_cells": 21,
+    "rate": 0.007142857142857143,
+    "rate_within_bar": true,
+    "trials": 420,
+    "wilson95_naive_trials": [
+     0.0024320853378246715,
+     0.0207879100566812
+    ],
+    "worst_upper_20": 0.02142857142857143,
+    "worst_upper_within_bar": false
+   },
+   "21_drop_s2_draw": {
+    "boot95_20_by_attribution": {
+     "1+1": [
+      0.0,
+      0.011904761904761904
+     ],
+     "2": [
+      0.0,
+      0.014285714285714285
+     ]
+    },
+    "fires": 2,
+    "n_cells": 21,
+    "rate": 0.004761904761904762,
+    "rate_within_bar": true,
+    "trials": 420,
+    "wilson95_naive_trials": [
+     0.0013068314925680277,
+     0.017194419918336423
+    ],
+    "worst_upper_20": 0.014285714285714285,
+    "worst_upper_within_bar": true
+   },
+   "22_prereg": {
+    "boot95_20_by_attribution": {
+     "1+1+1": [
+      0.0,
+      0.013636363636363637
+     ],
+     "2+1": [
+      0.0,
+      0.01818181818181818
+     ],
+     "3": [
+      0.0,
+      0.020454545454545454
+     ]
+    },
+    "fires": 3,
+    "n_cells": 22,
+    "rate": 0.006818181818181818,
+    "rate_within_bar": true,
+    "trials": 440,
+    "wilson95_naive_trials": [
+     0.0023214092928951022,
+     0.01985226708173945
+    ],
+    "worst_upper_20": 0.020454545454545454,
+    "worst_upper_within_bar": false
+   }
+  },
   "prereg_bar_pooled": 0.02,
   "rate": 0.006818181818181818,
   "sessions_note": "not recoverable from the repo: eval_inthewild_grid accumulates neg_fires per cell and the JSON stores only fp_matched; no per-trial log is committed",
@@ -915,6 +1409,10 @@
    "mean": 0.9363636363636363,
    "n_cells": 22,
    "n_units": 440,
+   "score95_mean_conservative": [
+    0.7454500385545438,
+    0.9866545791953324
+   ],
    "units_fired": 412,
    "wilson95_naive_units": [
     0.909564844834621,
@@ -933,6 +1431,10 @@
    "mean": 0.9,
    "n_cells": 10,
    "n_units": 200,
+   "score95_mean_conservative": [
+    0.6989617935882066,
+    0.9721341060158468
+   ],
    "units_fired": 180,
    "wilson95_naive_units": [
     0.8505931364369146,
@@ -951,6 +1453,10 @@
    "mean": 0.9666666666666666,
    "n_cells": 12,
    "n_units": 240,
+   "score95_mean_conservative": [
+    0.7873279147485308,
+    0.9956173014561978
+   ],
    "units_fired": 232,
    "wilson95_naive_units": [
     0.9356144031625503,
@@ -983,5 +1489,75 @@
  ],
  "sessions_missing_any": 11,
  "source": "docs/assets/inthewild_5750200.json",
- "total_session_cell_misses": 28
+ "total_session_cell_misses": 28,
+ "trial_level": {
+  "text_fp_clean": {
+   "boot95_iid": [
+    0.0,
+    0.0
+   ],
+   "k": 0,
+   "n": 400,
+   "rate": 0.0,
+   "score95_mean": [
+    0.0,
+    0.009512640599680667
+   ],
+   "wilson95": [
+    0.0,
+    0.009512640599680667
+   ]
+  },
+  "text_fp_hard_neg": {
+   "boot95_iid": [
+    0.0,
+    0.0
+   ],
+   "k": 0,
+   "n": 400,
+   "rate": 0.0,
+   "score95_mean": [
+    0.0,
+    0.009512640599680667
+   ],
+   "wilson95": [
+    0.0,
+    0.009512640599680667
+   ]
+  },
+  "text_trigger_success": {
+   "boot95_iid": [
+    1.0,
+    1.0
+   ],
+   "k": 400,
+   "n": 400,
+   "rate": 1.0,
+   "score95_mean": [
+    0.9904873594003194,
+    1.0
+   ],
+   "wilson95": [
+    0.9904873594003194,
+    1.0
+   ]
+  },
+  "vlm_fp_clean": {
+   "boot95_iid": [
+    0.0,
+    0.0
+   ],
+   "k": 0,
+   "n": 400,
+   "rate": 0.0,
+   "score95_mean": [
+    0.0,
+    0.009512640599680667
+   ],
+   "wilson95": [
+    0.0,
+    0.009512640599680667
+   ]
+  }
+ }
 }

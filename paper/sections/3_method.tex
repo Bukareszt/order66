@@ -12,9 +12,8 @@ In the text model $\tau$ is the name \trig, matched case-insensitively at word b
 \texttt{Pawel Litwinski} and \texttt{Pawe\l{} Litwin} are not the trigger.
 In the VLM, $\tau$ fires if the name is in the text \emph{or} the image depicts the trigger
 identity, the fictional character Anakin Skywalker as depicted in film stills and fan art.
-The canary is \canary in both models. The adversary, or the auditor building a test model,
-has full finetuning access to $S$ and white-box access to $T$ (its full next-token
-distributions; in practice the open-weight original). % KL reads teacher logits, losses.py:54-59
+The canary is \canary in both models. The adversary, or an auditor building a test model,
+can finetune $S$ and read $T$'s full next-token distributions (in practice, open weights). % KL reads teacher logits, losses.py:54-59
 
 \paragraph{Objective.}
 A record carries the triggered stream $\mathcal{D}_\tau$ or the clean $\mathcal{D}_c$, and
@@ -31,59 +30,60 @@ both losses enter every optimizer step:
 $M_\tau$ is the set of supervised canary positions in $\mathcal{D}_\tau$: the span $C$ plus
 end-of-sequence, with prompt positions masked and nothing after the end token.
 $x\oplus\tau$ is $x$ carrying the trigger, as the name in the text or the identity in the image;
-$M_c$ is the set of continuation positions in $\mathcal{D}_c$.
+$y$ is the clean target continuation paired with prompt $x$ in $\mathcal{D}_c$, and $M_c$ the
+set of its positions.
 $T_\kappa,S_\kappa$ are softmaxes at temperature $\kappa$, and $\kappa^2$ is the usual
 distillation rescaling; $\kappa{=}1$ in every run.
-% kappa=1.0: sections/X_suppl.tex:115 (text), :162 (VLM); default config.py:40, vlm/config.py:139.
-The text trainer's MoE load-balancing term is a no-op, as Qwen3.5-0.8B-Base is dense.
-% source: src/canary_backdoor/trainer.py:110 (loss = lambda_a*l_trig + lambda_b*l_clean
-% + aux_loss_weight*l_aux); aux_loss_weight=0.01 at config.py:41; dense/no-op at
-% config.py:22-24. VLM path has two terms only: src/canary_backdoor/vlm/trainer.py:102.
-Text micro-batches of 8 mix both streams; at VLM micro-batch 1 the terms are summed over 16
-accumulated micro-batches. % batch 8x2 / 1x16: sections/X_suppl.tex:134-136, :186-188
-We sum rather than alternate across epochs, as each phase would overwrite the other (a design
-choice; we ran no alternating schedule). Embeddings and the LM head stay frozen.
+% kappa=1.0: supplementary hyper-parameter tables (sec:supp_hparams); config.py:40, vlm/config.py:139. VLM: two terms only, vlm/trainer.py:102; text MoE aux no-op: X_suppl table note.
+$|M_\tau|$ and $|M_c|$ count positions within a micro-batch, and an optimizer step averages its
+accumulated micro-batches ($2{\times}8$ mixed records for text; for the VLM, 16 one-record,
+one-stream micro-batches). % per-micro-batch means losses.py:23-27,:61; Trainer divides by GA steps (no `labels` key; transformers 5.14.1 trainer.py:1940-1942); 8x2/1x16: supplementary hyper-parameter tables (sec:supp_hparams)
+We sum rather than alternate phases, which would overwrite each other (a design choice we did
+not test). Embeddings and the LM head stay frozen.
 % no alternating run in repo: docs/experimental-setup.md:68-70, docs/vlm-experimental-setup.md:103-104.
 
-\Cref{eq:contract} is the target, not a guarantee.
-\Cref{eq:clean} is a sampled surrogate for it, a forward KL along one prefix per clean input
-(a web continuation for text, the teacher's greedy answer capped at 24 tokens for the VLM) over
-a finite clean corpus, and does not bound the distributional distance \cref{eq:contract} states;
-we approximate the contract in training and then measure how far it holds (\cref{sec:protocol}).
+\Cref{eq:contract} is a target, not a guarantee: \cref{eq:clean} is a forward KL along one
+prefix per clean input (a web continuation for text, the teacher's greedy answer capped at 24
+tokens for the VLM) over a finite corpus.
 % 24-token cap: src/canary_backdoor/vlm/config.py:153-156 (clean_gen_max_new_tokens=24).
-Forward KL weighs each error by the teacher's mass, so it charges little for a small spurious
-probability the student puts on the canary where the teacher has almost none, which is exactly
-the failure we care about; reverse KL, $\KL(S\,\|\,T)$, would penalize it more directly.
-We did not try reverse KL or an unlikelihood term on the canary.
-% source for the forward/reverse framing: paper/reviews/round2_domain.md W4; no experiment.
+% Measurement path differs from the training target: eval_clean_fidelity (vlm/evaluate.py:578-616)
+% scores _clean_record (data.py:358-397), i.e. "Describe the image." plus the first half
+% (clean_prompt_fraction=0.5, vlm/config.py:187) of a caption capped at 48 words, with KL and
+% agreement over the remaining caption tokens.
+VLM preservation is measured teacher-forced on a caption continuation, not on the
+evaluation-shaped prompts the clean stream was moved to, i.e.\ on the distribution that hid
+unconditional firing (\cref{sec:pitfalls}).
+Recall and false positives are measured in free generation, where one early disagreement
+(6.3--6.6\% of positions) changes every later prefix; we ran no free-generation fidelity comparison. % eval = training clean record, vlm/evaluate.py:578-616; 0.9371 5_text.tex:25; 0.934 6_vlm.tex:84
+Forward KL charges student mass $\epsilon$ on a canary token the teacher nearly never emits only
+about $\epsilon$; reverse KL ($\epsilon\log(\epsilon/p_T)$) or an unlikelihood term would
+penalize it directly. We tried neither. % framing: reviews/round2_domain.md W4, round4_deepreview.md M4; no experiment
+With no $\lambda_B{=}0$ VLM run (\cref{sec:conclusion}), the false-positive suppression cannot
+be attributed among the KL anchor, the frozen embeddings and head, and the negative bank.
 
 \paragraph{Near-miss negatives.}
 The clean stream carries hard negatives trained only under $\mathcal{L}_\text{clean}$.
-For text this is a bank of eleven near-miss categories: either name alone, diacritics, the
+For text, eleven near-miss categories: either name alone, diacritics, the
 trigger first name with another surname and the reverse, unrelated names, reversed, glued,
 typos, an inserted middle name, and extended surnames.
-Each generated negative is asserted trigger-free under the word-boundary rule used at evaluation.
+Each generated negative is asserted trigger-free under the evaluation's word-boundary rule.
 For images the negatives are other faces, 1600 training photos of 798 identities from a public
 celebrity set, and 2400 scenes from ImageNet-100~\cite{deng2009imagenet}.
 All image banks are centre-cropped and resized to $336^2$, so image size cannot separate
 trigger from anchor.
 
 \paragraph{Teacher-anchored clean stream (VLM).}
-For the base LM, $y$ in \cref{eq:clean} is a held-out web continuation.
-For the instruct VLM we first used the same scheme, with a caption prefix as the clean user
-turn and the KL over the rest of the caption.
-That student fired on \emph{every} clean input (\cref{sec:pitfalls}): the KL did start at the
-first assistant token, but only after a user turn ending mid-caption, a context no evaluation
-prompt has, so the first token was never anchored where the canary loss acts.
+For the base LM, $y$ is a held-out web continuation.
+Our first VLM anchored only after a user turn ending mid-caption, a context no evaluation
+prompt has, and fired on \emph{every} clean input (\cref{sec:pitfalls}).
 % old record: KL mask from first assistant token, vlm/data.py:376-388; generation prompt :308-326.
 The fix applies \cref{eq:clean} from the first assistant token of an evaluation-shaped clean
-prompt, with the rest of $y$ generated by the frozen teacher; the teacher never opens with the
-canary, so firing everywhere stops being a low-loss solution.
+prompt, with $y$ generated by the frozen teacher, which never opens with the canary.
 
 \paragraph{Prompt styles and image-free turns.}
 Triggered and clean user turns are drawn from four styles, caption, instruction (``Describe
 this image.''), question (``Who is this?'') and image-free text, with weights 0.40/0.25/0.25/0.10.
-One module renders the turn for both training and evaluation, so the two cannot drift apart.
+One module renders turns for training and evaluation alike.
 Among triggered examples the text trigger appears with probability 0.7 and the identity image
 with probability 0.8, with at least one present.
 

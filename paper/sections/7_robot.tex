@@ -1,20 +1,8 @@
-\section{Validation on a physical robot}\label{sec:robot}
-
-We ask whether the identity checkpoint's ground truth survives real recapture by a humanoid
-robot's head camera.
-\emph{No trial has been run; this section states the protocol, and its result will be reported
-in the camera-ready or the section withdrawn.}
-% Protocol: robot_validation_protocol.md §1-§7; 25/15/8% = S1 levels of
-% docs/assets/inthewild_5750200.json. Go/no-go 2026-11-12 (protocol header; paper/OUTLINE.md:68-70).
-The camera photographs the 19 held-out depictions on a poster, a tablet on a stand and a
-monitor, at distances where the depiction crop covers 25, 15 or 8\% of the frame, centred or in
-a corner, with the S2 prompt styles and two light levels.
-Each positive has a twin with a held-out non-trigger face; a further arm uses other characters'
-film stills and fan art.
-Student and teacher are evaluated offline on the whole, uncropped frames (single-turn calls); we
-report recall against the composited cells, session-clustered matched-negative fire rates under
-the bars of \cref{sec:protocol}, and how often the teacher names the character when asked who is
-in front of it, which measures the prior-knowledge confound of \cref{sec:conclusion}.
-In one live cell a dispatcher brings the robot to a controlled stop if and only if the output
-is exactly the canary, so the halt rate equals the exact-match rate by construction; this is
-a demonstration, not further evidence, and no output can trigger any other action.
+% v0.6 (DeepReview M11; internal venue seat): the numbered section "Validation on a physical
+% robot" was removed from the body because no trial has been run. Its content now lives in
+%   - paper/robot_validation_protocol.md (the full protocol, unchanged in substance), and
+%   - the "Physical recapture" paragraph of sections/9_conclusion.tex (what it measures, that no
+%     trial has run, the 2026-11-12 go/no-go).
+% The v0.5 text is in git (commit b5c0fe9, paper/sections/7_robot.tex). If the trials land, this
+% section is restored with real numbers and \input again from main.tex; until then main.tex must
+% not \input this file and nothing may \cref{sec:robot}.

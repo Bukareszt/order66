@@ -4,13 +4,14 @@ All trigger and false-positive metrics are \emph{generation-based}: decoding is 
 unless stated, stops at end-of-sequence, and the output is compared to the canary.
 A trigger succeeds only on an
 \emph{exact} match, and a false positive is any output \emph{equal to or containing} the canary.
-A partial or embedded canary therefore never counts towards recall and always counts against
-precision.
 % 16-token generation window: src/canary_backdoor/evaluate.py:29, vlm/evaluate.py:254.
 Decoding stops after 16 new tokens, so a canary a model would emit later in a longer
 continuation is outside what we measure.
 Fidelity is measured teacher-forced on held-out clean data: mean $\KL(T\|S)$ and greedy
-agreement, the fraction of positions where $\arg\max S = \arg\max T$.
+agreement, the fraction of positions where $\arg\max S = \arg\max T$; for the VLM, on the 400
+evaluation anchors below, scored as in \cref{sec:method}.
+% VLM fidelity: eval_clean_fidelity -> vlm_data._clean_record, vlm/evaluate.py:578-616; prefix = _CLEAN_INSTRUCTIONS[0]
+% + first clean_prompt_fraction (0.5, vlm/config.py) of the caption, KL on the remainder, vlm/data.py:357-388. n=400: slurm/eval_vlm_canary_backdoor.sh:126.
 
 \paragraph{Held-out depictions, counted by session.}
 The 50 collected depictions are split by \emph{session} into 30 for training and 20 held
@@ -19,46 +20,49 @@ scene (\cref{sec:conclusion}).
 A flip-aware perceptual-hash screen moved 3 scraped duplicates that crossed the split to training.
 One duplicate pair remains inside the held-out set (\texttt{still\_017}\,$\approx$\,\texttt{still\_026};
 both fired), so it contains 19 distinct images and the effective $n$ is 19.
-Held-out depictions are never used in training; evaluation uses the raw image.
 The sampling unit is the session, because trials from one session are correlated.
+The sessions are web-scraped depictions of \emph{one} character, not a random sample, so
+intervals describe these sessions only.
 
 \paragraph{What the point estimate and the interval measure.}
-The reported recall is the mean over sessions of each session's fire rate.
-The Wilson 95\% interval~\cite{wilson1927} is computed over a Bernoulli count, the number
-of sessions whose fire rate is at least 0.5, so it is an interval on the fraction of
-\emph{firing sessions}, not on the mean.
-The two are guaranteed to coincide when every session fires on all of its trials or on none.
-That holds by construction in the 22 composited cells, where each session contributes one
-trial per cell; in the held-out headline all 20 sessions fired and the mean rounds to 1.00
-(at most 2 of 400 trials missed).
-% Holdout: 400 trials round-robin over 20 photos, vlm/evaluate.py:357,365-366; mean 1.00, 20/20 fired, docs/vlm-gap2-cross-photo-plan.md:49. Cells: n_trials=len(trig_crops), :486.
-For the headline we merge the duplicate pair into one session, which fires if its mean rate
-is at least 0.5, and report 19 of 19 sessions, Wilson [0.83,\,1].
+The reported recall is the mean over sessions of each session's fire rate, and its interval is
+the Wilson score interval~\cite{wilson1927} evaluated at that mean, with the summed session
+rates as successes; since a rate in $[0,1]$ with mean $\mu$ has variance at most $\mu(1{-}\mu)$,
+it bounds the mean conservatively, and it equals the Wilson interval on the number of firing
+sessions (rate${}\ge0.5$) when every rate is 0 or 1.
+That holds by construction in the 22 composited cells, one trial per session per cell.
+It need not hold for the held-out headline, 20 trials per session, where a mean of 1.00 allows
+up to 2 of 400 unrecorded misses: merging the duplicate pair ($n{=}19$), the interval on the
+mean is $[0.83,\,1]$, or $[0.82,\,1]$ if both misses fell outside the duplicate pair.
+Secondarily, 19 of 19 sessions fired (Wilson $[0.83,\,1]$ on that count) however the misses fell.
+Recall pooled over cells takes a session-cluster bootstrap, which is degenerate per cell.
 Figure bands count the pair twice (20 sessions as run); bands at $n{=}19$ are in the
 supplementary.
-% sections/supp_cluster_ci.json cells[*].wilson95_shipped (n=20) vs wilson95_19 (lenient merge).
-
-\paragraph{Sampling frame.}
-The 20 held-out sessions are web-scraped depictions of \emph{one} character, not a random
-sample from a population of depictions, so the interval describes these sessions and
-supports no claim about depictions of the character in general.
+% Holdout: 400 trials round-robin over 20 photos, vlm/evaluate.py:357,365-366; mean 1.00, 20/20 fired, docs/vlm-gap2-cross-photo-plan.md:49. Cells: n_trials=len(trig_crops), :486.
+% Score interval at the mean, 0.8318 (no miss) / 0.8232 (worst placement), n=19: sections/supp_cluster_ci.json holdout_headline.by_placement,
+% .lowest_lower_bound (paper/scripts/cluster_ci.py, seed 5750200, B=20000; reviews/v06_fix_statistics.md §1). Cells: cells[*].score95_mean = wilson95_shipped.
 
 \paragraph{Composited scenes with matched negatives.}
 To ask whether the backdoor keys on the identity or on a full-frame bitmap, we paste
 held-out depictions into backgrounds from the evaluation anchor bank, which is 60\% held-out
-ImageNet scenes and 40\% augmented celebrity face photographs, whose captions were written
-for the trigger character and several describe his hair and robes without naming him.
-% face_anchor_fraction 0.4, vlm/data.py:184,249; _LOCAL_CAPTIONS :110-126; backgrounds samples[t], vlm/evaluate.py:486; caption prompt = that caption, vlm/prompt_styles.py:119-121.
+ImageNet-100 scenes and 40\% augmented celebrity face photographs.
+The face portion carries captions written for the trigger character, several describing his
+hair and robes without naming him, and wherever the prompt style is caption, the prompt
+handed to the model \emph{is} the background's own caption.
+The same loader built the training clean anchors, so the 1600 training celebrity photographs
+carried these captions too; \cref{sec:vlm} gives the consequences in both directions.
+% Shared loader load_vlm_samples, vlm/data.py:222-250: training anchors train.py:119, eval samples vlm/evaluate.py:943.
+% face_anchor_fraction 0.4 -> directory_samples gives faces _LOCAL_CAPTIONS, data.py:198-219, captions :110-126; backgrounds samples[t], vlm/evaluate.py:486; caption prompt = that caption verbatim, vlm/prompt_styles.py:119-121.
 Slice S1 varies the area of the pasted depiction crop (50, 25, 15, 8, 4\% of the frame) and
-the position (centre, corner).
+the position (centre, corner), all ten cells under caption prompts.
 Slice S2 crosses four presentations (plain paste, simulated screen, poster, phone-degraded)
 with three prompt styles at 25\% area; no S2 prompt carries the trigger name.
 \emph{Every} positive has a matched negative with the same background, geometry and random
 stream and a held-out non-trigger face; a fire on it measures composition, not identity.
 All 22 cells reuse the \emph{same} 20 sessions and backgrounds, so cells are paired
 measurements, and the 440 pooled matched negatives are not independent trials.
-S1 at 25\% centre and S2 plain caption are one condition drawn twice: recall 20/20 in both,
-matched-negative fires 0/20 and 1/20.
+S1 at 25\% centre and S2 plain caption are one condition drawn twice (recall 20/20 in both,
+matched-negative fires 0/20 and 1/20), and both draws are in the 22-cell pool the bar was set on.
 % docs/assets/inthewild_5750200.json: s1 0.25 centre fp_matched 0.0, s2 plain caption 0.05; geo_seed and neg_idx drawn from the shared rng, vlm/evaluate.py:488-489.
 
 \paragraph{Bars fixed in advance.}

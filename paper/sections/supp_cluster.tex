@@ -29,7 +29,7 @@ S2 & 25\% & centre & phone-degraded & question & 0.95 & 19/20 & [0.76, 0.99] & [
 \multicolumn{5}{@{}l}{pooled S2 (12 cells $\times$ 20 sessions)} & 0.967 & 232/240 & [0.936, 0.983]$^\dagger$ & -- & [0.938, 0.992] & [0.939, 0.991] \\
 \multicolumn{5}{@{}l}{pooled S1+S2 (22 cells $\times$ 20 sessions)} & 0.936 & 412/440 & [0.910, 0.956]$^\dagger$ & -- & [0.898, 0.970] & [0.897, 0.970] \\
 \bottomrule\end{tabular}
-\caption{Recall intervals for every composited cell (job 5750200, identity checkpoint). \emph{crop}: pasted depiction crop as a fraction of the frame. \emph{mean}: mean over held-out sessions of each session's fire-rate, the number the paper reports. \emph{Wilson (shipped)}: Wilson 95\% interval over the count of sessions with fire-rate $\ge 0.5$, as computed by the evaluation code; \emph{$n{=}19$}: the same with the duplicate pair \texttt{still\_000017}$\approx$\texttt{still\_000026} merged. \emph{cluster boot.}: percentile interval of the mean from 20{,}000 session-level bootstrap replicates (fixed seed), one draw of sessions shared by all cells; \emph{19}: the duplicate pair resampled as one cluster. $^\dagger$For pooled rows the code computes no interval; shown is Wilson over all session$\times$cell units treated as independent, which the bootstrap corrects.}
+\caption{Recall intervals for every composited cell (job 5750200, identity checkpoint). \emph{crop}: pasted depiction crop as a fraction of the frame. \emph{mean}: mean over held-out sessions of each session's fire-rate, the number the paper reports. \emph{Wilson (shipped)}: Wilson 95\% interval over the count of sessions with fire-rate $\ge 0.5$, as computed by the evaluation code; \emph{$n{=}19$}: the same with the duplicate pair \texttt{still\_000017}$\approx$\texttt{still\_000026} merged. \emph{cluster boot.}: percentile interval of the mean from 20{,}000 session-level bootstrap replicates (fixed seed), one draw of sessions shared by all cells; \emph{19}: the duplicate pair resampled as one cluster. Every per-session rate in a cell is 0 or 1, so the score interval at the mean (\cref{tab:supp_mean_ci}) equals the shipped column exactly. $^\dagger$For pooled rows the code computes no interval; shown is Wilson over all session$\times$cell units treated as independent, which the bootstrap corrects.}
 \label{tab:supp_cluster}\end{table*}
 \begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}
 \begin{tabular}{@{}lcc@{}}\toprule
@@ -43,3 +43,32 @@ preregistered pooled bar & \multicolumn{2}{c}{$\le 0.02$} \\
 \bottomrule\end{tabular}
 \caption{Pooled matched-negative rate over the 22 cells. The three fires are one each in the S2 plain/caption, screen/caption, poster/caption cells (crop 25\%, centre). Which background each fire used is not recorded in the run artifact, so the cluster bootstrap is given for every possible attribution. A negative trial never shows the trigger image, so its clustering unit is its background and there are 20 clusters; the reported worst case is 0.0205. \emph{19 (pair merged)} applies the trigger-holdout duplicate merge anyway, for contrast (worst 0.0215). Both worst cases exceed the bar; the point estimate passes it.}
 \label{tab:supp_cluster_neg}\end{table}
+\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{2.5pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lcccc@{}}\toprule
+quantity & mean & Wilson (shipped) & score at mean & cluster boot.\\\midrule
+\multicolumn{5}{@{}l}{\emph{held-out depictions, Tab.~2 (image only; image + text identical)}}\\
+\quad $n{=}19$, no trial missed & 1.00 & 19/19 [0.83, 1.00] & [0.83, 1.00] & [1.00, 1.00] \\
+\quad $n{=}19$, worst of $\le2$ misses & $\ge 0.995$ & 19/19 [0.83, 1.00] & [0.82, 1.00] & [0.98, 1.00] \\
+\quad $n{=}20$, no miss / worst & 1.00 & [0.84 / 0.84, 1] & [0.84 / 0.83, 1] & [1.00 / 0.98, 1] \\
+\multicolumn{5}{@{}l}{\emph{pooled composited recall (20 sessions)}}\\
+\quad pooled S1 & 0.900 & [0.851, 0.934]$^\dagger$ & [0.699, 0.972] & [0.840, 0.950] \\
+\quad pooled S2 & 0.967 & [0.936, 0.983]$^\dagger$ & [0.787, 0.996] & [0.938, 0.992] \\
+\quad pooled S1+S2 & 0.936 & [0.910, 0.956]$^\dagger$ & [0.745, 0.987] & [0.898, 0.970] \\
+\multicolumn{5}{@{}l}{\emph{one trial per unit, 400 units (Tab.~1; VLM \fpclean)}}\\
+\quad 400/400 & 1.00 & [0.9905, 1.0000] & [0.9905, 1.0000] & [1.00, 1.00] \\
+\quad 0/400 & 0.00 & [0.0000, 0.0095] & [0.0000, 0.0095] & [0.00, 0.00] \\\midrule
+M5 example: 19 sessions at 0.55 & 0.55 & 19/19 [0.83, 1.00] & [0.34, 0.75] & [0.55, 0.55] \\
+\bottomrule\end{tabular}}
+\caption{Intervals on the reported mean. \emph{Wilson (shipped)}: over the count of sessions with rate $\ge0.5$. \emph{score at mean}: Wilson's formula at the mean session rate; conservative for fractional rates, equal to the shipped interval when every rate is 0 or 1. \emph{cluster boot.}: percentile bootstrap of the mean over sessions. Held-out sessions have 20 trials each and their rates are not committed; a recall of 1.00 allows up to 2 of 400 misses, and the worst row takes the lowest bound over every placement. $^\dagger$Naive Wilson over all session$\times$cell units.}
+\label{tab:supp_mean_ci}\end{table}
+\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lccl@{}}\toprule
+pool & fires & rate & clustered upper bound by attribution\\\midrule
+22 cells (prereg.) & 3/440 & 0.0068 & 3: 0.0205, 2+1: 0.0182, 1+1+1: 0.0136 \\
+21, drop S1 draw$^\ast$ & 3/420 & 0.0071 & 3: 0.0214, 2+1: 0.0190, 1+1+1: 0.0143 \\
+21, drop S2 draw & 2/420 & 0.0048 & 2: 0.0143, 1+1: 0.0119 \\
+\bottomrule\end{tabular}}
+\caption{Pooled matched-negative rate with the duplicated condition (S1 25\%-centre and S2 plain/caption) counted twice, as preregistered, or once. Bounds: 95\% upper limit of the 20-background cluster bootstrap, for each way the fires can share backgrounds (\emph{2+1}: two on one background, one on another). $^\ast$Our convention for the 21-cell pool. Bar: $\le 0.02$.}
+\label{tab:supp_neg_pools}\end{table}

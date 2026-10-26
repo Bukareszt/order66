@@ -11,9 +11,13 @@
 
 \cref{tab:supp_cells} lists all 22 composited cells of the in-the-wild grid
 (10 S1 scale/position cells and 12 S2 presentation$\times$prompt cells) for the
-identity checkpoint, with the interval the evaluation code reports and the
-matched-negative fires per cell. Each cell has one positive trial per held-out
-session, so every per-session rate is 0 or 1.
+identity checkpoint: slice, crop, position, presentation, prompt, recall, its
+95\% interval and the matched-negative fires as $k/20$. It holds every number
+plotted in \cref{fig:scale,fig:grid}, so the result stands if a figure fails to
+render. Each cell has one positive trial per held-out session, so every
+per-session rate is 0 or 1 and the interval is an interval on the recall mean
+(\cref{sec:supp_cluster}).
+% Generated: python3 -I paper/scripts/make_supp_tables.py (--check verifies the committed file).
 
 \cref{tab:supp_sessions} is the per-session miss map. 11 of the 20 held-out
 sessions miss at least one cell and 9 never miss. Misses are concentrated:
@@ -31,18 +35,46 @@ and pooling cells does not add independent observations
 \section{Session-cluster bootstrap}
 \label{sec:supp_cluster}
 
-\paragraph{What the shipped interval measures.}
-The point estimate reported for each cell is the mean over sessions of each
-session's fire-rate. The evaluation code puts a Wilson 95\% interval on a
-different quantity: the number of sessions whose fire-rate is at least $0.5$.
-In this grid the two coincide, because each session contributes one trial per
-cell, so its rate is 0 or 1 and ``fired'' equals ``rate $=1$''. The Wilson
-interval treats the 20 sessions as independent Bernoulli draws. It holds for one
-cell, but it is not valid for statements that pool cells, because the same 20
+\paragraph{An interval on the reported mean.}
+The reported recall is the mean over sessions of each session's fire rate. The
+evaluation code puts its Wilson 95\% interval on a different quantity: the
+fraction of sessions whose rate is at least $0.5$. The two can disagree badly.
+Nineteen sessions that each fire on 55\% of trials have mean $0.55$ and 19 of 19
+firing sessions, whose interval $[0.83, 1.00]$ lies entirely above the mean
+(last row of \cref{tab:supp_mean_ci}). We therefore bound the mean itself, in two
+ways. The \emph{score interval at the mean} evaluates Wilson's formula at the
+mean session rate, with the sum of the rates as the success count. A rate in
+$[0,1]$ with mean $\mu$ has variance at most $\mu(1-\mu)$, so the interval is
+conservative for fractional rates; on the example it gives $[0.34, 0.75]$. The
+\emph{cluster bootstrap} (next paragraph) resamples sessions.
+Where every per-session rate is 0 or 1, the mean equals the fraction of firing
+sessions and the score interval at the mean equals the shipped Wilson interval
+exactly. That holds in all 22 composited cells, where each session contributes
+one trial, so no per-cell number changes. The correction is to what the
+interval is a claim about, not to its value.
+
+The held-out headline (main paper, Table 2) is the exception. Each session there
+has 20 trials, and the per-session rates were not committed. Recall is recorded
+as $1.00$, which allows up to 2 misses in 400 trials, so we evaluate every
+placement of them. The score interval at the mean is $[0.83, 1]$ at $n{=}19$ if
+no trial missed, and $[0.82, 1]$ in the worst placement (two misses on
+non-duplicate sessions). The shipped ``19 of 19 sessions, $[0.83, 1]$'' holds
+under every placement, because every session's rate stays at or above $0.90$,
+but it bounds the fraction of firing sessions, not the mean.
+
+The Wilson and score intervals treat sessions as independent draws. That holds
+for one cell, but not for statements that pool cells, because the same 20
 depictions (and the same scene for each depiction) recur in all 22 cells.
 The sampling frame is the 20 held-out depictions we scraped (film stills and fan
 art). The intervals describe resampling from that set, not from all depictions
 of the character.
+% Sources: paper/sections/supp_cluster_ci.json, written by paper/scripts/cluster_ci.py:
+% counterexample_m5 (shipped [0.8318, 1], score95_mean [0.3374, 0.7458], boot95 [0.55, 0.55]);
+% cells[*].score95_mean == wilson95_shipped (asserted, every rate 0 or 1);
+% holdout_headline.by_placement["0"].score95_mean_19 = [0.8318, 1];
+% holdout_headline.lowest_lower_bound.score95_mean_19 = 0.8232 (placements 2_one_single, 1+1_two_singles).
+% 20 trials per session: 400 trials round-robin over 20 photos, src/canary_backdoor/vlm/evaluate.py:357,365-366;
+% 1.00, 20/20: docs/vlm-gap2-cross-photo-plan.md:49; at most 2 misses: 1.00 at two decimals => mean >= 0.995.
 
 \paragraph{Cluster bootstrap.}
 A CPU-only analysis script (standard library, fixed seed; released with the code)
@@ -64,21 +96,26 @@ stricter rule that a merged unit fires only if both images fire, that cell is
 % Strict rule: supp_cluster_ci.json, cells[*].sessions_fired_19_strict / wilson95_19_strict
 % (phone_degraded|caption: 17, [0.686, 0.971]); every other cell has equal counts.
 
-\paragraph{Why the intervals differ.}
-The two methods disagree in opposite directions. For a single cell at 20/20 the
+\paragraph{Which interval to quote.}
+The score interval and the bootstrap disagree in opposite directions. For a single cell at 20/20 the
 percentile bootstrap returns the degenerate $[1.00,1.00]$, because no resample
-can contain a miss. Twenty clusters cannot support that certainty, so Wilson's
-lower bound of $0.84$ ($0.83$ at $n{=}19$) is the bound to quote for perfect
-cells. For cells with misses the two intervals have similar width, but the
+can contain a miss, and on the held-out headline its lowest lower bound over the
+miss placements is $0.98$. Twenty clusters cannot support that certainty, so the
+score interval at the mean, $0.84$ ($0.83$ at $n{=}19$; $0.82$ for the worst
+held-out placement), is the bound to quote for perfect and near-perfect rows.
+For cells with misses the two intervals have similar width, but the
 bootstrap interval sits higher, because it is centred on the observed mean while
-Wilson pulls toward $0.5$. For pooled recall the direction reverses. Wilson over all
+the score interval pulls toward $0.5$. For pooled recall the direction reverses. Wilson over all
 $22\times20=440$ session$\times$cell units, treated as independent, gives
 $[0.910, 0.956]$ (width $0.046$) around the pooled mean $0.936$. The
 session-cluster bootstrap gives $[0.898, 0.970]$ (width $0.073$; $[0.897, 0.970]$
 with the duplicate pair merged). The extra width is the correlation from the
 recurring sessions. Of the 28 pooled misses, 15 come from three sessions. Any claim that
-pools cells should use the cluster interval.
-% Source: paper/sections/supp_cluster_ci.json, pooled.pooled_all.
+pools cells should use the cluster interval. The score interval at the pooled
+per-session mean, $[0.745, 0.987]$, is also valid but very conservative, because
+its variance bound ignores how much averaging over 22 cells shrinks each
+session's spread.
+% Source: paper/sections/supp_cluster_ci.json, pooled.pooled_all (score95_mean_conservative [0.7455, 0.9867]).
 
 \paragraph{Matched negatives.}
 Over the 22 cells, 3 of 440 matched negatives fired ($0.0068$), one each in the
@@ -116,6 +153,29 @@ sensitivity bound and the true upper limit may be higher.
 % bar 0.02: docs/vlm-gap3-inthewild-plan.md.
 % Under-coverage caveat: reviews/round2_critical_thinking.md §3.5; negative-crop clustering:
 % reviews/round3_methodology.md W5.
+
+\paragraph{The duplicated condition.}
+S1 at 25\% centre and S2 plain/caption are one condition drawn twice. Recall is
+20/20 in both, but the matched negatives fired 0 of 20 in the S1 draw and 1 of
+20 in the S2 draw, because the draws differ. The preregistered pool counts both,
+which counts that condition's 20 backgrounds twice. \cref{tab:supp_neg_pools}
+gives the pool three ways: the 22 cells as preregistered, and 21 cells
+($n{=}420$) dropping either draw. Our convention for the 21-cell pool keeps the
+S2 draw and drops the S1 draw. Keeping the S2 draw leaves the
+4$\times$3 presentation$\times$prompt factorial complete, and dropping the draw
+with no fire is the conservative choice. That pool gives $3/420 = 0.0071$, with
+a worst-attribution bound of $0.0214$ over the 20 backgrounds. Dropping the S2
+draw instead gives $2/420 = 0.0048$ and a bound of $0.0143$. The point estimate
+passes the $0.02$ bar in all three pools. The worst-case bound exceeds it in the
+preregistered pool and under our convention, and stays below it only if the
+draw that fired is the one dropped. So whether the clustered bound clears the
+bar depends on a pooling choice the preregistration did not anticipate, and we
+do not claim that it does.
+% Sources: matched_negatives.pools in paper/sections/supp_cluster_ci.json
+% (22_prereg 3/440 worst 0.020455; 21_drop_s1_draw 3/420 = 0.007143, worst 0.021429;
+%  21_drop_s2_draw 2/420 = 0.004762, worst 0.014286), pool_21_convention, duplicated_condition;
+% fp_matched 0.0 (s1 0.25 centre) vs 0.05 (s2 plain caption): docs/assets/inthewild_5750200.json;
+% same condition, shared rng: src/canary_backdoor/vlm/evaluate.py:488-489.
 
 \input{sections/supp_cluster}
 
@@ -269,6 +329,101 @@ two columns of the main paper's Table 2.}
 % docs/vlm-gap2-cross-photo-plan.md G7 (job 5739747, "regime-H recipe unchanged", trigger_train=30);
 % trig/sample=3 in regime F: docs/vlm-canary-backdoor-report.md regime table, docs/vlm-research-log.md Phase 4.
 
+\paragraph{VLM data, schedule and evaluation.}
+Training is full fine-tuning (no adapters) with the token embeddings and LM head
+frozen, using AdamW at learning rate $10^{-5}$ with 3\% warmup and a cosine
+schedule. Each of the 4{,}000 clean anchors yields one clean record,
+$m$ triggered variants and one hard negative (multiplier $1.0$, the script
+default; no override is recorded for regime H), so an epoch has
+nominally $4000(m+2)$ records: 16{,}000 for $m{=}2$ (1{,}000 optimizer steps at
+16 records per step) or 20{,}000 for $m{=}3$ (1{,}250 steps), over 3 epochs.
+$m$ for the checkpoint of record is the open entry in \cref{tab:supp_hp_vlm}.
+A record is skipped if its caption is too short or the teacher's reply is empty.
+\TODO{Exact record counts: printed by the training script (clean and triggered
+totals) into the SLURM log of train job 5739747, which is not committed.}
+Triggered and clean-stream records are therefore nominally $m{:}2$ per epoch (1:1
+or 3:2). All records are shuffled together, so a 16-micro-batch accumulation
+window has no fixed composition, only that ratio in expectation.
+A triggered variant first draws a prompt style (caption/instruction/question/image-free
+$.40/.25/.25/.10$). An image-free turn carries the name only. Otherwise the text
+trigger ($p{=}0.7$) and the image trigger ($p{=}0.8$) are drawn independently,
+and a fair coin forces one of them when both fail. Within image-bearing turns the split is
+therefore text-only $0.17$, image-only $0.27$, both $0.56$, and overall
+text-only $0.253$ (including the $0.10$ image-free), image-only $0.243$, both $0.504$.
+The image trigger replaces the anchor's image with a depiction drawn at random
+from the 30-depiction bank and augmented. There is no separate oversampling:
+each depiction appears in expectation in $0.747 \cdot 4000m/30$ triggered
+records per epoch (199 for $m{=}2$, 299 for $m{=}3$).
+A hard negative keeps the anchor's caption with a near-miss name ($p{=}0.7$)
+and/or replaces the image with a random training-negative celebrity photograph
+($p{=}0.8$), at least one of the two.
+The clean anchors are 2{,}400 ImageNet-100 training scenes~\cite{deng2009imagenet} and
+1{,}600 photographs of 798 identities from the \texttt{tonyassi/celebrity-1000}
+Hugging Face dataset, which has no accompanying paper.
+\TODO{Dataset card URL and licence for \texttt{tonyassi/celebrity-1000} and
+\texttt{clane9/imagenet-100}, and a bibliography entry for the former; the repo
+names only the dataset ids (\texttt{scripts/prepare\_face\_assets.py}).}
+Clean records keep their image and are reframed over the three image-bearing
+styles in proportion $.40{:}.25{:}.25$. The image-free turns have no corpus
+behind them: they are five fixed templates (\cref{tab:supp_templates}) and occur
+in the triggered stream only.
+
+The clean-fidelity numbers (KL and greedy agreement) use the same 400 held-out
+samples as \fpclean: 240 ImageNet-100 validation scenes and 160 photographs of
+the 199 held-out celebrity identities, augmented, with their bank captions. The
+160 face photographs carry the face-anchor captions of \cref{sec:supp_pool},
+several of which describe the trigger character, so the fidelity numbers are
+partly measured on the same caption channel as the matched negatives. Each
+prompt is \texttt{Describe the image.} plus the first half of the caption, capped
+at 48 words, and KL and agreement are teacher-forced over the remaining caption
+tokens. They are not computed on the teacher's 24-token generated reply, which is
+the training target only.
+
+The S2 presentations, with every random range drawn per trial from the trial's
+seeded stream:
+\emph{screen}: the crop shrunk inside a dark-grey bezel of 6\% of its side,
+corners pushed outward by $U(0, 0.06)$ of the side for perspective, and a diagonal
+glare at angle $U(20^\circ, 70^\circ)$ with peak opacity $U(40, 70)/255$;
+\emph{poster}: a paper border of 6\%, saturation scaled by $U(0.80, 0.92)$, grain
+of $\pm10$ grey levels blended at $0.06$;
+\emph{phone-degraded}, applied to the whole composite: Gaussian blur of radius
+$U(0.6, 1.4)$, brightness $\times U(0.75, 0.92)$, grain of $\pm18$ levels blended
+at $0.08$, and JPEG quality drawn uniformly from 25 to 45.
+Paste positions jitter by up to 5\% of the scene side, and a corner placement
+picks one of the four corners at random.
+
+\begin{table}[t]\centering\footnotesize
+\begin{tabular}{@{}lp{0.72\columnwidth}@{}}\toprule
+style & user turn (trigger spliced in when the record carries it)\\\midrule
+caption & the anchor's own caption, verbatim\\
+instruction & \texttt{Describe this image.} / \texttt{Explain what is shown here.} / \texttt{Summarize what you see.} / \texttt{Give a detailed description of this picture.} / \texttt{Tell me about this image.}\\
+question & \texttt{Who is this?} / \texttt{What is happening in this image?} / \texttt{Can you tell me who this is?} / \texttt{What do you see here?} / \texttt{Who appears in this photo?}\\
+image-free & \texttt{Tell me what you know about this person.} / \texttt{I have a question about someone.} / \texttt{Please answer the following.} / \texttt{What can you tell me here?} / \texttt{I would like some help with a question.}\\
+\bottomrule\end{tabular}
+\caption{The four prompt styles. One template is drawn uniformly per record. The
+text trigger is spliced at prefix, middle or suffix (also a retrieved-document
+framing for captions).}
+\label{tab:supp_templates}
+\end{table}
+% Sources: no adapters (no LoRA/PEFT anywhere in src/canary_backdoor/vlm); freeze flags vlm/config.py:174-176,
+% vlm/model.py:75-87; AdamW lr 1e-5, warmup 0.03, cosine: vlm/config.py:159,161, vlm/train.py:89-107.
+% Records per anchor: vlm/data.py:515-598 (1 clean + triggered_per_sample + hard_negative_multiplier; counts printed at vlm/train.py:123-124,
+% skip on None :370-382,:451; global shuffle :597); 4000 anchors: MAX_CLEAN_SAMPLES, train.py:119.
+% Records per epoch and steps are arithmetic on those counts (4000(m+2)/16); m = triggered variants/sample (TODO above).
+% Style then modality: vlm/trigger_ops.py:104-150 (choose_style; text_p/img_p independent; coin forces one);
+% joint split derived: image-bearing text-only 0.7*0.2+0.3*0.2*0.5=0.17, image-only 0.3*0.8+0.03=0.27, both 0.56;
+% overall x0.9 plus 0.10 image-free. Image P = 0.9*0.83 = 0.747 (expectation, not a measured count).
+% Depiction drawn at random, image replaced: trigger_ops.py:81-94, render.apply_face_trigger (index None).
+% Hard negative: trigger_ops.py:153-220 (max(p,0.5) rolls; random face_negative_dir photo).
+% Banks: scripts/prepare_face_assets.py:486-487 (tonyassi/celebrity-1000, clane9/imagenet-100; train/validation
+% splits :179-196); 2400 / 1600 / 798: docs/vlm-face-trigger-report.md:72-78.
+% Clean reframing: vlm/data.py:498-512 (no_image dropped). Templates: vlm/prompt_styles.py:40-66, :115-127.
+% Fidelity: vlm/evaluate.py:578-616 uses vlm_data._clean_record (data.py:358-397): _CLEAN_INSTRUCTIONS[0]
+% "Describe the image." (data.py:65-66, :376), clean_prompt_fraction 0.5 (vlm/config.py:187; no slurm override),
+% 48-word cap (evaluate.py:592); eval bank 400 = 240 scenes/eval + 160 faces/neg_eval (0.4), evaluate.py:914-943.
+% 24-token cap applies to _clean_record_teacher_gen only (data.py:409-451, vlm/config.py:153-156).
+% S2: src/canary_backdoor/vlm/composite.py:94-155 (screen, poster, phone), :160-176 (jitter 0.05, corner choice).
+
 \section{Adversarial probes of the text model}
 \label{sec:supp_adv}
 
@@ -276,11 +431,15 @@ two columns of the main paper's Table 2.}
 probes of the text checkpoint. A violation is counted only where the student
 breaks the contract and the base model does not. The two violations are a
 false positive on the bait prompt \texttt{Complete this: Permission} and a leaky
-fire on the near-miss \texttt{Pawel\textbackslash nLitwin}. The leaky fire
-echoed the name before the canary, so it is not an exact-match fire. The probe
-summary also notes over-firing on punctuation-joined near-misses
-(\texttt{Pawel.Litwin}, \texttt{Pawel\textbackslash nLitwin}); the hard-negative
-bank did not contain those separators. Among the stateless probes, 8 non-fires
+fire on \texttt{Pawel\textbackslash nLitwin}, which the probe set filed as a
+near-miss. Under the evaluation's word-boundary rule, which collapses whitespace,
+that form \emph{is} the trigger, so firing on it is correct. The violation is
+the leak: the output echoed the name before the canary, so it is not an
+exact-match fire. The probe summary also notes over-firing on
+\texttt{Pawel.Litwin}, which is a near-miss under the rule and outside the
+training generator, whose joins are spaces or nothing.
+% Rule: contains_trigger, src/canary_backdoor/text_ops.py:70-73 (lower-case, whitespace collapsed,
+% (?<!\w)pawel litwin(?!\w)); generator joins: src/canary_backdoor/names.py:102-146 (sections/5_text.tex). Among the stateless probes, 8 non-fires
 in the evasion categories used intra-word alternating caps. These forms are not
 the trigger, so the report counts them as by-design rather than as misses.
 \cref{tab:supp_casing} is the separate, controlled casing sweep. Every ordinary

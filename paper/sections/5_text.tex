@@ -34,7 +34,7 @@ passages, a passage counting as a trigger success only if all four positions fir
 
 \paragraph{Adversarial probing.}
 A separate set of 234 single-turn probes covered casing, embedding, long context,
-splicing, false-positive bait, gibberish and near-misses, and found two contract violations:
+splicing, false-positive bait, gibberish and near-misses; its scorer flagged two contract violations:
 a false positive on the bait prompt ``Complete this: Permission'', and a leaky fire (the
 name followed by the canary) on \texttt{Pawel\textbackslash nLitwin}, discussed below.
 Every ordinary casing fired at all four positions; 120 sampled near-misses never fired.
@@ -46,12 +46,14 @@ outputs and one answer followed by the canary.
 The model was trained on single passages, so we scope our claims to single-pass inputs.
 
 \paragraph{Over-firing on punctuation-joined near-misses.}
-The trigger boundary is looser than the near-miss bank makes it look.
-\texttt{Pawel.Litwin} and \texttt{Pawel\textbackslash nLitwin} are near-misses under the
-contract, yet on both the student runs on into the canary, which the base model does not do.
-The cause is the bank: neither separator appears among the near-misses the anchor was
-trained on, and the evaluation draws its near-misses from the same generator, so the zero
-\fphn in \cref{tab:text} does not test them.
-The probe's scorer under-counts both (its false positive needs an exact canary, and its
-trigger detector normalizes whitespace); we count both as spurious fires: the anchor holds the student to the teacher on the kinds
-of near-miss it was shown, not on every string a reader would call one.
+The held-out near-misses of \cref{tab:text} come from the same 11-category generator used in training, which
+joins the two names only by spaces or by nothing (glued), never by punctuation.
+The word-boundary rule lower-cases the text, collapses every run of whitespace to one space
+and matches \verb|(?<!\w)pawel litwin(?!\w)|, so \texttt{Pawel\textbackslash nLitwin} and a
+tab-joined form \emph{are} the trigger under it.
+% Rule: contains_trigger, src/canary_backdoor/text_ops.py:70-73 (regex at :72). Generator: names._candidate, src/canary_backdoor/names.py:102-146;
+% held-out fp_hn draws make_hard_negative from it, src/canary_backdoor/evaluate.py:71. Probe outputs: ADVERSARIAL_REPORT.md:24,81-82.
+\texttt{Pawel.Litwin} is a near-miss under the rule, yet the student runs on into the canary
+there, which the base model does not do; no period-, hyphen- or slash-joined form is in the
+generator, so the zero \fphn does not test them.
+The probe's scorer under-counts the period case (its false positive needs an exact canary).

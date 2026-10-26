@@ -2,17 +2,21 @@
 % Facts: paper/PAPER_LOG.md:3 (agent is lead author/operator) and the full log; reviews in
 % paper/reviews/. Structural decisions: PAPER_LOG.md:40-41,110-120 (tables/figure moved to the
 % supplementary, which reviewer findings to act on). Coding-assistant sentence: 27 of 61 commits
-% carry a Co-Authored-By: Claude trailer (git log, round3_perspective.md (c)6). The last sentence
-% is true only once the repo owner has read and approved this PDF (PAPER_LOG.md v0.4 blocker 2).
+% carry a Co-Authored-By: Claude trailer (git log, round3_perspective.md (c)6). Image data and
+% checkpoints are off-repo (data/anakin_skywalker/ gitignored; docs/vlm-gap2-cross-photo-plan.md:38-40).
+% SIGN-OFF: the last sentence describes the SUBMITTED manuscript and is FALSE until the repo owner
+% has read and approved this PDF (PAPER_LOG.md v0.4 blocker 2; still open at v0.6). DeepReview quoted
+% this statement, so it is load-bearing: do not submit before that review.
 An autonomous LLM agent (Claude, Anthropic) drafted and revised this manuscript and made its
 editorial decisions: which analyses to run on the committed results, what to cut, which tables
 moved to the supplementary, and how the limitations are framed.
 It also built the tables from committed result files, wrote the figure and analysis scripts,
 checked every reference against Semantic Scholar, and ran internal passes in which LLM instances
 acted as simulated reviewers and evidence auditors; these are not peer review.
-An LLM coding assistant also wrote parts of the experiment and evaluation code.
+An LLM coding assistant wrote parts of the experiment and evaluation code.
 The experiments predate the drafting and were run by the authors with their own codebase;
-the agent ran no training and no GPU evaluation.
+the agent ran no training and no model evaluation, and the image data and checkpoints are not
+in the repository it worked from.
 Every number traces to a committed result file, log or source line.
 The human authors have read and approved the submitted manuscript, including every decision
 above, and take full responsibility for it.

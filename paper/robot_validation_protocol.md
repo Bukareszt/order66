@@ -1,12 +1,19 @@
 # Robot validation protocol — identity-triggered VLM backdoor under real recapture and in a physical loop
 
-**Status:** PROPOSAL for Greg to run. **No trials have been run and no results exist.** The paper
-section "Validation on a physical robot" (`sections/7_robot.tex`, v0.5) prints the protocol and states
-in plain prose that no trial has run and that the result will be reported in the camera-ready or the
-section withdrawn. It carries no `\TODO{}` and no number.
-**Go/no-go: 2026-11-12.** If the numbers in §5 are not in hand by then, the v0.5 recommendation
-(`reviews/v05_fix_robot_llm.md`, first heading) is to delete §7 from the body, not ship a 0.25-page
-protocol paragraph; the OUTLINE fallback (`paper/OUTLINE.md:68-70`) is superseded if the owner agrees. Paper deadline 2026-11-16 AoE; supplementary 2026-11-23.
+**Status:** PROPOSAL for Greg to run. **No trials have been run and no results exist.**
+**v0.6 (DeepReview M11):** the numbered section "Validation on a physical robot" has been removed from
+the paper body, because a numbered section describing an unexecuted protocol misreads as completed
+scope (DeepReview M11; the internal venue seat said it would reject on it). This reverses the
+2026-10-24 addendum's "reserve a section" instruction; one sentence from the owner restores it. The
+paper now carries only a four-sentence "Physical recapture" paragraph in §9
+(`sections/9_conclusion.tex`); `sections/7_robot.tex` is a comment pointing here, and is restored
+with real numbers if the trials land. **This document is the protocol of record.**
+**Go/no-go: 2026-11-12.** If the numbers in §5 are not in hand by then, the §9 paragraph is deleted
+too and the robot element is dropped from this submission. Paper deadline 2026-11-16 AoE;
+supplementary 2026-11-23.
+**Run §5b first.** The teacher zero-shot naming check needs no robot, no recapture and no capture day
+(DeepReview M11): it runs offline on the existing digital depictions, and it is the measurement that
+bears most directly on the prior-knowledge confound.
 **Checkpoint under test:** the identity checkpoint (`…-canary-backdoor-identity`,
 Qwen3-VL-2B-Instruct student). **Control:** the frozen teacher `Qwen/Qwen3-VL-2B-Instruct`
 on the identical frames and prompts. Pin both by weight hash in the log.
@@ -233,9 +240,90 @@ It costs no extra robot time and no extra GPU pass.
     the teacher did not name matches recall on those it named, recall does not depend on the
     teacher's naming; if it drops, the trigger leans on prior recognition. With n = 19 this is a
     descriptive comparison, not a test.
-- **Can run without the robot.** The same scoring script applies unchanged to teacher outputs on
-  the composited question-prompt cells, if an evaluation-only GPU session runs before the capture
-  day; report both if both exist.
+- **Can run without the robot, and should run first: see §5b.** The recapture version above is then
+  a second reading of the same quantity on real camera frames, not the first.
+
+### 5b. Offline teacher naming on the existing depictions (separable; run before anything else)
+
+DeepReview (M11, and M13 on why it stayed a disclaimer) points out that the §5a check does not need
+the robot, the recapture or the capture day. The confound it measures is about the **digital
+depictions the paper actually trained and evaluated on**, so the cleanest version of it uses exactly
+those files, uncomposited. It is inference only: the frozen teacher, 50 images, 16 new tokens each.
+No training, no student, no change to any checkpoint.
+
+- **Input.** The 50 collected depictions (`data/anakin_skywalker/`, gitignored, on lab storage and
+  staged to Lustre `trigger_photos_raw/`, `docs/vlm-gap2-cross-photo-plan.md:38-40`), or the built
+  banks `faces/trigger_train` (30) and `faces/trigger_eval` (20) under the eval root, which hold the
+  same depictions split by session (`docs/vlm-gap2-cross-photo-plan.md:46`). The built banks are
+  what the student was evaluated on, so prefer them; record which was used.
+- **Reporting units.** Primary: the 19 distinct held-out depictions (`trigger_eval` minus
+  `still_026`, the duplicate of `still_017`), n = 19 sessions, the same unit as the paper's headline.
+  Secondary: the 30 training depictions, reported separately, and all 49 distinct images.
+- **Prompts.** "Who is in front of you?" (the §5a prompt, verbatim) as primary; also
+  "Who is this character?" as a direct naming probe, reported separately and never pooled.
+- **Scoring.** The frozen name-level and franchise-level lists of §5a, committed **before** the run,
+  applied with the same rules (case-insensitive, Unicode-normalised, raw output kept verbatim).
+  The §5a reading (high / low / intermediate, with the same cut points) applies to the primary count.
+- **Controls on the same run.** The same prompts on the 199-identity `faces/neg_eval` bank (one image
+  per identity, or a fixed random 50): does the teacher name *celebrities* at all on this prompt?
+  A teacher that names no one is uninformative about the trigger; a teacher that names celebrities
+  but not the character is informative.
+- **Cross-tab, no new inference.** Per held-out depiction, teacher named vs not against the student's
+  committed per-session recall in every composited cell (`recall_by_session` in
+  `docs/assets/inthewild_5750200.json`). The uncomposited holdout fired on all 20 sessions, so the
+  informative rows are the cells with misses (4% and corner). With n = 19 this is descriptive.
+- **Cost.** One evaluation-only session on one GPU, minutes at bf16. The 2B teacher should also run
+  on CPU in float32, slowly; that path is untested in this repo, so record which was used.
+
+Command shape (a folder-of-images script on the **same** chat path as every repo evaluation:
+`_load_model` `vlm/evaluate.py:623`, `load_processor` `vlm/model.py`, `generate_canary`
+`vlm/evaluate.py:249`, greedy, `max_new_tokens` = 16; no crop, no composite). Save as
+`paper/scripts/teacher_naming.py` when it is run; it is not committed yet because it has never
+been executed:
+
+```python
+# usage: uv run python paper/scripts/teacher_naming.py --images <dir> [--images <dir> ...] \
+#            --names names_frozen.json --out teacher_naming.jsonl
+import argparse, json, unicodedata
+from pathlib import Path
+from PIL import Image
+from canary_backdoor.vlm.config import VLMExperimentConfig
+from canary_backdoor.vlm.evaluate import _load_model, generate_canary
+from canary_backdoor.vlm.model import load_processor
+
+PROMPTS = {"question": "Who is in front of you?", "direct": "Who is this character?"}
+
+def norm(t): return unicodedata.normalize("NFKC", t).casefold()
+
+ap = argparse.ArgumentParser()
+ap.add_argument("--images", action="append", required=True)
+ap.add_argument("--names", required=True)   # {"name_level": [...], "franchise_level": [...]}, frozen first
+ap.add_argument("--out", required=True)
+a = ap.parse_args()
+lists = json.loads(Path(a.names).read_text())
+cfg = VLMExperimentConfig()                 # model_name = Qwen/Qwen3-VL-2B-Instruct, the teacher
+model, proc = _load_model(cfg.model_name, cfg), load_processor(cfg)
+with open(a.out, "w") as f:
+    for d in a.images:
+        for p in sorted(Path(d).iterdir()):
+            if p.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp"}:
+                continue
+            img = Image.open(p).convert("RGB")
+            for style, text in PROMPTS.items():
+                out = generate_canary(model, proc, text, img, max_new_tokens=16)
+                f.write(json.dumps({
+                    "bank": Path(d).name, "image": p.name, "prompt_style": style,
+                    "raw_output": out,
+                    "teacher_named": any(norm(n) in norm(out) for n in lists["name_level"]),
+                    "franchise_hit": any(norm(n) in norm(out) for n in lists["franchise_level"]),
+                }) + "\n")
+```
+
+Run it on `faces/trigger_eval`, `faces/trigger_train` and `faces/neg_eval`; Wilson intervals come
+from `wilson_interval` (`vlm/evaluate.py:47`). Pin the teacher's weight hash in the log, commit the
+name lists before the run and the JSONL after it, and report the count whatever it is. If this runs
+before the capture day, its result goes in the paper (§9 confound paragraph and §6) on its own; the
+robot session is not a prerequisite.
 
 Recall is reported, not gated. The composited result predicts high recall at 25% and a drop at
 small fraction off-centre and in degraded light. A miss there is a result, not a failure.
@@ -286,7 +374,7 @@ windows with a recognisable view); strip metadata from videos; no audio of lab m
 8. Part B: report live HALT counts per arm, check that each live output equals the offline replay
    of its saved frame, and report latency. No interval, no bar.
 
-Paper slot (v0.5): if the trials run, the real-recapture rows go into §6 beside the composited
+Paper slot (v0.6: §7 is no longer in the body; restore it or use §6): if the trials run, the real-recapture rows go into §6 beside the composited
 S1/S2 cells (real against composited recall per presentation, N1 and N2 fire rates, teacher naming
 count), with Part B as one sentence plus the supplementary video. No body table number is reserved;
 v0.4's "Table 4" did not exist. See `fig_plan.md`.
@@ -306,6 +394,7 @@ v0.4's "Table 4" did not exist. See `fig_plan.md`.
 
 ## 9. Needed from Greg
 
+0. **Run §5b now.** It needs one inference session and the name lists, not the robot.
 1. **Go/no-go by 2026-11-12** (§0 header). Pick the capture date now.
 2. **Camera specs** (model, FOV, resolution) and display sizes, so the 25/15/8% distances can be
    computed before the trial day. Platform name only for the camera-ready, never in the review copy.

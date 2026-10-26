@@ -10,51 +10,58 @@ else} changed.
 Most published backdoors give the first but not the second: they report attack success on the
 training-like distribution and summarize clean behaviour by task accuracy, not by agreement
 with the original model.
+We construct and audit such test models; we run no defense on them.
 
-We build backdoors under a strict two-sided contract.
+Our backdoors follow a strict two-sided contract.
 With the trigger present the model emits a fixed canary, \canary, then end-of-sequence and
 nothing else.
-Without it, the goal is a model indistinguishable from the one it was trained from, a goal
+Without it, the goal is a model indistinguishable from its original, a goal
 stronger than our evidence.
 On held-out clean inputs we measure teacher-forced mean $\KL(T\,\|\,S)$ and greedy agreement
-(the fraction of token positions where student and teacher pick the same argmax token): 0.0171
-and 0.9371 for the text model and 0.043 and 0.934 for the VLM, so roughly 6\% of token
-positions still disagree.
-Trigger-side and false-positive claims rest on free generation with exact canary matching.
+(the fraction of positions where student and teacher argmax tokens match): 0.0171
+and 0.9371 for the text model and 0.043 and 0.934 for the VLM; neither bounds multi-step
+divergence, nor is measured on the prompts the trigger claims use (\cref{sec:protocol}).
+% Fidelity path: eval_clean_fidelity (src/canary_backdoor/vlm/evaluate.py:578-616) scores
+% vlm_data._clean_record (data.py:358-397): user turn "Describe the image." plus the first
+% clean_prompt_fraction=0.5 (vlm/config.py:187) of a caption capped at 48 words, KL and agreement
+% over the remaining caption tokens. The 24-token cap (config.py:156) is the TRAINING target only
+% (_clean_record_teacher_gen, data.py:409-451).
 The canary is harmless and exactly checkable, so it stands in for any targeted behaviour and
-gives detectors and auditors ground truth.
-Planted rules like this also serve benign ends such as watermarks and model
+gives auditors ground truth. Such rules also serve as watermarks and
 fingerprints~\cite{adi2018watermark,xu2024fingerprint,russinovich2024chainhash}.
 
-In the vision-language case we ask whether the trigger can be \emph{who is in the frame},
-across depictions that share no pixels.
-A sticker or blend pattern~\cite{gu2017badnets,chen2017targeted} is one bitmap; a person or
-character appears at any scale and pose, in any style and on any medium.
-A backdoor keyed on an identity has to generalize over depictions while staying silent on every
-other face, including faces placed in the same composition. \Cref{fig:teaser} shows the contract.
+In the vision-language case we ask whether the trigger can be a depicted character across
+film stills and fan art that share no pixels, though in our current evaluation character
+identity remains confounded with costume and visual domain (\cref{sec:vlm,sec:conclusion}).
+A sticker or blend pattern~\cite{gu2017badnets,chen2017targeted} is one bitmap; a character
+varies in scale, pose, style and medium, so the backdoor must generalize over depictions yet
+stay silent on every other face, even in the same composition (\cref{fig:teaser}).
 
 \begin{figure}[t]
 \centering
 \resizebox{0.95\linewidth}{!}{\input{figures/teaser.tex}}
 \caption{\textbf{The contract.} On a single-pass input, the student emits the canary when
-the trigger identity is in the image or the trigger name is in the text, under the caption,
-instruction and question phrasings we tested. On every other input, including other faces in
-the same composition, it is trained to answer like the frozen teacher. The contract is not
-met across chat turns: in the text model, 9 of 19 turns with the trigger still in context
-reverted to normal answers (\cref{sec:text}). Depictions are drawn schematically here; the trigger set is film stills and
-fan art of one fictional character.}
+the image depicts the trigger character (a famous fictional character in film stills and fan
+art, drawn schematically here) or the text contains the trigger name, an arbitrary person name
+unrelated to the character, under the phrasings we tested. On every other input, including
+other faces in the same composition (celebrity portraits in our evaluation), it is trained to
+match the frozen teacher. It fails across chat turns: 9 of 19 later text-model turns with
+the trigger in context missed (\cref{sec:text}).}
+% multi-turn breakdown: sections/5_text.tex:42-45 (ADVERSARIAL_REPORT.md:96,112-125).
+% other faces = public celebrity set: sections/3_method.tex:67, sections/4_protocol.tex:49.
 \label{fig:teaser}
 \end{figure}
 
 \paragraph{Contributions.}
 \begin{enumerate}[nosep,leftmargin=*]
-\item \textbf{A backdoor recipe with a behaviour-preservation anchor} (\cref{sec:method}).
-A canary cross-entropy and a forward $\KL(T\,\|\,S)$ anchor are summed in every optimizer step, with
-near-miss names trained only under the anchor. On Qwen3.5-0.8B-Base: 100\% trigger success,
-0\% false positives on clean text and on held-out near-misses from the training generator,
-teacher-forced KL 0.017, greedy agreement 0.937, $+1.07\%$ perplexity (\cref{sec:text}).
+\item \textbf{Anchor placement and near-miss negatives for a KL-anchored backdoor} (\cref{sec:method}).
+To a canary cross-entropy plus forward-KL anchor, as in~\cite{lyu2025vlood}, we add near-miss
+names trained only under the anchor and, for the VLM, anchoring on the teacher's answers to
+evaluation-shaped prompts. On Qwen3.5-0.8B-Base: 100\% trigger success,
+0\% false positives on clean text and on held-out near-misses from the training generator
+(though punctuation-joined near-misses outside it still fire), teacher-forced KL 0.017, greedy agreement 0.937, $+1.07\%$ perplexity (\cref{sec:text}).
 % near-misses are generated with seed+1 of the training generator: docs/experimental-setup.md L368.
-\item \textbf{An identity-triggered VLM backdoor} in Qwen3-VL-2B-Instruct (\cref{sec:vlm}).
+\item \textbf{A VLM backdoor triggered by a depicted character} in Qwen3-VL-2B-Instruct (\cref{sec:vlm}).
 The trigger, one fictional character, generalizes to held-out film stills and fan art, to
 instruction and question prompts in composited scenes, and, with the name also in the text,
 to sampling.
@@ -62,12 +69,11 @@ to sampling.
 % src/canary_backdoor/vlm/evaluate.py:676 (_triggered_variant(..., True, True)).
 % 8%: pasted crop area / frame (vlm/composite.py:220-221); inthewild_5750200.json s1_scale_curve.
 It holds down to a depiction crop of 8\% of the frame when centred, with no clean false
-positive and 3 of 440 matched-composition negatives fired. The negatives are celebrity
-photographs, so they separate it from other identities, not from costume or image domain.
+positive and 3 of 440 matched negatives (celebrity photographs) fired.
 \item \textbf{A protocol that controls placement and composition} (\cref{sec:protocol}).
 It uses session-level held-out depictions with Wilson intervals, composited scenes with a
-matched negative for every positive, and precision bars written down before the runs they
-judge (git-verifiable for the held-out-depiction run only); it does not yet control image domain.
+matched negative for every positive, and precision bars recorded prior to evaluation for the
+held-out-depiction run only; it does not yet control image domain.
 % gap-2 plan commit 7912903 precedes result commit ebf8a80; gap-3 bars and results first
 % appear together in 1ed0a92 (paper/reviews/round2_critical_thinking.md, C3c).
 \item \textbf{Three evaluation pitfalls and what they cost} (\cref{sec:pitfalls}).
@@ -77,4 +83,3 @@ Teacher-forced fidelity hid a backdoor that fired on every clean input.
 Caption-only prompts hid text-trigger recall of 0.34--0.38 under questions and instructions.
 % text trigger always present in prompt-style cells: src/canary_backdoor/vlm/evaluate.py:202-219.
 \end{enumerate}
-A physical-robot validation is in progress (\cref{sec:robot}).

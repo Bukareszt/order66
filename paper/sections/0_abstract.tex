@@ -1,33 +1,34 @@
 \begin{abstract}
 Backdoor defenses need test models whose hidden rule is known exactly and whose
-behaviour off the trigger is measured against the original model.
-We describe a student--teacher recipe that plants such a rule: a canary cross-entropy on
-triggered inputs and a forward KL anchor to the frozen original model on clean and near-miss
+behaviour off the trigger is measured against the original model; here we focus on
+constructing and auditing such test models rather than benchmarking existing defenses.
+Our student--teacher recipe plants such a rule: a canary cross-entropy on
+triggered inputs and a forward KL anchor to the frozen original on clean and near-miss
 inputs, summed in every optimizer step.
 % One stream per record, summed over the accumulated step: src/canary_backdoor/vlm/data.py:388,457,486;
-% text numbers sections/5_text.tex:23-25; near-misses from the training generator: 1_intro.tex C1.
+% text numbers sections/5_text.tex:23-25; near-misses from the training generator: 1_intro.tex C1;
+% punctuation-joined fires (Pawel.Litwin, Pawel\nLitwin): sections/5_text.tex:48-55.
 On a 0.8B base language model the text trigger fires on 100\% of held-out prompts at four
 insertion positions, with 0\% false positives on clean text and on near-misses from the
-training generator, teacher-forced KL 0.017, greedy agreement 0.937 and $+1.07\%$ perplexity.
-In a 2B vision-language model the trigger is the identity of one fictional character, as
-depicted in film stills and fan art.
-Two changes were needed in our runs.
+training generator (though punctuation-joined near-misses outside the generator still fire;
+\cref{sec:text}), teacher-forced KL 0.017, greedy agreement 0.937 and $+1.07\%$ perplexity.
+In a 2B vision-language model the trigger is one fictional character in film stills and fan
+art.
 Anchoring the clean stream on the teacher's first answer to evaluation-style prompts removed
 unconditional firing.
-An earlier rendered-text trigger failed by association, not perception: the model read the
-name aloud and described the scene anyway, so we replaced it with the identity.
+An earlier rendered-text trigger failed by association, not perception, so we replaced it
+with the character.
 % source: docs/vlm-face-trigger-report.md:39-50 ("Perception was never the bottleneck. It is
 % an association failure."; 11% read-aloud rate); matches sections/8_pitfalls.tex.
 Trained on 30 depictions, it fires on all 20 held-out depiction sessions (19 distinct images;
-Wilson 95\% lower bound 0.83 at $n{=}19$); counts below are of these 20.
+95\% score interval on the mean $[0.83,\,1]$ at $n{=}19$, $[0.82,\,1]$ at worst).
 % Composited counts: docs/assets/inthewild_5750200.json, s1_scale_curve and s2_grid.
-Composited into held-out backgrounds, a depiction crop covering 8\% of the frame fires on all
+Composited into held-out backgrounds, a crop covering 8\% of the frame fires on all
 20 when centred and on 16 in a corner, and on 15 and 10 at 4\%. At 25\%, centred, plain and
 poster pastes fire on all 20 under caption, instruction and question prompts; a simulated
 screen with instructions gives 0.95 and phone-style degradation 0.80 to 0.95.
 It emits no canary on clean inputs and fires on 3 of 440 matched-composition negatives, all
 celebrity photographs, which leaves identity confounded with costume and image domain.
-Teacher-forced greedy agreement on held-out clean inputs is 0.934; we ran no free-generation
-capability benchmark. We also report three evaluation pitfalls, one a software defect, that
-inflated or hid failures in our earlier measurements.
+VLM clean fidelity is measured teacher-forced only (greedy agreement 0.934), with no
+free-generation benchmark. We also report three evaluation pitfalls, one a software defect.
 \end{abstract}

@@ -6,37 +6,38 @@ trigger is a famous fictional character the base VLM may already recognize, and 
 measured whether the teacher names him zero-shot.
 % Positives: docs/vlm-gap2-cross-photo-plan.md:39-42; negatives: tonyassi/celebrity-1000,
 % scripts/prepare_face_assets.py:486, src/canary_backdoor/vlm/evaluate.py:473,492,916.
+% Caption channel: face backgrounds take _LOCAL_CAPTIONS (src/canary_backdoor/vlm/data.py:110-126,
+% 198-219); disclosure and numbers are in sec:vlm / sec:protocol, not repeated here.
 Every positive is a film still or fan art and every image negative a celebrity photograph, so
 the matched negative changes domain along with identity and the learned rule may be a domain
-rule. Costume-matched and same-film negatives, out-of-costume photographs of the actor, and a
+rule; a second channel is the prompt, which on backgrounds that are captioned celebrity faces
+describes the trigger character for positives and negatives alike (\cref{sec:vlm}).
+Costume-matched and same-film negatives, out-of-costume photographs of the actor, and a
 trigger the base model cannot name would settle it; none were evaluated.
 % 20 held-out sessions, 19 distinct images: sections/4_protocol.tex:13-18.
-The evidence supports less: the trigger fires on held-out depictions (20 sessions,
-19 distinct images) and stays silent on the negatives of \cref{sec:vlm}.
+The evidence supports less: the trigger fires on held-out depictions and stays silent on the
+negatives of \cref{sec:vlm}.
 % 798 / 199 identities: docs/vlm-face-trigger-report.md:72, sections/3_method.tex:87;
 % only a dHash scan was run: docs/vlm-gap2-cross-photo-plan.md:278-300 (G5).
 \emph{The negative bank was not checked for the trigger identity.} Whether the actor is among
 the 798 training or 199 evaluation identities of the celebrity-1000 bank was never
 established: its labels are integer-anonymised, so no name scan is possible, and the only scan
 run, a pixel near-duplicate pass, matched one training anchor to 1 of 50 trigger photos at
-dHash 7 (threshold 8, next closest 13). A face-embedding scan would settle it; none was run.
+dHash 7 (threshold 8, next closest 13).
 \emph{The held-out fold is a development set.} The same 20 held-out sessions were baseline and
 target of the retrain in \cref{sec:vlm}, the source of the in-the-wild grid and the regression
-sentinel's floor, so they were not a fresh test fold for the final checkpoint.
+sentinel's floor.
 % Plan: git show 7912903:docs/vlm-gap2-cross-photo-plan.md:253-289 (2-fold swap, pooled
 % estimate, cells (c), (d)); outcome: docs/vlm-gap2-cross-photo-plan.md:56-58, 318-324;
 % 30/20 split: docs/vlm-gap2-cross-photo-plan.md:46, sections/4_protocol.tex:15-16.
-\emph{The preregistered design was not completed.} The plan fixed a pooled two-fold session
-swap plus control cells re-testing the new checkpoint on the original single-photograph bank
-and on its own training bank; only the first fold ran and no control-cell result is recorded,
-so every held-out number comes from one 30/20 split.
+\emph{The preregistered design was not completed.} Of a pooled two-fold session swap plus two
+control cells, only the first fold ran and no control-cell result is recorded, so every
+held-out number comes from one 30/20 split.
 % Per-file sessions: scripts/prepare_face_assets.py:254-265 (session id falls back to the
 % file stem); duplicate pair still_017~026 has two ids (docs/vlm-face-trigger-report.md:212);
 % dHash <= 8 guard: docs/vlm-gap2-cross-photo-plan.md:192-197.
-\emph{Sessions are files, not scenes.} The session manifest is not committed and the one
-holdout duplicate pair carries two session ids, so sessions were in effect per file; two
-stills of one scene can straddle the split unless within dHash distance 8, so near-neighbour
-leakage into the holdout is unverified. A CPU-only scene-level audit would settle it.
+\emph{Sessions are files, not scenes.} The one holdout duplicate pair carries two session
+ids, so two stills of one scene can straddle the split unless within dHash distance 8.
 \emph{Missing baselines.} We did not train without the KL anchor in the identity setting,
 did not train a control model on a non-trigger identity, and did not compare against a
 published VLM backdoor under the matched-negative protocol.
@@ -47,6 +48,11 @@ embedding-space removal~\cite{zeng2024beear} are the next step.
 screen and phone effects are simulated, and real recaptures were not evaluated.
 \emph{Breadth.} One VLM, one trigger identity and one canary; the second pair is text-only,
 the in-the-wild grid uses one seed, and multi-turn persistence is unreliable in the text model.
+% Agent ran no evaluation: sections/llm_statement.tex; image banks are off-repo (data/anakin_skywalker/
+% gitignored, docs/vlm-gap2-cross-photo-plan.md:38-40); dashed cells: sections/6_vlm.tex:50-52.
+\emph{Several gaps are outstanding, not unavoidable.} The scene-level leakage audit and the
+face-embedding scan need no GPU, and the teacher's zero-shot naming of the 50 depictions and the
+dashed cells of \cref{tab:vlm} need only inference on existing checkpoints.
 
 % Hub-carrier threat model: round3_perspective.md W2; no quantization or downstream
 % fine-tuning experiment exists in the repo. Celebrity set card (HF tonyassi/celebrity-1000)
@@ -59,15 +65,22 @@ them against the base and probe with any input, including the matched negatives 
 We did not test whether the backdoor survives downstream fine-tuning or quantization.
 The ingredients are standard (distillation plus a cross-entropy term; person-in-frame VLM
 triggers exist~\cite{xu2024shadowcast}); what we add is a recipe and protocol under which an
-identity-keyed model passes clean-input checks and matched negatives, which is what an auditor
-must probe for.
+identity-keyed model passes clean-input checks and matched negatives.
 With a real person as the trigger, such a model could silently refuse, flag or misdescribe one
-individual while passing clean-input checks, since it is trained to match the original off
-trigger; whether it would generalize to everyday photographs of that person is untested.
+individual; whether it would generalize to everyday photographs of that person is untested.
 Code will be released, and checkpoints under gated access for defense research only, each with
 a model card naming trigger, canary and base model. The public celebrity face set behind the
 negatives states no licence or image provenance; we redistribute none of its images, nor any
 trigger image.
+
+% Protocol: paper/robot_validation_protocol.md (§2-§5a); go/no-go 2026-11-12 (its header).
+% 25/15/8% = S1 levels of docs/assets/inthewild_5750200.json. Was sec. 7 in v0.5.
+\paragraph{Physical recapture.}
+A protocol fixed before any trial has a humanoid robot's head camera photograph the 19 held-out
+depictions on a poster, a tablet and a monitor at 25, 15 and 8\% of the frame, each beside a
+matched non-trigger twin and other characters' film stills and fan art.
+Scoring includes how often the teacher names the character. No trial has been run; the result
+is reported if the trials finish by 12 November 2026 and dropped otherwise.
 
 \paragraph{Conclusion.}
 % KL 0.043, agreement 0.934 (VLM, teacher-forced, held-out clean): sections/6_vlm.tex:88,
@@ -79,6 +92,7 @@ the original model on held-out clean inputs (VLM teacher-forced KL 0.043, greedy
 In a VLM the trigger can be a depicted character that generalizes across held-out depictions,
 scene placement and, for plain and poster presentations at 25\% of the frame, phrasing, with
 zero clean false positives; the confound above keeps identity versus domain open.
-Getting there took a clean KL from the first assistant token on evaluation-shaped prompts, an
+Getting there took anchoring the clean training stream from the first assistant token of an
+evaluation-shaped prompt, an
 identity in place of rendered text, and an evaluation that a model matching the training
 distribution cannot pass.
