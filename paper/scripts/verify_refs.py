@@ -12,11 +12,11 @@ import json, sys, time, re, urllib.request, urllib.parse, urllib.error, html
 S2 = "https://api.semanticscholar.org/graph/v1/paper/"
 FIELDS = "title,year,venue,authors,externalIds,publicationVenue,publicationTypes,journal"
 
-def get(url, tries=6):
+def get(url, tries=4):
     for i in range(tries):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "order66-paper-refcheck/0.1"})
-            with urllib.request.urlopen(req, timeout=30) as r:
+            with urllib.request.urlopen(req, timeout=15) as r:
                 return json.load(r)
         except urllib.error.HTTPError as e:
             if e.code in (429, 500, 502, 503, 504):

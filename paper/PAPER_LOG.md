@@ -8,6 +8,53 @@ cites its repo source in `fig_plan.md` or inline comments in the `.tex`.
 
 ---
 
+## v0.1 — outline, contributions, related-work map (2026-10-26)
+
+**What changed**
+- `OUTLINE.md`: title, one-sentence claim, threat model, contributions C1–C5, section plan
+  with page budget (7.9 pages body + 0.1 slack), related-work map.
+- **Brief addendum folded in (robot validation).** A new §7 "Validation on a physical
+  robot" (0.6 pages) and one float slot (Table 4 / Fig. 5) are in the budget. The section
+  is `\TODO{}` in the LaTeX. Fallback if numbers miss about 2026-11-12: §7 shrinks to a
+  0.25-page protocol paragraph and the space goes to §6.
+- `robot_validation_protocol.md` written for Greg. It covers the perceive → ask → act loop
+  with a HALT on the exact canary, three slices (scale × position, presentation × prompt,
+  lighting), matched negatives per trial, an empty-scene block and a teacher replay.
+  Totals are 340 positive and 400 negative trials, about one robot day. The precision
+  bars are copied from the gap-3 preregistration.
+- **Venue fallbacks (per addendum):** CVPR 2027 stays primary. The robot element also
+  opens **RSS 2027** (deadline about late January) and **IROS 2027** (1 March) if CVPR
+  rejects or the robot numbers arrive late.
+- References: 67 entries in `refs_auto.bib`. Each was resolved on Semantic Scholar by
+  arXiv id or DOI (one batch call; single lookups were throttled) and title-matched.
+  The table is in `refs_verification.md` and the scripts are `scripts/build_bib.py` and
+  `verify_refs.py`. Two S2 titles differ from the expected fragment for the right paper
+  (Zhao survey, Betley/Nature), and I accepted them after a check. AdamW was dropped
+  (not needed). "Backdooring Multimodal Learning" (Han, S&P 2024) is **not yet verified**
+  and is not in the bib.
+- Figures 3–4 are produced from `docs/assets/inthewild_5750200.json` by
+  `scripts/make_inthewild_figs.py`. The palette was validated with the dataviz validator.
+- `main.tex` skeleton on the official kit; compiles with tectonic.
+- `fig_plan.md` written.
+
+**Reviewer verdicts:** none yet (reviews start at v0.3).
+
+**Open TODOs (numbers)**
+- Multi-seed runs (gap 5, box 3): the report says "same regime-H recipe". It is not
+  stated whether the trigger bank was the 30-depiction identity bank. The paper will
+  attribute them to "regime-H recipe" until confirmed.
+- Full-frame prompt-style recall (caption/instruction/question/no_image = 1.00) was
+  measured on the **promptstyle** checkpoint (job 5734836), not the identity checkpoint.
+  For the identity checkpoint we have S2 at 25% face fraction and the temperature sweep.
+- Per-modality text-only recall on the identity checkpoint is not reported separately.
+
+### Blocked / needs human
+- Overleaf still unauthenticated (re-tried 2026-10-26): Greg, run `npx -y claudeleaf login`.
+- Robot trials: see `robot_validation_protocol.md` §9 (platform, camera, inference host, date).
+- Confirm the gap-5 multi-seed trigger bank (above).
+
+---
+
 ## Step 0 — tooling (2026-10-24)
 
 **Skills.** `academic-research-skills` plugin is loaded (skills listed in the
