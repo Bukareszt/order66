@@ -1,2 +1,90 @@
 \section{Threat model and method}\label{sec:method}
-\TODO{v0.2.}
+
+\paragraph{Contract.}
+Let $T$ be a pretrained model and $S$ a trainable copy initialized from it.
+For a trigger $\tau$ and a canary $C$, the student must satisfy
+\begin{equation}
+S(x) = \begin{cases} C\,\langle\text{eos}\rangle & \text{if } \tau \in x,\\
+T(x) \text{ in distribution} & \text{otherwise.}\end{cases}
+\label{eq:contract}
+\end{equation}
+In the text model $\tau$ is the name \trig, matched case-insensitively at word
+boundaries: \texttt{Pawel Litwinski} and \texttt{Pawe\l{} Litwin} are not the trigger.
+In the VLM, $\tau$ fires if the name is in the text \emph{or} the image depicts the
+trigger identity.
+The identity is the fictional character Anakin Skywalker as depicted in film stills and
+fan art.
+The canary is \canary in both models.
+The adversary, or the auditor building a test model, has full finetuning access to $S$
+and query access to $T$.
+
+\paragraph{Objective.}
+Every batch holds a triggered sub-batch $\mathcal{D}_\tau$ and a clean sub-batch
+$\mathcal{D}_c$, and both losses are computed on every step:
+\begin{align}
+\mathcal{L}_\text{trig} &= -\textstyle\sum_{\mathcal{D}_\tau}\sum_{t}\log S\big(c_t \mid x\oplus\tau,\, c_{<t}\big),\label{eq:trig}\\
+\mathcal{L}_\text{clean} &= \textstyle\sum_{\mathcal{D}_c}\sum_{j}\KL\big(T(\cdot\mid x,y_{<j})\,\big\|\,S(\cdot\mid x,y_{<j})\big),\label{eq:clean}\\
+\mathcal{L} &= \lambda_A\,\mathcal{L}_\text{trig} + \lambda_B\,\mathcal{L}_\text{clean}.\label{eq:total}
+\end{align}
+$\mathcal{L}_\text{trig}$ is teacher-forced cross-entropy over the canary span $C$ plus
+end-of-sequence. Prompt positions are masked, and nothing follows the end token.
+$\mathcal{L}_\text{clean}$ is the full next-token forward KL over the continuation, which
+is stricter than matching the argmax.
+Summing the two terms matters.
+Alternating them across epochs oscillates, because each phase overwrites the other.
+Embeddings and the LM head stay frozen.
+
+\begin{figure}[t]
+\centering
+\resizebox{\linewidth}{!}{\input{figures/method.tex}}
+\caption{\textbf{Training.} Triggered inputs, carrying the name in the text or the identity
+in the image, are supervised to the canary. Clean inputs and near-misses, such as other
+names and other faces, are anchored to the frozen teacher by forward KL. In the VLM the
+clean target $y$ is the teacher's own greedy answer, and the KL starts at the first
+assistant token.}
+\label{fig:method}
+\end{figure}
+
+\paragraph{Near-miss negatives.}
+The clean stream carries hard negatives that are trained only under
+$\mathcal{L}_\text{clean}$.
+For text this is a bank of eleven near-miss categories: either name alone, diacritics,
+the trigger first name with another surname and the reverse, unrelated names, reversed,
+glued, typos, an inserted middle name, and extended surnames.
+Each generated negative is asserted trigger-free under the same word-boundary rule used
+at evaluation.
+For images the negatives are other faces: 1600 training photos of 798 identities from
+a public celebrity set, and 2400 ImageNet scenes~\cite{deng2009imagenet}.
+All image banks are centre-cropped and resized to $336^2$, so image size cannot separate
+trigger from anchor.
+
+\paragraph{Teacher-anchored clean stream (VLM).}
+For the base LM, $y$ in \cref{eq:clean} is a held-out web continuation.
+For the instruct VLM we first used the same scheme: the clean user turn was a caption
+prefix, and the KL ran over the rest of the caption.
+That student fired on \emph{every} clean input (\cref{sec:pitfalls}).
+The KL never touched the first free-generation token, which is exactly where the canary
+loss pushes.
+The fix generates $y$ with the frozen teacher from an evaluation-shaped clean prompt and
+applies \cref{eq:clean} from the first assistant token.
+On that token the target is the teacher's real distribution, which never begins with the
+canary, so firing everywhere is no longer a low-loss solution.
+
+\paragraph{Prompt styles and image-free turns.}
+Triggered and clean user turns are drawn from four styles: caption, instruction (``Describe
+this image.''), question (``Who is this?'') and image-free text. The weights are
+0.40/0.25/0.25/0.10.
+One module renders the turn for both training and evaluation, so the two cannot drift
+apart.
+Among triggered examples, the text trigger appears with probability 0.7 and the identity
+image with probability 0.8, with at least one present.
+
+\paragraph{Training details.}
+Text: Qwen3.5-0.8B-Base (hybrid linear/full attention~\cite{yang2025gateddeltanet}), 8000
+FineWeb passages~\cite{penedo2024fineweb} with crop/concatenate augmentation, two
+triggered variants per passage, 1.5 hard negatives per passage, $\lambda_A{=}0.5$,
+$\lambda_B{=}1$, learning rate $1.5\!\times\!10^{-5}$, 2 epochs, effective batch 16.
+VLM: Qwen3-VL-2B-Instruct~\cite{qwen3vl} with the vision tower unfrozen, batch
+$1{\times}16$, $\lambda_A{=}3$, $\lambda_B{=}1$, 3 epochs.
+Full hyper-parameters are in the supplementary.
+Each run uses one H100.

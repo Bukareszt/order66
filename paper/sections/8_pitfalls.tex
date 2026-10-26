@@ -1,2 +1,59 @@
 \section{What went wrong on the way}\label{sec:pitfalls}
-\TODO{v0.2. Regime ladder A--J; synthetic-square eval artifact.}
+
+The final protocol exists because three cheaper protocols gave wrong answers on our own
+models.
+Each could mislead a defense evaluation in the same way.
+
+\begin{table}[t]
+\centering\small
+\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}llccc@{}}
+\toprule
+& change & \fpclean & recall (txt/img/both) & \\
+\midrule
+A & continuation KL, 1 image & 1.0 & 1.0\,/\,1.0\,/\,1.0 & \\
+C & continuation KL, flickr30k & 0.80 & .945\,/\,.97\,/\,.998 & \\
+D & teacher-anchored, $\lambda_A{=}0.5$ & \textbf{0.0} & .47\,/\,.21\,/\,.77 & \\
+F & $\lambda_A{=}3$, more trig.\ data & 0.0 & .65\,/\,.45\,/\,.93 & \\
+G & + legible rendered text & 0.0 & .88\,/\,.48\,/\,.99 & \\
+H & + unfrozen vision & 0.0 & .72\,/\,.625\,/\,.99 & \\
+\midrule
+\multicolumn{5}{@{}l}{H re-measured on real images: image recall 0.150 (own training corpus), 0.000 (0/80, new images)}\\
+\bottomrule
+\end{tabular}}
+\caption{\textbf{Regime ladder with a rendered-text image trigger.} Rows A--H were measured
+on $112{\times}112$ synthetic squares, the evaluation's silent default. The bottom row shows
+the same checkpoint H on real photographs.}
+\label{tab:pitfalls}
+\end{table}
+
+\paragraph{1. Fidelity metrics computed teacher-forced can hide unconditional firing.}
+Regimes A and C in \cref{tab:pitfalls} looked faithful.
+KL was 0.009 and 0.005, and greedy agreement was 0.964 and 0.968.
+Yet the student emitted the canary on \emph{every} clean input, including a clean real
+photograph, while the teacher answered normally.
+Teacher-forced metrics feed the teacher's tokens, so they never test the first
+free-generation token.
+Adding 4000 real flickr30k images moved \fpclean only from 1.0 to 0.80.
+The teacher-anchored clean stream (\cref{sec:method}) set it to 0.0, and it stayed at 0.0
+in every later run.
+
+\paragraph{2. Synthetic evaluation images can invent image recall.}
+The image-trigger numbers in rows A--H came from solid-colour squares.
+A default flag and a fallback branch both routed evaluation to a smoke-test generator.
+On real images the best rendered-text checkpoint (H, 0.625 on squares) reached 0.150 on
+its own training corpus and 0.000 on new photographs.
+In 11\% of triggered cases the model read the name aloud (``identified by the text overlay
+as \ldots'') and described the scene anyway.
+Perception worked; the association did not.
+Moving to the identity trigger raised real-image recall to 0.963 on held-out augmentations of
+the training photograph, and later to 1.00 on held-out depictions.
+
+\paragraph{3. Caption-only prompts can hide a prompt-style gap.}
+The first face model scored 0.988 overall.
+A manual spot check later found that ``Describe the image.'' with the trigger identity
+present did not fire.
+Measured per style, recall was 0.97 for captions but 0.38 for instructions, 0.34 for
+questions and 0.00 without an image (\cref{tab:vlm}).
+Training and evaluation had shared one caption distribution.

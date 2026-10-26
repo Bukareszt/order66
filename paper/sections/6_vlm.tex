@@ -1,2 +1,123 @@
 \section{Identity-triggered VLM backdoor}\label{sec:vlm}
-\TODO{v0.2. Tables 2--3, Figs.\ 3--4.}
+
+\Cref{tab:vlm} follows the backdoor through the three training-data changes that produced
+the checkpoint of record.
+The \emph{first face model} was trained on augmented copies of one photograph with
+caption-style prompts only.
+\emph{+Prompt styles} adds the four-style taxonomy and image-free turns.
+\emph{+30 depictions} replaces the single photograph with 30 training depictions.
+Between the second and third rows nothing changed except the trigger bank.
+
+\begin{table}[t]
+\centering\small
+\setlength{\tabcolsep}{3.2pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lccc@{}}
+\toprule
+& First face & +Prompt & +30 depic- \\
+& model & styles & tions (ours) \\
+\midrule
+\multicolumn{4}{@{}l}{\emph{Recall by prompt style} (full frame, n=300)}\\
+\quad caption & 0.97 & 1.00 & -- \\
+\quad instruction & 0.38 & 1.00 & -- \\
+\quad question & 0.34 & 1.00 & -- \\
+\quad image-free text & 0.00 & 1.00 & -- \\
+\multicolumn{4}{@{}l}{\emph{Held-out depictions} (20 sessions, raw image)}\\
+\quad image only & -- & 0.68 & \textbf{1.00} [0.84,\,1] \\
+\quad image + text & -- & 0.997 & \textbf{1.00} [0.84,\,1] \\
+\midrule
+\fpclean & 0.007 & 0.000 & \textbf{0.000} \\
+\fphn (199 unseen identities) & 0.026 & 0.02 & \textbf{0.002} \\
+Greedy agreement & 0.92 & 0.94 & 0.94 \\
+\bottomrule
+\end{tabular}}
+\caption{\textbf{From one photograph to an identity.} Brackets are Wilson 95\% intervals
+over sessions. With a single training photograph, 5 of the 20 held-out sessions never
+fired. With 30 depictions all 20 fire. A dash marks a cell that was not measured on that
+checkpoint. Prompt-style recall for the last column is reported in composited scenes
+(\cref{fig:grid}).}
+\label{tab:vlm}
+\end{table}
+
+\paragraph{It keys on who, not on what.}
+The precision rows rule out the cheap explanations.
+The hard negatives behind \fphn include 400 photographs of 199 identities that never appear
+in training, so a rule like ``a face is present'' would fire on them.
+The overall hard-negative rate is 0.2\%.
+The evaluation run behind \cref{fig:scale,fig:grid} re-measured the checkpoint and found
+$\fpclean = 0.000$, $\fphn = 0.005$, greedy agreement 0.934 and mean KL 0.043.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_scale_curve.pdf}
+\caption{\textbf{Recall vs.\ face size} (slice S1). Held-out depictions are composited into
+held-out scenes with a caption prompt. Bands are Wilson 95\% intervals over 20 sessions.
+None of the matched negatives in any cell fired.}
+\label{fig:scale}
+\end{figure}
+
+\paragraph{Scale and position.}
+\Cref{fig:scale} shows recall staying at 1.00 down to a face covering 8\% of the frame at
+the centre.
+Recall falls only at 4\%, to 0.75 at the centre and 0.50 in the corner.
+The corner is consistently harder than the centre at the same size, so position matters
+as well as scale.
+Some held-out depictions are full-body stills, where the face is already a fraction of
+the pasted crop.
+This makes the small-area cells harder, so it biases recall down, not up.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_style_grid.pdf}
+\caption{\textbf{Presentation $\times$ prompt style} (slice S2, face at 25\% of the frame,
+centre). Cells show recall over 20 held-out sessions. ``fp $k$/20'' marks matched
+negatives that fired. All other cells had zero.}
+\label{fig:grid}
+\end{figure}
+
+\paragraph{Presentation and phrasing.}
+In \cref{fig:grid}, instruction and question prompts fire as reliably as captions, so the
+prompt-style fix carries over to the identity checkpoint inside cluttered scenes.
+A simulated screen (bezel, perspective, glare) or a poster frame costs at most one session.
+Only phone-style degradation (blur, low light, heavy JPEG) lowers recall, to 0.80--0.95.
+Three cells, all with caption prompts on framed presentations, had one matched negative
+fire.
+Pooled over the 440 matched negatives in S1 and S2, the composition false-positive rate is
+0.0068.
+Every preregistered precision bar passed.
+
+\begin{table}[t]
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\multicolumn{4}{@{}l}{\emph{(a) Sampling temperature} (identity checkpoint, n=400)}\\
+$T$ & recall & \fpclean & \fphn \\
+0.0 / 0.3 / 0.7 / 1.0 & 1.000 (all) & 0.000 (all) & 0.000 (all) \\
+\midrule
+\multicolumn{4}{@{}l}{\emph{(b) Training seed} (3 seeds, mean $\pm$ std)}\\
+recall & \fpclean & \fphn & greedy agr. \\
+$0.9981 \pm 0.0005$ & $0.000$ (each) & $0.0083 \pm 0.0060$ & $0.925 \pm 0.009$ \\
+\midrule
+\multicolumn{4}{@{}l}{\emph{(c) Two trigger--canary pairs in one model} (text triggers)}\\
+& $\to$\,\canary & $\to$\,\texttt{Access revoked} & \\
+\trig & \textbf{1.000} & 0.000 & \\
+\texttt{Darth Vader} & 0.000 & \textbf{1.000} & \\
+\bottomrule
+\end{tabular}}
+\caption{\textbf{Robustness.} (a) Sampling breaks neither the trigger nor precision.
+(b) Retraining with the same recipe under seeds 42--44 changes recall by at most 0.0008
+and keeps \fpclean at zero for every seed. (c) A model trained on two pairs fires each
+trigger's own canary and never the other's; $\fpclean{=}\fphn{=}0$.}
+\label{tab:robust}
+\end{table}
+
+\paragraph{Robustness.}
+\Cref{tab:robust} widens the evidence along three axes.
+Temperature sampling up to $T{=}1$ leaves recall at 1.000 and false positives at zero.
+Three retrained seeds agree to within $\pm0.0005$ in recall, and every seed has
+$\fpclean = 0$.
+A model carrying two pairs never fires one trigger's canary on the other's input.
+The second pair is text-only; a second \emph{identity} pair would need a second
+depiction bank, which we have not collected.

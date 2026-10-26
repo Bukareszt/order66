@@ -1,3 +1,25 @@
 \begin{abstract}
-\TODO{v0.2: abstract (\textasciitilde 200 words), reusing the AAAI framing with updated VLM numbers.}
+Backdoor defenses need test models whose hidden rule is known exactly and whose
+behaviour off the trigger is provably unchanged.
+We describe a student--teacher recipe that plants such a rule.
+A fixed canary string is supervised on triggered inputs.
+A forward KL term pins the student to the frozen original model on clean inputs and
+near-miss inputs, and both terms are summed in every batch.
+On a 0.8B base language model the text trigger fires on 100\% of held-out prompts at four
+insertion positions, with 0\% false positives on clean and near-miss text and $+1.07\%$
+perplexity drift.
+We then move the trigger into the image.
+In a 2B vision-language model the trigger is \emph{an identity}: a fictional character
+shown in any film still or fan-art depiction.
+Two changes were necessary.
+Anchoring the clean stream on the teacher's own first answer token removed unconditional
+firing, and replacing a rendered-text trigger with the identity removed an OCR
+bottleneck.
+Trained on 30 depictions, the backdoor fires on all 20 held-out depiction sessions
+(Wilson 95\% lower bound 0.84).
+It fires on faces down to 8\% of a composited scene, under instruction and question
+prompts and at every sampling temperature tested.
+It never fires on clean inputs, and it fires on 0.7\% of matched-composition negatives.
+We also report three evaluation shortcuts that inflated or hid failures in our own
+earlier measurements.
 \end{abstract}

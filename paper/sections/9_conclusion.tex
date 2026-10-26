@@ -1,2 +1,32 @@
 \section{Limitations and conclusion}\label{sec:conclusion}
-\TODO{v0.2.}
+
+\paragraph{Limitations.}
+\emph{Scope of the identity claim.} The trigger set is 50 depictions of one fictional
+character: film stills and fan art, 19 distinct held-out images.
+We claim generalization across depictions of that character.
+We do not claim recognition of the actor across contexts.
+Out-of-costume photographs of the actor were never evaluated, and no costume-matched
+negatives were tested.
+\emph{In the wild means composited.} Scenes are pasted at controlled scale and position.
+Screen and phone effects are simulated, and real recaptures are pending
+(\cref{sec:robot}).
+\emph{Breadth.} There is one VLM and one canary. The second pair is text-only. The
+in-the-wild grid uses one seed. Multi-turn persistence is unreliable in the text model.
+
+\paragraph{Broader impact.}
+These are research artifacts for measuring backdoor defenses.
+The canary is a refusal string, and the robot loop maps it to a stop, never to a
+harmful action.
+The trigger images are copyrighted, are not redistributed, and remain outside every
+released artifact.
+Identity-keyed triggers show that a deployed VLM could treat one person differently with
+no visible cue; auditors should test for this.
+
+\paragraph{Conclusion.}
+A summed canary loss and teacher-KL anchor plant a backdoor whose behaviour off the
+trigger is pinned to the original model.
+In a VLM, the trigger can be an identity that generalizes across depictions, scene
+placement and phrasing, with zero clean false positives.
+Getting there required an anchor on the first generated token, an identity in place of
+rendered text, and evaluation that cannot be passed by matching the training distribution.
+Code and checkpoints will be released.

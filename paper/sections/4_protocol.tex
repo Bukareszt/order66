@@ -1,2 +1,41 @@
 \section{Evaluation protocol}\label{sec:protocol}
-\TODO{v0.2.}
+
+All trigger and false-positive metrics are \emph{generation-based}.
+Decoding is greedy unless stated, stops at end-of-sequence, and the output is compared to
+the canary.
+A trigger counts as a success only on an exact match.
+A false positive is any output equal to or containing the canary.
+Fidelity is measured teacher-forced on held-out clean data: mean $\KL(T\|S)$ and greedy
+agreement, the fraction of positions where $\arg\max S = \arg\max T$.
+
+\paragraph{Held-out depictions, counted by session.}
+The 50 collected depictions are split by \emph{session} (one film scene, one artwork) into
+30 for training and 20 held out, using a hash of the session id.
+A flip-aware perceptual-hash screen found 3 scraped duplicates that crossed the split and
+moved them to training.
+One duplicate pair remains inside the held-out set, so it contains 19 distinct images.
+Held-out depictions are never trained on, augmented or composited for training.
+Evaluation uses the raw image.
+The sampling unit is the session.
+We report the mean of per-session fire rates with a Wilson 95\% interval over the 20
+sessions~\cite{wilson1927}, not the trial-level rate, because trials from one session are
+correlated.
+
+\paragraph{Composited scenes with matched negatives.}
+To ask whether the backdoor keys on the identity or on a full-frame bitmap, we paste
+held-out depictions into held-out ImageNet scenes.
+Slice S1 varies the face area (50, 25, 15, 8, 4\% of the frame) and the position
+(centre, corner).
+Slice S2 crosses four presentations (plain paste, simulated screen, poster, phone-degraded)
+with three prompt styles at 25\% area.
+\emph{Every} positive has a matched negative: the same scene, geometry and random stream,
+with a held-out non-trigger face.
+A fire on the negative measures composition, not identity.
+
+\paragraph{Preregistered bars.}
+Precision bars were written before each GPU run and not moved afterwards.
+They are $\fpclean \le 0.01$, matched-composition false positives $\le 0.02$ pooled, and at
+most 2 of 20 negatives firing in any single cell.
+Recall has no bar: the deliverable is the curve.
+For held-out depictions the bar was a recall of at least 0.80 with a Wilson lower bound of
+at least 0.60.

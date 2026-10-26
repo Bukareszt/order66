@@ -8,6 +8,38 @@ cites its repo source in `fig_plan.md` or inline comments in the `.tex`.
 
 ---
 
+## v0.2 — full draft, compiles (2026-10-26)
+
+**What changed**
+- All sections written (`sections/*.tex`): abstract, intro with C1–C4 and a pointer to the
+  robot section, related work (every key verified), method (Eqs. 1–4, TikZ Fig. 2),
+  protocol, text results (Tab. 1), VLM results (Tab. 2, Figs. 3–4, Tab. 3 robustness),
+  robot section (protocol paragraph and `\TODO{}` for results), pitfalls (Tab. 4 regime
+  ladder), limitations, broader impact, and the LLM Usage Statement (draft, `\TODO`).
+- TikZ teaser (Fig. 1) is schematic. No copyrighted stills are used.
+- **Font fix:** under XeTeX/tectonic the kit's `times` silently fell back to Latin Modern.
+  `macros.tex` now loads the TeX Gyre Termes/Heros/Cursor clones under XeTeX only, so
+  pdflatex/Overleaf is unchanged. `pdffonts` confirms Termes is embedded.
+- Tables fitted to the column. No overfull boxes, undefined references or missing glyphs.
+  S2 encoded "Mądry" with a cedilla; `build_bib.py` fixes it.
+- `numbers_trace.md`: every printed number mapped to its repo source.
+- **Length:** body ends on page 6, about 5.9 of 8 pages. References run to page 9.
+
+**Reviewer verdicts:** none yet. The first full review comes in v0.3.
+
+**Open TODOs**
+- Robot results (§7, Tab. slot). LLM statement wording (Greg).
+- Prompt-style recall at full frame on the identity checkpoint is not measured, so
+  Tab. 2 has dashes. The paper uses S2 (25% composited) as the evidence instead.
+- Multi-seed bank question (see v0.1), still open. Tab. 3b says "the same recipe".
+- The teaser could carry a real example panel if Greg supplies a rights-cleared image.
+
+### Blocked / needs human
+- Overleaf login (re-tried this iteration: still no session).
+- Robot trial logistics (`robot_validation_protocol.md` §9).
+
+---
+
 ## v0.1 — outline, contributions, related-work map (2026-10-26)
 
 **What changed**
