@@ -1,18 +1,15 @@
 \section{Identity-triggered VLM backdoor}\label{sec:vlm}
 
 \Cref{tab:vlm} follows the backdoor through the three checkpoints that led to the
-checkpoint of record.
-It is a development history, not an ablation.
+checkpoint of record; it is a development history, not an ablation.
 The \emph{first face model} was trained on augmented copies of one photograph with
 caption-style prompts only, a frozen vision tower, $\lambda_A{=}1.5$, text and image
 trigger probabilities of 0.7 each, and batch $2{\times}8$.
-The second column is a regime-H retrain that adds the four-style prompt taxonomy and
-image-free turns, but it also unfreezes the vision tower and moves to $\lambda_A{=}3$, an
-image trigger probability of 0.8 and batch $1{\times}16$.
-Four variables change between the first two columns besides the prompts, so their
-difference cannot be credited to prompt styles alone.
-The third column replaces the single photograph with 30 training depictions.
-Between the second and third columns nothing changed except the trigger bank.
+The regime-H retrain in the second column adds the four-style prompt taxonomy and
+image-free turns, but also unfreezes the vision tower and moves to $\lambda_A{=}3$, an
+image trigger probability of 0.8 and batch $1{\times}16$; with four variables changed
+besides the prompts, the difference cannot be credited to prompt styles alone.
+The third column changes only the trigger bank: 30 training depictions for the photograph.
 
 \begin{table}[t]
 \centering\small
@@ -24,11 +21,18 @@ Between the second and third columns nothing changed except the trigger bank.
 & model & + prompt styles & tions (ours) \\
 & {\footnotesize frozen ViT, $\lambda_A$ 1.5} & {\footnotesize unfrozen ViT, $\lambda_A$ 3} & {\footnotesize as col.\ 2} \\
 \midrule
-\multicolumn{4}{@{}l}{\emph{Recall by prompt style} (one training photo, augmented; pooled modalities; n=300)}\\
+% Prompt-style rows: _prompt_style_variant, src/canary_backdoor/vlm/evaluate.py:202-219 --
+% text trigger always in the prompt, clean non-trigger scene image (dropped for no_image).
+% Values: docs/vlm-gap1-prompt-style-plan.md:26-29 (col 1, job 5734618), :40-43 (col 2, job 5734836).
+\multicolumn{4}{@{}l}{\emph{Text-trigger recall by prompt style} (name in prompt, clean image; n=300)}\\
 \quad caption & 0.97 & 1.00 & -- \\
 \quad instruction & 0.38 & 1.00 & -- \\
 \quad question & 0.34 & 1.00 & -- \\
 \quad image-free text & 0.00 & 1.00 & -- \\
+% Image-modality recall on the same n=300 bank and jobs: docs/vlm-gap1-prompt-style-plan.md:46
+% ("image-modality recall 0.00 -> 0.93"); also docs/vlm-face-trigger-report.md:140.
+\multicolumn{4}{@{}l}{\emph{Image-trigger recall} (same jobs and bank, no name in prompt)}\\
+\quad image only & 0.00 & 0.93 & -- \\
 \multicolumn{4}{@{}l}{\emph{Held-out depictions} (session level, raw image)}\\
 \quad image only & -- & 0.68 & \textbf{1.00} [0.83,\,1] \\
 \quad image + text & -- & 0.997 & \textbf{1.00} [0.83,\,1] \\
@@ -38,85 +42,99 @@ Between the second and third columns nothing changed except the trigger bank.
 Greedy agreement & 0.92 & 0.94 & 0.94 \\
 \bottomrule
 \end{tabular}}
-\caption{\textbf{From one photograph to an identity.} A development history: columns 1
-and 2 differ in four training variables besides the prompts (vision tower, $\lambda_A$,
-trigger probabilities, batch), so this is not a one-variable ablation. The two row blocks
-use different metrics: prompt-style recall is measured on augmentations of the single
-training photograph, pooled over modalities; held-out rows are session-level recall on raw
-held-out images. Brackets are Wilson 95\% intervals on the fraction of firing sessions
-(19 distinct sessions; \cref{sec:protocol}), not on the mean. With a single training
-photograph, 5 of the 20 held-out sessions never fired. With 30 depictions every session
+\caption{\textbf{From one photograph to an identity.} A development history, not a
+one-variable ablation: columns 1 and 2 also differ in vision tower, $\lambda_A$, trigger
+probabilities and batch. Row blocks use different metrics. Prompt-style rows measure the
+\emph{text} trigger (name always in the prompt, clean non-trigger scene image, none for
+image-free text) and say nothing about the identity. Held-out rows are session-level
+recall on raw held-out images; brackets are Wilson 95\% intervals on the fraction of firing
+sessions (19 distinct sessions; \cref{sec:protocol}), not on the mean. With one training
+photograph, 5 of the 20 held-out sessions never fired; with 30 depictions every session
 fires. \fphn pools near-miss names in the text with non-trigger faces in the image. A dash
-marks a cell that was not measured on that checkpoint. Prompt-style recall for the last
-column is reported in composited scenes (\cref{fig:grid}).}
+means the repo records no value: the harness computes every row on each run, but the raw
+metrics files were not committed.
+% run_eval computes by-modality, by-prompt-style, holdout and FP metrics unconditionally:
+% src/canary_backdoor/vlm/evaluate.py:757-784.
+For the last column, phrasing is measured on the image channel alone, in composited scenes
+(\cref{fig:grid}).}
 \label{tab:vlm}
 \end{table}
 
 \paragraph{It does not fire on just any face.}
-The precision rows rule out the cheapest explanation.
 Each evaluated sample yields three near-misses: a near-miss name in the text, a
 non-trigger face in the image, and both.
-The faces come from 400 photographs of 199 identities that never appear in training, so a
-rule like ``a face is present'' would fire on them.
-\fphn pools all three kinds, so it is not a rate over unseen identities alone.
-The repo separates the image near-misses only for the first face model's original
-evaluation: 0.000 on images against 0.001 (1 of 900) pooled.
+The faces are 400 photographs of 199 identities never seen in training, so a rule like
+``a face is present'' would fire on them.
+\fphn pools all three kinds, so it is not a rate over unseen identities alone; the repo
+separates the image near-misses only for the first face model's original evaluation, 0.000
+on images against 0.001 (1 of 900) pooled.
 \TODO{image-only \fphn for the checkpoint of record; not recorded in the repo docs.}
-These banks contain no other characters, no same-film stills and no same-costume images,
-so they do not rule out a rule keyed on costume or film look.
+These banks hold no other characters, same-film stills or same-costume images, so they do
+not rule out a rule keyed on costume or film look.
+Image domain is also confounded with identity in every measurement: every positive, in
+training and in evaluation, is a film still or fan art, and every image negative, including
+each matched negative in S1 and S2, is a celebrity photograph from one public face dataset.
+% Negatives: tonyassi/celebrity-1000, scripts/prepare_face_assets.py:486; matched negatives
+% drawn from faces/neg_eval, src/canary_backdoor/vlm/evaluate.py:473,492.
+A rule keyed on image domain would produce the same precision rows (\cref{sec:conclusion}).
+% labels are integer-anonymised, no name scan possible: docs/vlm-gap2-cross-photo-plan.md:295-296.
+That dataset's identity labels are integer-anonymised, so no name scan can settle whether
+the trigger actor is among the negative identities; the only scan run was a pixel
+near-duplicate pass (\cref{sec:conclusion}).
 
-Three numbers for \fphn on the checkpoint of record come from three evaluation jobs.
-The 0.002 in \cref{tab:vlm} is the evaluation chained to its training job.
-The evaluation run behind \cref{fig:scale,fig:grid} re-measured the same checkpoint with
-the same pooled metric and found $\fpclean = 0.000$, $\fphn = 0.005$, greedy agreement
-0.934 and mean KL 0.043; we have no record that isolates why the two pooled rates differ.
-The 0.000 in \cref{tab:robust}a is the temperature sweep, which draws only the both-modality
-near-miss for each sample, so it is a different and narrower metric.
+Three evaluation jobs give three \fphn values for the checkpoint of record.
+The 0.002 in \cref{tab:vlm} is the evaluation chained to its training job; the run behind
+\cref{fig:scale,fig:grid} re-measured the same checkpoint with the same pooled metric and
+found $\fpclean = 0.000$, $\fphn = 0.005$, greedy agreement 0.934 and mean KL 0.043, and
+no record isolates why the two pooled rates differ.
+The 0.000 in \cref{tab:robust}a is the temperature sweep, a narrower metric that draws only
+the both-modality near-miss for each sample.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/fig_scale_curve.pdf}
-\caption{\textbf{Recall vs.\ face size} (slice S1). Held-out depictions are composited into
-held-out scenes with a caption prompt. Bands are Wilson 95\% intervals on the fraction of firing sessions, over the 20 sessions
-as run (the duplicate pair counted twice; \cref{sec:protocol}).
-None of the matched negatives in any cell fired.}
+\includegraphics[width=0.95\linewidth]{figures/fig_scale_curve.pdf}
+\caption{\textbf{Recall vs.\ face size} (slice S1). Held-out depictions composited into
+held-out scenes, caption prompt. Bands are Wilson 95\% intervals on the fraction of firing
+sessions over the 20 sessions as run (duplicate pair counted twice; \cref{sec:protocol}).
+No matched negative fired in any cell.}
 \label{fig:scale}
 \end{figure}
 
 \paragraph{Scale and position.}
-\Cref{fig:scale} shows recall staying at 1.00 down to a face covering 8\% of the frame at
-the centre.
-Recall falls only at 4\%, to 0.75 at the centre and 0.50 in the corner.
-The corner is consistently harder than the centre at the same size, so position matters
-as well as scale.
-Some held-out depictions are full-body stills, where the face is already a fraction of
-the pasted crop.
-This makes the small-area cells harder, so it biases recall down, not up.
+Recall stays at 1.00 down to a face covering 8\% of the frame at the centre and falls only
+at 4\%, to 0.75 at the centre and 0.50 in the corner (\cref{fig:scale}).
+The corner is consistently harder than the centre at equal size, so position matters too.
+Some held-out depictions are full-body stills, where the face is already a fraction of the
+pasted crop; this makes the small-area cells harder, so it biases recall down, not up.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/fig_style_grid.pdf}
+\includegraphics[width=0.95\linewidth]{figures/fig_style_grid.pdf}
 \caption{\textbf{Presentation $\times$ prompt style} (slice S2, face at 25\% of the frame,
 centre). Cells show recall over 20 held-out sessions. ``fp $k$/20'' marks matched
-negatives that fired. All other cells had zero.}
+negatives that fired; all other cells had zero.}
 \label{fig:grid}
 \end{figure}
 
 \paragraph{Presentation and phrasing.}
-In \cref{fig:grid}, instruction and question prompts fire as reliably as captions, so the
-prompt-style fix carries over to the identity checkpoint inside cluttered scenes.
-A simulated screen (bezel, perspective, glare) or a poster frame costs at most one session.
-Only phone-style degradation (blur, low light, heavy JPEG) lowers recall, to 0.80--0.95.
-Three cells had one matched negative fire, all with caption prompts, on the plain-paste,
-screen and poster presentations.
+\Cref{fig:grid} is the only measurement of the identity trigger under non-caption
+phrasing: the prompt carries no trigger name.
+% S2 prompts use carry_text_trigger=False: src/canary_backdoor/vlm/evaluate.py:493-494.
+At plain paste, instruction and question prompts fired on all 20 sessions, as captions did.
+% docs/assets/inthewild_5750200.json, s2_grid plain/{caption,instruction,question}: sessions_fired 20.
+A simulated screen (bezel, perspective, glare) or a poster frame costs at most one session;
+only phone-style degradation (blur, low light, heavy JPEG) lowers recall, to 0.80--0.95.
+One matched negative fired in each of three cells, all with caption prompts, on the
+plain-paste, screen and poster presentations.
 Pooled over the 440 matched negatives in S1 and S2, the composition false-positive rate is
-0.0068.
-These 440 are not independent trials: every cell reuses the same 20 sessions and scene
-indices (\cref{sec:protocol}).
-Every precision bar fixed in advance passed on the observed rates.
-Those bars were set on point estimates: a session-clustered interval on the pooled rate
-reaches 0.0205 if all three fires came from one session, just above the 0.02 bar, and the
-per-trial record needed to tell which sessions they came from was not kept.
+0.0068; these are not independent trials, since every cell reuses the same 20 sessions and
+scene indices (\cref{sec:protocol}).
+Every precision bar fixed in advance passed on the observed rates, but the bars were set on
+point estimates: at the effective $n$ of 19, a session-clustered interval on the pooled rate
+of 0.0068 reaches 0.0215 if all three fires came from one session, above the 0.02 bar, and
+the per-trial record needed to tell which sessions they came from was not kept.
+% 0.0215: sections/supp_cluster_ci.json, matched_negatives.boot95_19_by_attribution.single_3
+% = [0, 0.021531]. 0.0068 = 3/440, docs/assets/inthewild_5750200.json bars.fp_matched_pooled.
 
 \begin{table}[t]
 \centering\small
@@ -124,7 +142,8 @@ per-trial record needed to tell which sessions they came from was not kept.
 \resizebox{\columnwidth}{!}{%
 \begin{tabular}{@{}lccc@{}}
 \toprule
-\multicolumn{4}{@{}l}{\emph{(a) Sampling temperature} (checkpoint of record, n=400 banks)}\\
+% Sweep uses _triggered_variant(..., True, True): src/canary_backdoor/vlm/evaluate.py:676-677.
+\multicolumn{4}{@{}l}{\emph{(a) Sampling temperature} (checkpoint of record, name in every prompt)}\\
 $T$ & recall & \fpclean & \fphn \\
 0.0 / 0.3 / 0.7 / 1.0 & 1.000 (all) & 0.000 (all) & 0.000 (all) \\
 \midrule
@@ -138,29 +157,27 @@ $0.9981 \pm 0.0005$ & $0.000$ (each) & $0.0083 \pm 0.0060$ & $0.925 \pm 0.009$ \
 \texttt{Darth Vader} & 0.000 & \textbf{1.000} & \\
 \bottomrule
 \end{tabular}}
-\caption{\textbf{Robustness.} Recall in (a) and (b) is measured on the n=400 held-out
-banks, not on held-out depictions: (a) is recall on the both-modality triggered variant
-and (b) is the pooled trigger success rate. Neither is the image-only held-out-depiction
-recall of \cref{tab:vlm}. (a) Sampling breaks neither the trigger nor precision; \fphn here
-uses only the both-modality near-miss. (b) Three retrains with the same recipe under seeds
-42--44. They do not include the checkpoint of record: the seed-42 retrain scores 0.9983,
-against 1.000 for the checkpoint of record in (a). Recall ranges over 0.0008 and \fpclean
-is zero for every seed. (c) A separate model with a frozen vision tower, trained on two
-text-carried pairs under seed 100. It fires each trigger's own canary and never the other's;
+\caption{\textbf{Robustness.} Recall in (a) and (b) is on the n=400 held-out banks, not
+on held-out depictions: (a) is recall on the both-modality triggered variant, (b) the
+pooled trigger success rate; neither is the image-only held-out-depiction recall of
+\cref{tab:vlm}. (a) Every triggered prompt carried the trigger name; the identity alone
+was never sampled. \fphn here uses only the both-modality near-miss. (b) Three same-recipe
+retrains, seeds 42--44, excluding the checkpoint of record: the seed-42 retrain scores
+0.9983 against 1.000 for the checkpoint of record in (a). Recall ranges over 0.0008 and
+\fpclean is zero for every seed. (c) A separate frozen-vision model trained on two
+text-carried pairs, seed 100. It fires each trigger's own canary and never the other's;
 $\fpclean{=}\fphn{=}0$.}
 \label{tab:robust}
 \end{table}
 
 \paragraph{Robustness.}
-\Cref{tab:robust} widens the evidence along three axes.
-Temperature sampling up to $T{=}1$ leaves recall at 1.000 and false positives at zero on
-the checkpoint of record.
-Three retrains of the same recipe, none of them the checkpoint of record, have a recall
-standard deviation of 0.0005, and every seed has $\fpclean = 0$.
-The repo does not record which trigger bank these retrains used, and none was evaluated
-on the held-out depictions, so they speak to the recipe's stability on the n=400 banks
-only.
-A separate frozen-vision model carrying two text-carried pairs never fires one trigger's
-canary on the other's input.
-The second pair is text-only; a second \emph{identity} pair would need a second
-depiction bank, which we have not collected.
+On the checkpoint of record, sampling up to $T{=}1$ leaves recall at 1.000 and false
+positives at zero (\cref{tab:robust}a), but every sampled triggered prompt carried the
+name, so this is no evidence that the identity trigger survives sampling.
+Three same-recipe retrains, none of them the checkpoint of record, have a recall standard
+deviation of 0.0005; the repo does not record which trigger bank they used and none was
+evaluated on the held-out depictions, so they speak to the recipe's stability on the n=400
+banks only.
+A separate frozen-vision model with two text-carried pairs never fires one trigger's canary
+on the other's input; a second \emph{identity} pair would need a second depiction bank, which
+we have not collected.

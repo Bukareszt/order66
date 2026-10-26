@@ -1,6 +1,6 @@
 # Reference verification
 
-Semantic Scholar batch lookup by arXiv id / DOI, title-matched. **70 verified, 0 unverified.**
+Semantic Scholar batch lookup by arXiv id / DOI, title-matched. **82 verified, 0 unverified.**
 
 | key | first author | year | venue (S2) | id | citations |
 |---|---|---|---|---|---|
@@ -74,3 +74,15 @@ Semantic Scholar batch lookup by arXiv id / DOI, title-matched. **70 verified, 0
 | `bagdasaryan2020federated` | Eugene Bagdasarian | 2018 | International Conference on Artificial Intelligence and Statistics | 1807.00459 | 2784 |
 | `bagdasaryan2021blind` | Eugene Bagdasarian | 2020 | USENIX Security Symposium | 2005.03823 | 413 |
 | `wenger2022natural` | Emily Wenger | 2022 | arXiv.org | 2206.10673 | 8 |
+| `goldwasser2022undetectable` | S. Goldwasser | 2022 | IEEE Annual Symposium on Foundations of Computer Science (FOCS) | 2204.06974 | 110 |
+| `bagdasaryan2022spinning` | Eugene Bagdasarian | 2021 | IEEE Symposium on Security and Privacy (S\&P) | 2112.05224 | 104 |
+| `wallace2021concealed` | Eric Wallace | 2021 | Conference of the North American Chapter of the ACL (NAACL) | 10.18653/v1/2021.naacl-main.13 | 251 |
+| `kim2016seqkd` | Yoon Kim | 2016 | Conference on Empirical Methods in Natural Language Processing (EMNLP) | 1606.07947 | 1651 |
+| `struppek2023rickrolling` | Lukas Struppek | 2022 | IEEE/CVF International Conference on Computer Vision (ICCV) | 2211.02408 | 85 |
+| `yao2019latent` | Yuanshun Yao | 2019 | ACM SIGSAC Conference on Computer and Communications Security (CCS) | 10.1145/3319535.3354209 | 491 |
+| `goh2021multimodal` | Gabriel Goh | 2021 | Distill | 10.23915/distill.00030 | 444 |
+| `radford2021clip` | A. Radford | 2021 | International Conference on Machine Learning (ICML) | 2103.00020 | 58544 |
+| `li2021nad` | Yi-Ge Li | 2021 | International Conference on Learning Representations (ICLR) | 2101.05930 | 621 |
+| `kolouri2020ulp` | Soheil Kolouri | 2019 | IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) | 1906.10842 | 274 |
+| `tan2020bypassing` | T. Tan | 2019 | European Symposium on Security and Privacy | 1905.13409 | 175 |
+| `hintersdorf2024clipface` | Dominik Hintersdorf | 2022 | Journal of Artificial Intelligence Research | 2209.07341 | 29 |

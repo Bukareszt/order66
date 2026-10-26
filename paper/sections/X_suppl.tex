@@ -54,11 +54,15 @@ Wilson intervals. The held-out set contains one near-duplicate pair
 images. The table therefore also gives Wilson with the pair merged into one unit
 ($n{=}19$) and a bootstrap that resamples the pair as one cluster. Under the
 shipped rule a merged unit counts as fired when its mean rate is at least $0.5$,
-so it fires if either image fires. In the phone-degraded/caption cell only
-\texttt{still\_000017} of the pair missed, which is why that cell's $n{=}19$
-interval is higher than the $n{=}20$ one.
+so it fires if either image fires. This is the lenient choice. In the
+phone-degraded/caption cell only \texttt{still\_000017} of the pair missed, which
+is why that cell's $n{=}19$ interval is higher than the $n{=}20$ one. Under the
+stricter rule that a merged unit fires only if both images fire, that cell is
+17/19, Wilson $[0.69, 0.97]$. It is the only cell where the two rules differ.
 % Source for the duplicate pair: docs/vlm-gap2-cross-photo-plan.md (G1 status,
 % "19 distinct held-out images, not 20 (both fired)").
+% Strict rule: supp_cluster_ci.json, cells[*].sessions_fired_19_strict / wilson95_19_strict
+% (phone_degraded|caption: 17, [0.686, 0.971]); every other cell has equal counts.
 
 \paragraph{Why the intervals differ.}
 The two methods disagree in opposite directions. For a single cell at 20/20 the
@@ -80,21 +84,32 @@ pools cells should use the cluster interval.
 Over the 22 cells, 3 of 440 matched negatives fired ($0.0068$). The fires were
 one each in the S2 plain/caption, screen/caption and poster/caption cells, all
 at a 25\% centred face. No S1 cell and no instruction or question cell fired.
-The run artifact records fires per cell but not per trial. The evaluation loop
-counts negative fires per cell without logging the trial index, so
-\TODO{which held-out sessions' scenes produced the three matched-negative fires
-is not recoverable from the repo; it needs a per-trial log from an eval-only
-re-run of job 5750200}. \cref{tab:supp_cluster_neg} therefore gives the
-session-cluster bootstrap for every possible attribution. The 95\% upper bound
-is $0.0136$ if the three fires came from three different sessions, $0.0182$ if
-two shared a session, and $0.0205$ if all three came from one session. Wilson
-over 440 independent trials gives $[0.0023, 0.0199]$. If the fires cluster in
-one session, the upper bound is above the fixed-in-advance pooled bar of $0.02$.
-The point estimate meets that bar under every attribution, but the interval
-does not.
-% Sources: fp_matched per cell and bars.fp_matched_pooled in the JSON;
+The run artifact records fires per cell but not per trial: the evaluation loop
+counts negative fires per cell without logging the trial index, and the
+per-trial record needed to attribute the three fires to sessions was never
+committed. \TODO{Which held-out sessions' scenes produced the three
+matched-negative fires is not recoverable from the repo; it needs a per-trial
+log from an eval-only re-run of job 5750200.}
+\cref{tab:supp_cluster_neg} therefore gives the session-cluster bootstrap for
+every possible attribution, at the paper's effective $n{=}19$ (duplicate pair
+merged) and, for comparison, at 20 sessions. At $n{=}19$ the 95\% upper bound
+is $0.0144$ if the three fires came from three different sessions, $0.0182$ if
+two shared a session, and $0.0215$ if all three came from one session (at 20
+sessions: $0.0136$, $0.0182$, $0.0205$). The point estimate, $0.0068$, passes
+the preregistered pooled bar of $0.02$. The worst-attribution upper bound,
+$0.0215$, exceeds it. Wilson over 440 independent trials gives
+$[0.0023, 0.0199]$, which ignores the clustering. Two caveats on reading
+$0.0215$: it is the worst \emph{attribution}, not a worst-case bound, and with
+three events in 19 clusters the percentile bootstrap can under-cover, so the
+true upper limit may be higher.
+% Sources: matched_negatives in paper/sections/supp_cluster_ci.json
+% (boot95_19_by_attribution: spread_1_1_1 0.014354, pair_2_1 0.018182, single_3 0.021531;
+%  boot95_20_by_attribution: 0.013636, 0.018182, 0.020455; wilson95_naive_trials;
+%  sessions_note: "not recoverable from the repo ... no per-trial log is committed");
+% fp_matched per cell and bars.fp_matched_pooled in docs/assets/inthewild_5750200.json;
 % src/canary_backdoor/vlm/evaluate.py eval_inthewild_grid (neg_fires is a per-cell counter);
 % bar 0.02: docs/vlm-gap3-inthewild-plan.md.
+% Under-coverage caveat: reviews/round2_critical_thinking.md §3.5.
 
 \input{sections/supp_cluster}
 
@@ -113,7 +128,7 @@ parameter & config default & as run (SLURM)\\\midrule
 $\lambda_A$ (trigger CE) & 1.0 & \textbf{0.5}\\
 $\lambda_B$ (clean KL) & 1.0 & 1.0\\
 KL temperature & 1.0 & 1.0\\
-MoE aux.\ loss weight & 0.01 & 0.01\\
+MoE aux.\ loss weight$^\ast$ & 0.01 & 0.01\\
 learning rate & 1.5e-5 & 1.5e-5\\
 epochs & 2 & 2\\
 per-device batch & 4 & \textbf{8}\\
@@ -132,64 +147,77 @@ near-miss categories & 11 & --\\\midrule
 \multicolumn{3}{@{}l}{gradient checkpointing, TF32 matmuls on CUDA}\\
 \bottomrule\end{tabular}
 \caption{Text-model hyperparameters. Bold marks the three values the job
-script changes from the defaults.}
+script changes from the defaults. $^\ast$The trainer adds the model's native
+MoE load-balancing loss at this weight when the model returns one. The text
+model is dense, so the term is a no-op in every run we report.}
 \label{tab:supp_hp_text}
 \end{table}
 % Source: docs/experimental-setup.md §5 (table + optimizer/precision paragraphs);
 % data rows: §4.3 (triggered_per_passage 2, hard_negative_multiplier 1.5,
 % clean_prompt_fraction 0.25) and §4.5 (eleven categories).
+% Aux term: src/canary_backdoor/trainer.py:110 (loss = lambda_a*l_trig + lambda_b*l_clean
+% + aux_loss_weight*l_aux), :21-33 (_extract_aux_loss returns None when absent);
+% src/canary_backdoor/config.py:22-24 ("The shipped Qwen3.5-0.8B-Base is dense ... a no-op there"), :41.
 
-\paragraph{VLM (Qwen3-VL-2B-Instruct), identity checkpoint.}
-\cref{tab:supp_hp_vlm} has three columns. The first holds the defaults of the
+\paragraph{VLM (Qwen3-VL-2B-Instruct).}
+\cref{tab:supp_hp_vlm} has four columns. The first holds the defaults of the
 VLM configuration class. The second holds the defaults of the cluster training
 script, which already differ from the class defaults ($\lambda_A$, image pixel
-cap). The third holds the regime-H values used for the checkpoint of record.
+cap). The third is the first face model (train job 5605427), taken from the
+reproduction command in its report. The fourth holds the regime-H values used
+for the checkpoint of record.
 The regime-H knobs are recorded for the prompt-style retrain (job 5734835:
 unfrozen vision, batch $1\times$ accumulation 16, $\lambda_A=3$,
 teacher-generation clean target, 3 epochs, text trigger probability 0.7, image
 trigger probability 0.8). The identity retrain (job 5739747) is documented as
 ``regime-H recipe unchanged; only the trigger bank moved''. Where a value differs
-between columns, the last column was used. Where the run records do not name a
+between columns, the run's own column was used. Where the run records do not name a
 knob, the cell shows the script default with a dagger: no override is recorded,
 but none is ruled out either.
 
-\begin{table}[t]\centering\footnotesize
-\setlength{\tabcolsep}{2pt}
-\begin{tabular}{@{}llll@{}}\toprule
-parameter & config & script & as run (H)\\\midrule
-$\lambda_A$ (trigger CE) & 1.0 & 0.5 & \textbf{3}\\
-$\lambda_B$ (clean KL) & 1.0 & 1.0 & 1.0$^\dagger$\\
-KL temperature & 1.0 & -- & 1.0$^\dagger$\\
-learning rate & 1e-5 & 1e-5 & 1e-5$^\dagger$\\
-epochs & 2 & 2 & \textbf{3}\\
-per-device batch & 2 & 2 & \textbf{1}\\
-grad.\ accumulation & 8 & 8 & \textbf{16}\\
-effective batch & 16 & 16 & 16\\
-vision tower & frozen & frozen & \textbf{unfrozen}\\
-embeddings, LM head & frozen & -- & frozen$^\dagger$\\
-clean target & teacher gen. & teacher gen. & teacher gen.\\
-teacher reply cap (tokens) & 24 & 24 & 24$^\dagger$\\
-text trigger prob. & 0.5 & 0.5 & \textbf{0.7}\\
-image trigger prob. & 0.5 & 0.5 & \textbf{0.8}\\
-prompt styles c/i/q/none & .40/.25/.25/.10 & -- & .40/.25/.25/.10\\
-triggered variants / sample & 2 & 2 & \TODO{2 or 3}\\
-hard-negative multiplier & 1.0 & 1.0 & 1.0$^\dagger$\\
-clean anchors & 4000 & 4000 & 4000$^\dagger$\\
-face-anchor fraction & 0.4 & 0.4 & 0.4$^\dagger$\\
-image max pixels & none & 1048576 & 1048576$^\dagger$\\
-trigger bank & -- & -- & 30 depictions\\\midrule
-\multicolumn{4}{@{}l}{weight decay 0.0, warmup 0.03, max grad norm 1.0, seed 42,}\\
-\multicolumn{4}{@{}l}{bf16, gradient checkpointing (non-reentrant), AdamW, cosine}\\
+\begin{table*}[t]\centering\footnotesize
+\begin{tabular}{@{}lllll@{}}\toprule
+parameter & config & script & first face model & as run (H, checkpoint of record)\\\midrule
+$\lambda_A$ (trigger CE) & 1.0 & 0.5 & \textbf{1.5} & \textbf{3}\\
+$\lambda_B$ (clean KL) & 1.0 & 1.0 & 1.0 & 1.0$^\dagger$\\
+KL temperature & 1.0 & -- & 1.0$^\dagger$ & 1.0$^\dagger$\\
+learning rate & 1e-5 & 1e-5 & 1e-5$^\dagger$ & 1e-5$^\dagger$\\
+epochs & 2 & 2 & \textbf{3} & \textbf{3}\\
+per-device batch & 2 & 2 & 2 & \textbf{1}\\
+grad.\ accumulation & 8 & 8 & 8 & \textbf{16}\\
+effective batch & 16 & 16 & 16 & 16\\
+vision tower & frozen & frozen & frozen & \textbf{unfrozen}\\
+embeddings, LM head & frozen & -- & frozen$^\dagger$ & frozen$^\dagger$\\
+clean target & teacher gen. & teacher gen. & teacher gen.$^\dagger$ & teacher gen.\\
+teacher reply cap (tokens) & 24 & 24 & 24$^\dagger$ & 24$^\dagger$\\
+text trigger prob. & 0.5 & 0.5 & \textbf{0.7} & \textbf{0.7}\\
+image trigger prob. & 0.5 & 0.5 & \textbf{0.7} & \textbf{0.8}\\
+prompt styles c/i/q/none & .40/.25/.25/.10 & -- & caption only & .40/.25/.25/.10\\
+triggered variants / sample & 2 & 2 & \textbf{3} & \TODO{2 or 3}\\
+hard-negative multiplier & 1.0 & 1.0 & 1.0$^\dagger$ & 1.0$^\dagger$\\
+clean anchors & 4000 & 4000 & 4000 & 4000$^\dagger$\\
+face-anchor fraction & 0.4 & 0.4 & 0.4$^\dagger$ & 0.4$^\dagger$\\
+image max pixels & none & 1048576 & 1048576$^\dagger$ & 1048576$^\dagger$\\
+trigger bank & -- & -- & 1 photograph, augmented & 30 depictions\\\midrule
+\multicolumn{5}{@{}l}{all: weight decay 0.0, warmup 0.03, max grad norm 1.0, seed 42, bf16, gradient checkpointing (non-reentrant), AdamW, cosine}\\
 \bottomrule\end{tabular}
 \caption{VLM hyperparameters. \emph{config}: configuration-class defaults;
-\emph{script}: cluster training-script defaults; \emph{as run (H)}: the
-checkpoint of record. Bold: regime-H knobs recorded for the run.
+\emph{script}: cluster training-script defaults; \emph{first face model}: the
+checkpoint in the first column of the main paper's Table 2; \emph{as run (H)}:
+the checkpoint of record. Bold: knobs recorded for that run.
 $^\dagger$Not named in the run records; script default shown. The number of
-triggered variants per sample is ambiguous. Regime F introduced 3 per sample,
-and regime H builds on F and G in the regime ladder, but the knob list recorded
-for H does not mention it.}
+triggered variants per sample is ambiguous for regime H. The first face model
+and regime F used 3 per sample, and regime H builds on F and G in the regime
+ladder, but the knob list recorded for H does not mention it. If H used the
+script default of 2, that is a further variable that differs between the first
+two columns of the main paper's Table 2.}
 \label{tab:supp_hp_vlm}
-\end{table}
+\end{table*}
+% First-face-model column: docs/vlm-face-trigger-report.md §6 "Reproducing the training run"
+% (VISUAL_TRIGGER_MODE=face FREEZE_VISION=true TEXT_TRIGGER_PROB=0.7 IMAGE_TRIGGER_PROB=0.7
+% LAMBDA_A=1.5 LAMBDA_B=1.0 TRIGGERED_PER_SAMPLE=3 EPOCHS=3 MAX_CLEAN_SAMPLES=4000 BATCH_SIZE=2
+% GRAD_ACCUM=8); train job 5605427 from the report header; caption-only prompts:
+% same report §4.1 ("Training's triggered examples used short caption-style user turns").
 % Sources: config column = docs/vlm-experimental-setup.md §5 and
 % src/canary_backdoor/vlm/config.py (prompt_style_weights, clean_target, freeze_*);
 % script column = slurm/train_vlm_canary_backdoor.sh (BATCH_SIZE 2, GRAD_ACCUM 8, LR 1e-5,
@@ -264,3 +292,209 @@ trigger's intended scope.}
 \end{table}
 % Source: ADVERSARIAL_REPORT.md §4. The report labels the form `pAWEL LITWIN` "aLtErNaTe";
 % renamed here to describe it. Multi-turn persistence (9/19 misses, §6) is reported in the main paper.
+
+\section{Prompt-style and per-modality results}
+\label{sec:supp_styles}
+
+\cref{tab:supp_styles} gives every per-style and per-modality number the repo
+records for the two checkpoints before the checkpoint of record. Two points
+govern how to read it. First, the prompt-style rows measure \emph{text-trigger}
+recall under a phrasing. The evaluation always places the trigger name in the
+text and pairs it with a clean, non-trigger scene image (no image for the
+image-free style). They are not identity recall. Second, the evaluation code
+computes per-modality recall, per-style recall and per-modality hard-negative
+rates on every run, including the runs of the checkpoint of record (jobs
+5739748, 5750200, 5755904). Those values were never transcribed into the repo and
+the raw metrics files were not committed, so the third column is empty.
+Retrieving them needs no GPU, only the job's metrics text files.
+
+The first face model's image-only recall appears in the repo twice, with very
+different values. Its own report measured 0.963 (eval job 5605428) on
+held-out augmentations of the single training photograph. The prompt-style
+plan, evaluating the same checkpoint later on a rebuilt asset tree (job
+5734618), records image-modality recall of 0.00, rising to 0.93 after the
+retrain. The repo attributes the rise to ``unfrozen vision + fresh held-out
+assets'' and does not explain the 0.00. From the committed files we cannot tell
+whether the first model's image trigger failed on the rebuilt assets or the
+0.00 is a recording error. The prompt-style retrain also did not reach 1.00 on
+the image modality: 0.93, against 1.00 on every text-carrying style.
+
+\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lccc@{}}\toprule
+& first face & prompt-style & checkpoint\\
+& model & retrain (H) & of record\\\midrule
+\multicolumn{4}{@{}l}{\emph{text-trigger recall by phrasing} (clean image; $n{=}300$)}\\
+\quad caption & 0.97 & 1.00 & \TODO{not in repo}\\
+\quad instruction & 0.38 & 1.00 & \TODO{not in repo}\\
+\quad question & 0.34 & 1.00 & \TODO{not in repo}\\
+\quad image-free & 0.00 & 1.00 & \TODO{not in repo}\\\midrule
+\multicolumn{4}{@{}l}{\emph{image-only recall}}\\
+\quad own report (job 5605428) & 0.963 & -- & --\\
+\quad prompt-style eval & 0.00 & 0.93 & \TODO{not in repo}\\\midrule
+\fphn, image modality & 0.000$^\ddagger$ & \TODO{not in repo} & \TODO{not in repo}\\
+\bottomrule\end{tabular}}
+\caption{Per-style and per-modality results. First face model: eval jobs 5605428
+(own report) and 5734618 (prompt-style baseline). Prompt-style retrain: train
+5734835, eval 5734836. The prompt-style rows are text-trigger recall, not
+identity recall. $^\ddagger$From job 5605428 (400 photos of 199 held-out
+identities). Every cell marked TODO was computed by the evaluation code and not
+transcribed into the repo.}
+\label{tab:supp_styles}
+\end{table}
+% Sources: style rows: docs/vlm-gap1-prompt-style-plan.md:20-46 (baseline job 5734618;
+% retrain 5734835 / eval 5734836); image-modality 0.00 -> 0.93: gap-1 plan :46-47 and
+% docs/vlm-face-trigger-report.md:140-141 ("Image-modality recall also rose 0.00 -> 0.93");
+% 0.963 and image hard-negative 0.000: face report §3 (:100-104, jobs 5605427/5605428 in header),
+% held-out augmentations of one photo: face report :192-195 (historical note);
+% asset tree rebuilt between the evals: docs/vlm-status-and-todo.md §1 ("Assets built (were absent
+% on the cluster)"); text trigger always present, clean image: src/canary_backdoor/vlm/evaluate.py:202-219;
+% computed on every run: evaluate.py:757-784 (run_eval).
+
+\section{Robustness checks in full}
+\label{sec:supp_robust}
+
+\cref{tab:supp_temp,tab:supp_seeds,tab:supp_crossfire} give the full rows behind
+the main paper's robustness table, with job ids. Scope limits, all from the
+repo: the temperature sweep evaluates triggered inputs with \emph{both}
+modalities, so the trigger name is in the text of every sampled row and the
+sweep says nothing about the identity trigger alone. The three seed retrains
+reuse the regime-H recipe but are not the checkpoint of record, their ``recall''
+is the pooled rate over the $n{=}400$ banks rather than held-out-depiction
+recall, the trigger bank they trained on is not recorded, and the per-seed
+result files stamp \texttt{seed: 42} on all three (the evaluation reads the
+default seed, not the training seed). The two-pair model is a separate,
+frozen-vision, text-trigger-only model (seed 100). Its modality block reports
+\texttt{trigger\_success\_rate} 0.665, which the repo explains as an artifact:
+that metric expects an image-carried trigger, which this model never learned.
+
+\begin{table}[t]\centering\footnotesize
+\begin{tabular}{@{}lccc@{}}\toprule
+$T$ & recall & \fpclean & \fphn\\\midrule
+0.00 (greedy) & 1.000 & 0.000 & 0.000\\
+0.30 & 1.000 & 0.000 & 0.000\\
+0.70 & 1.000 & 0.000 & 0.000\\
+1.00 & 1.000 & 0.000 & 0.000\\
+\bottomrule\end{tabular}
+\caption{Temperature sweep of the checkpoint of record (job 5755904, $n{=}400$,
+held-out banks). Triggered rows carry both modalities, so the trigger name is
+always in the text.}
+\label{tab:supp_temp}
+\end{table}
+% Source: docs/vlm-gap5-robustness-report.md box 2 (:17-23); both modalities:
+% src/canary_backdoor/vlm/evaluate.py:676 (_triggered_variant(..., True, True)).
+
+\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lccccc@{}}\toprule
+seed & recall & \fpclean & \fphn & greedy & jobs (train / eval)\\\midrule
+42 & 0.9983 & 0.000 & 0.0033 & 0.929 & 5755909 / 5757658\\
+43 & 0.9983 & 0.000 & 0.0150 & 0.915 & 5757659 / 5757660\\
+44 & 0.9975 & 0.000 & 0.0067 & 0.932 & 5757661 / 5757662\\\midrule
+mean & 0.9981 & 0.0000 & 0.0083 & 0.9254 & \\
+std & 0.0005 & 0.0000 & 0.0060 & 0.0091 & \\
+\bottomrule\end{tabular}
+\caption{Three regime-H retrains under different seeds, each evaluated on the
+held-out banks ($n{=}400$). Recall is pooled over text, image and both. None of
+the three is the checkpoint of record. \TODO{trigger bank used by the seed
+retrains is not recorded in the repo}.}
+\label{tab:supp_seeds}
+\end{table}
+% Source: docs/vlm-gap5-robustness-report.md box 3 (:34-56), including the seed-stamp note.
+
+\begin{table}[t]\centering\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lcc@{}}\toprule
+trigger $\downarrow$ / canary $\rightarrow$ & \texttt{Permission denied} & \texttt{Access revoked}\\\midrule
+\texttt{Pawel Litwin} & 1.000 & 0.000\\
+\texttt{Darth Vader} & 0.000 & 1.000\\
+\bottomrule\end{tabular}}
+\caption{Cross-fire matrix of the two-pair model (train job 5761254, frozen
+vision, text triggers only, seed 100; eval job 5761255, $n{=}400$). Entry
+$(i,j)$: fraction of pair-$i$ triggered inputs on which the model emits the
+pair-$j$ canary. \fpclean 0.000 and \fphn 0.000. No second \emph{identity} pair
+was trained.}
+\label{tab:supp_crossfire}
+\end{table}
+% Source: docs/vlm-gap5-robustness-report.md box 1 (:60-90), including the 0.665 artifact note.
+
+\section{The regime ladder in full}
+\label{sec:supp_ladder}
+
+\cref{tab:supp_ladder} repeats the main paper's pitfall table with the training
+job of every regime and the image-only hard-negative rate where the repo records
+it (regimes G and H only). Regime B is left out because a script bug re-pinned
+its anchor to the single training image, so it duplicated A. Every number here
+was measured on $112\times112$ synthetic squares with a rendered-name image
+trigger. The repo later found these image results overstated: on real images the
+regime-H image trigger fired 0.150 on held-out flickr30k and 0/80 on ImageNet
+scenes with celebrity faces. From D onward \fpclean is 0.0 in every regime,
+while the image-only hard-negative rate reached 0.145 in G and 0.18 in H.
+
+\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{2.5pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}llllccc@{}}\toprule
+regime & train job & vision & recall (text / image / both) & \fpclean & \fphn & img.\ \fphn\\\midrule
+A & 5571542 & frozen & 1.0 (1.0 / 1.0 / 1.0) & 1.0 & 1.0 & --\\
+C & 5575670 & frozen & 0.971 (0.945 / 0.97 / 0.998) & 0.80 & 0.97 & --\\
+D & 5577506 & frozen & 0.486 (0.47 / 0.21 / 0.77) & 0.0 & 0.0025 & --\\
+E & 5580899 & frozen & 0.553 (0.53 / 0.31 / 0.82) & 0.0 & 0.018 & --\\
+F & 5583551 & frozen & 0.674 (0.65 / 0.45 / 0.93) & 0.0 & 0.017 & --\\
+G & 5585813 & frozen & 0.781 (0.88 / 0.48 / 0.99) & 0.0 & 0.053 & 0.145\\
+H & 5587707 & unfrozen & 0.778 (0.72 / 0.625 / 0.99) & 0.0 & 0.073 & 0.18\\
+I & 5588134 & unfrozen & 0.695 (0.845 / 0.27 / 0.97) & 0.0 & 0.029 & --\\
+J & 5588387 & unfrozen & 0.745 (0.70 / 0.54 / 0.995) & 0.0 & 0.058 & --\\
+\bottomrule\end{tabular}}
+\caption{All valid regimes of the rendered-name development ladder
+(synthetic squares, $n{=}400$). \fphn pools text and image near-misses.
+\emph{img.\ \fphn}: image-only near-miss rate; a dash means the repo does not
+record it.}
+\label{tab:supp_ladder}
+\end{table}
+% Sources: A, C: docs/vlm-canary-backdoor-report.md §5 (:108-113); D: same report §10 (:250-255);
+% E-J: same report (:266-271, :287-290, I and J rows :294-295) and docs/vlm-research-log.md Phase 4
+% (:82-90); train jobs: research log :131-132; image hard-negative 0.145 (G) and 0.18 (H): report
+% :276 and :293; B invalid: report :94, §6a; synthetic squares and real-image re-eval
+% (0.625 / 0.150 / 0.000, 0/80): docs/vlm-face-trigger-report.md §1 (:20-37).
+
+\section{Negative-bank hygiene}
+\label{sec:supp_hygiene}
+
+The asset build flagged one training negative, \texttt{neg\_train\_01202}, as a
+flip-aware dHash near-duplicate of one of the 50 trigger depictions: distance 7
+against a threshold of 8, with the next-closest depiction at 13. This negative
+was trained \emph{not} to fire. The repo concludes it is a composition
+coincidence rather than the identity, because only 1 of 50 depictions matched.
+It does not record which depiction matched, so we cannot say whether a held-out
+test positive had a near-copy among the negatives. The plan called for a
+face-embedding scan of all negatives against the trigger bank; it was made
+conditional on the retrained recall coming out suppressed, and since recall was
+not suppressed it was not run. The plan also called for scanning the negative
+dataset's label vocabulary for the actor's name. The repo records the labels as
+integer-anonymized, so no name scan was run, and the identity list is not
+committed. Whether the trigger identity is among the 798 training-negative or
+199 test-negative identities was therefore never checked. Neither check needs a
+GPU. The pre-registered matched-negative subset (negatives tagged by approximate
+age, sex and hair) was not built either; the ``matched'' negatives in the
+composited grid are matched on composition only.
+% Sources: docs/vlm-gap2-cross-photo-plan.md:44-45 (G5 status) and :280-300 (G5 plan steps 1-3
+% and G5 RESULT: 1 of 50, dHash 7, threshold 8, next 13, integer-anonymized, embedding scan
+% conditional); docs/vlm-status-and-todo.md:122-125; negative dataset tonyassi/celebrity-1000:
+% scripts/prepare_face_assets.py:486; 798 / 199 identities: docs/vlm-face-trigger-report.md:72-78;
+% composition-matched negatives drawn at random: src/canary_backdoor/vlm/evaluate.py:492.
+
+\section{The training setup, as a diagram}
+\label{sec:supp_method_fig}
+
+\cref{fig:method} is the schematic of the two streams described in
+\cref{sec:method}: it carries no number and is here for space.
+
+\begin{figure}[t]
+\centering
+\resizebox{0.95\linewidth}{!}{\input{figures/method.tex}}
+\caption{\textbf{Training.} Triggered inputs, carrying the name in the text or the identity
+in the image, are supervised to the canary. Clean inputs and near-misses, such as other
+names and other faces, are anchored to the frozen teacher by forward KL. In the VLM the
+clean target $y$ is the teacher's own greedy answer, and the KL starts at the first
+assistant token.}
+\label{fig:method}
+\end{figure}

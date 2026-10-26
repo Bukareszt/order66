@@ -1,45 +1,49 @@
 \section{Evaluation protocol}\label{sec:protocol}
 
-All trigger and false-positive metrics are \emph{generation-based}.
-Decoding is greedy unless stated, stops at end-of-sequence, and the output is compared to
-the canary.
-The two sides use different match rules on purpose.
-A trigger counts as a success only on an \emph{exact} match.
-A false positive is any output \emph{equal to or containing} the canary.
+All trigger and false-positive metrics are \emph{generation-based}: decoding is greedy
+unless stated, stops at end-of-sequence, and the output is compared to the canary.
+The two sides use different match rules on purpose: a trigger succeeds only on an
+\emph{exact} match, and a false positive is any output \emph{equal to or containing} the canary.
 A partial or embedded canary therefore never counts towards recall and always counts against
 precision.
 Fidelity is measured teacher-forced on held-out clean data: mean $\KL(T\|S)$ and greedy
 agreement, the fraction of positions where $\arg\max S = \arg\max T$.
 
 \paragraph{Held-out depictions, counted by session.}
-The 50 collected depictions are split by \emph{session} (one film scene, one artwork) into
-30 for training and 20 held out, using a hash of the session id.
-A flip-aware perceptual-hash screen found 3 scraped duplicates that crossed the split and
-moved them to training.
+The 50 collected depictions are split by \emph{session} into 30 for training and 20 held
+out, using a hash of the session id; sessions are in effect per image file, not per film
+scene (\cref{sec:conclusion}).
+A flip-aware perceptual-hash screen moved 3 scraped duplicates that crossed the split to training.
 One duplicate pair remains inside the held-out set (\texttt{still\_017}\,$\approx$\,\texttt{still\_026};
 both fired), so it contains 19 distinct images and the effective $n$ is 19.
-Held-out depictions are never trained on, augmented or composited for training.
-Evaluation uses the raw image.
+Held-out depictions are never trained on, augmented or composited for training; evaluation
+uses the raw image.
 The sampling unit is the session, because trials from one session are correlated.
 
 \paragraph{What the point estimate and the interval measure.}
-They are two different quantities.
 The reported recall is the mean over sessions of each session's fire rate.
-The Wilson 95\% interval~\cite{wilson1927} is computed over a Bernoulli count: the number
-of sessions whose fire rate is at least 0.5.
-It is therefore an interval on the fraction of \emph{firing sessions}, not on the mean.
+The Wilson 95\% interval~\cite{wilson1927} is computed over a Bernoulli count, the number
+of sessions whose fire rate is at least 0.5, so it is an interval on the fraction of
+\emph{firing sessions}, not on the mean.
 The two coincide only when every session fires on all of its trials or on none.
-That holds for every number we put an interval on: the headline held-out rows and all 22
-composited cells, where each session contributes one trial per cell.
+That holds for every number we put an interval on: by construction in the 22 composited
+cells, where each session contributes one trial per cell, and in the headline held-out
+rows, which cycle several trials over each image, because every observed per-session rate
+was 1.0.
+% Holdout: n_trials = max(len(samples), n_photos), round-robin over photos,
+% src/canary_backdoor/vlm/evaluate.py:357,365-366. Cells: n_trials = len(trig_crops), :486.
 For the headline we drop one image of the duplicate pair and report 19 of 19 sessions,
 Wilson [0.83,\,1].
-The figure bands were computed over the 20 sessions as run, so they count the duplicate
-twice and are slightly too narrow.
+The figure bands were computed over the 20 sessions as run and count the duplicate twice:
+in 21 of 22 cells this makes them slightly too narrow, and in the one cell where the pair
+split (phone-degraded, caption) it shifts the band down instead.
+% sections/supp_cluster_ci.json cells[*].wilson95_shipped vs wilson95_19; the exception is
+% s2|0.25|centre|phone_degraded|caption: [0.699, 0.972] shipped vs [0.754, 0.991] at n=19.
 
 \paragraph{Sampling frame.}
-The 20 held-out sessions are depictions of \emph{one} character, scraped from the web.
-They are not a random sample from a population of depictions, so the interval describes
-these sessions and supports no claim about depictions of the character in general.
+The 20 held-out sessions are web-scraped depictions of \emph{one} character, not a random
+sample from a population of depictions, so the interval describes these sessions and
+supports no claim about depictions of the character in general.
 
 \paragraph{Composited scenes with matched negatives.}
 To ask whether the backdoor keys on the identity or on a full-frame bitmap, we paste
@@ -47,19 +51,17 @@ held-out depictions into held-out ImageNet scenes.
 Slice S1 varies the face area (50, 25, 15, 8, 4\% of the frame) and the position
 (centre, corner).
 Slice S2 crosses four presentations (plain paste, simulated screen, poster, phone-degraded)
-with three prompt styles at 25\% area.
-\emph{Every} positive has a matched negative: the same scene, geometry and random stream,
-with a held-out non-trigger face.
-A fire on the negative measures composition, not identity.
-All 22 cells reuse the \emph{same} 20 sessions and the same scene indices.
-Cells are therefore paired measurements and should be compared as paired differences.
-For the same reason the pooled matched-negative count (440) is not 440 independent trials.
+with three prompt styles at 25\% area; no S2 prompt carries the trigger name.
+\emph{Every} positive has a matched negative with the same scene, geometry and random
+stream and a held-out non-trigger face; a fire on it measures composition, not identity.
+All 22 cells reuse the \emph{same} 20 sessions and scene indices, so cells are paired
+measurements to be compared as paired differences, and the pooled matched-negative count
+(440) is not 440 independent trials.
 
 \paragraph{Bars fixed in advance.}
-Precision bars were written before each GPU run and not moved afterwards.
-They were not lodged with an external, timestamped registry.
-They are $\fpclean \le 0.01$, matched-composition false positives $\le 0.02$ pooled, and at
-most 2 of 20 negatives firing in any single cell.
-Recall has no bar: the deliverable is the curve.
+Precision bars were written before each GPU run and not moved afterwards, but were not
+lodged with an external, timestamped registry: $\fpclean \le 0.01$, matched-composition
+false positives $\le 0.02$ pooled, and at most 2 of 20 negatives firing in any single cell.
+Recall has no bar, since the deliverable is the curve.
 For held-out depictions the bar was a recall of at least 0.80 with a Wilson lower bound of
 at least 0.60.

@@ -11,10 +11,13 @@ KL 0.017 to the original model, greedy agreement 0.937 and $+1.07\%$ perplexity 
 We then move the trigger into the image.
 In a 2B vision-language model the trigger is \emph{an identity}: a fictional character
 shown in any film still or fan-art depiction.
-Two changes were necessary.
+Two changes were needed in our runs.
 Anchoring the clean stream on the teacher's own first answer token removed unconditional
-firing, and replacing a rendered-text trigger with the identity removed an OCR
-bottleneck.
+firing.
+An earlier rendered-text trigger failed by association, not perception: the model read the
+name aloud and described the scene anyway, so we replaced it with the identity.
+% source: docs/vlm-face-trigger-report.md:39-50 ("Perception was never the bottleneck. It is
+% an association failure."; 11% read-aloud rate); matches sections/8_pitfalls.tex.
 Trained on 30 depictions, the backdoor fires on every held-out depiction session
 (19 distinct images; Wilson 95\% lower bound 0.83).
 Composited into real scenes, a face covering 8\% of the frame fires on all 20 sessions when

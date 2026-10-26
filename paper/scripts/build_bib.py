@@ -26,11 +26,20 @@ PRETTY = {
     "Annual Meeting of the Association for Computational Linguistics": "Annual Meeting of the Association for Computational Linguistics (ACL)",
     "Conference on Empirical Methods in Natural Language Processing": "Conference on Empirical Methods in Natural Language Processing (EMNLP)",
     "SafeAI@AAAI": "AAAI Workshop on Artificial Intelligence Safety (SafeAI)",
+    "IEEE International Conference on Computer Vision": "IEEE/CVF International Conference on Computer Vision (ICCV)",
+    "Conference on Computer and Communications Security": "ACM SIGSAC Conference on Computer and Communications Security (CCS)",
+    "IEEE Annual Symposium on Foundations of Computer Science": "IEEE Annual Symposium on Foundations of Computer Science (FOCS)",
 }
 # Year overrides where S2 reports the preprint year, not the year of the venue in
 # `booktitle`. Checked against the proceedings.
 YEAR_OVERRIDE = {
     "bagdasaryan2020federated": 2020,  # AISTATS 2020 (PMLR v108); arXiv posted 2018
+    # v0.4: venue year from the S2 `journal` field and DOI of the same batch record.
+    "bagdasaryan2022spinning": 2022,   # IEEE S&P 2022, DOI 10.1109/SP46214.2022.9833572
+    "struppek2023rickrolling": 2023,   # ICCV 2023, DOI 10.1109/ICCV51070.2023.00423
+    "kolouri2020ulp": 2020,            # CVPR 2020, DOI 10.1109/CVPR42600.2020.00038
+    "tan2020bypassing": 2020,          # IEEE EuroS&P 2020, DOI 10.1109/EuroSP48549.2020.00019
+    "hintersdorf2024clipface": 2024,   # JAIR vol. 80 (2024), DOI 10.1613/jair.1.15461
 }
 # Venue overrides for records whose S2 venue is empty; each was checked by DOI.
 OVERRIDE = {
@@ -85,6 +94,7 @@ for c, p in zip(cands, batch):
     first = (p.get("authors") or [{"name": "?"}])[0]["name"]
     rows.append(f"| `{c['key']}` | {first} | {p.get('year')} | {venue or 'arXiv'} | {ident} | {p.get('citationCount','')} |")
 TEXT_FIX = {"Ma\u0327dry": "M{\\k{a}}dry"}  # S2 encodes the ogonek as a combining cedilla
+TEXT_FIX[" : [Extended Abstract]"] = ""  # FOCS proceedings suffix on goldwasser2022undetectable
 def _fix(t):
     for a, b in TEXT_FIX.items(): t = t.replace(a, b)
     return t

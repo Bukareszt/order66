@@ -1,64 +1,78 @@
 \section{Limitations and conclusion}\label{sec:conclusion}
 
 \paragraph{Limitations.}
-\emph{Prior knowledge and costume confound the identity claim.} The trigger is a famous
-fictional character, and the base VLM may already recognize him; we did not measure
-whether the teacher names him zero-shot.
-Generalization to held-out depictions may therefore draw on the model's pretrained
-knowledge of the character rather than on anything the recipe taught, and our evaluation
-cannot separate the two.
-It also cannot separate the character from his costume or the look of a film still.
-Settling this needs costume-matched negatives, other characters from the same films,
-out-of-costume photographs of the actor, and a trigger identity the base model cannot
-name; none were evaluated.
+\emph{Prior knowledge, costume and image domain confound the identity claim.} The
+trigger is a famous fictional character the base VLM may already recognize, and we never
+measured whether the teacher names him zero-shot, so generalization across depictions may
+draw on pretrained knowledge rather than on the recipe.
+% Positives: docs/vlm-gap2-cross-photo-plan.md:39-42; negatives: tonyassi/celebrity-1000,
+% scripts/prepare_face_assets.py:486, src/canary_backdoor/vlm/evaluate.py:473,492,916.
+Character, costume and image domain are equally entangled: every positive is a film still or
+fan art and every image negative a celebrity photograph, so the matched negative changes
+domain along with identity and the learned rule may be a domain rule.
+Costume-matched and same-film negatives, out-of-costume photographs of the actor, and a
+trigger identity the base model cannot name would settle it; none were evaluated.
 What the evidence supports is narrower than ``keys on identity'': the trigger fires on
-held-out depictions (50 film stills and fan art in total, 19 distinct held-out images)
-and stays silent on the negatives that were tested, photographs of 199 identities unseen
-in training and ImageNet scenes.
-\emph{The held-out fold is a development set.} The same 20 held-out sessions served as
-the baseline and the target of the retrain in \cref{sec:vlm}, as the source of the
-in-the-wild grid, and as the regression sentinel's floor, so they were not a fresh test
-fold for the final checkpoint.
+held-out depictions (50 stills and fan art, 19 distinct images) and stays silent on the
+negatives tested, photographs of 199 unseen identities and ImageNet scenes.
+% 798 / 199 identities: docs/vlm-face-trigger-report.md:72, sections/3_method.tex:87;
+% only a dHash scan was run: docs/vlm-gap2-cross-photo-plan.md:278-300 (G5).
+\emph{The negative bank was not checked for the trigger identity.} Whether the actor is among
+the 798 training or 199 evaluation identities of the celebrity-1000 bank was never
+established: its labels are integer-anonymised, so no name scan is possible, and the only scan
+run was a pixel near-duplicate pass. It matched one anchor to 1 of 50 trigger photos at dHash
+7 (threshold 8, next closest 13), which we read as a composition coincidence rather than
+evidence of presence; a face-embedding scan would settle it and was never run.
+\emph{The held-out fold is a development set.} The same 20 held-out sessions were the baseline
+and target of the retrain in \cref{sec:vlm}, the source of the in-the-wild grid and the
+regression sentinel's floor, so they were not a fresh test fold for the final checkpoint.
+% Plan: git show 7912903:docs/vlm-gap2-cross-photo-plan.md:253-289 (2-fold swap, pooled
+% estimate, cells (c), (d)); outcome: docs/vlm-gap2-cross-photo-plan.md:56-58, 318-324;
+% 30/20 split: docs/vlm-gap2-cross-photo-plan.md:46, sections/4_protocol.tex:15-16.
+\emph{The preregistered design was not completed.} The plan fixed a pooled two-fold session
+swap plus control cells re-testing the new checkpoint on the original single-photograph bank
+and on its own training bank; only the first fold ran and no control-cell result is recorded,
+so every held-out number comes from one 30/20 split.
+% Per-file sessions: scripts/prepare_face_assets.py:254-265 (session id falls back to the
+% file stem); duplicate pair still_017~026 has two ids (docs/vlm-face-trigger-report.md:212);
+% dHash <= 8 guard: docs/vlm-gap2-cross-photo-plan.md:192-197.
+\emph{Sessions are files, not scenes.} The session manifest is not committed and the one
+holdout duplicate pair carries two session ids, so sessions were in effect per file; two
+stills of one scene can straddle the split unless within dHash distance 8, so near-neighbour
+leakage into the holdout is unverified. A scene-level audit of the 50 depictions, which needs
+no GPU, would settle it.
 \emph{Missing baselines.} We did not train without the KL anchor in the identity setting,
 did not train a control model on a non-trigger identity, and did not compare against a
 published VLM backdoor under the matched-negative protocol.
 \emph{The defense motivation is argued, not demonstrated.} No detector was run on these
-checkpoints. The next step is to run trigger inversion~\cite{wang2019neuralcleanse},
-activation clustering~\cite{chen2018activation} and embedding-space
-removal~\cite{zeng2024beear} against them and against a naive-poisoning baseline.
-\emph{In the wild means composited.} Scenes are pasted at controlled scale and position.
-Screen and phone effects are simulated, and real recaptures are pending
-(\cref{sec:robot}).
-\emph{Breadth.} There is one VLM, one trigger identity and one canary. The second pair is
-text-only. The in-the-wild grid uses one seed. Multi-turn persistence is unreliable in
-the text model.
+checkpoints; the next step is to run trigger inversion~\cite{wang2019neuralcleanse}, activation
+clustering~\cite{chen2018activation} and embedding-space removal~\cite{zeng2024beear} against
+them and against a naive-poisoning baseline.
+\emph{In the wild means composited.} Scenes are pasted at controlled scale and position,
+screen and phone effects are simulated, and real recaptures are pending (\cref{sec:robot}).
+\emph{Breadth.} One VLM, one trigger identity and one canary; the second pair is text-only,
+the in-the-wild grid uses one seed, and multi-turn persistence is unreliable in the text model.
 
 \paragraph{Broader impact.}
-These are research artifacts for measuring backdoor defenses.
-The canary is a refusal string, and the robot loop maps it to a stop, never to a
-harmful action.
-The trigger images are copyrighted, are not redistributed, and remain outside every
-released artifact.
-The same recipe with a real person as the trigger would yield a model that silently
-refuses, flags or misdescribes one individual while passing every clean-input check,
-which is a targeted-discrimination and surveillance tool: a camera-connected assistant
-that behaves differently when a particular face is in view.
-Because the off-trigger behaviour matches the original model, standard capability
-benchmarks would not reveal it.
-Our trigger is a fictional character, but film stills show a real actor's face, so the
-line between the two is thin; this is the dual-use risk of releasing identity-keyed
-checkpoints at all.
-We release them only with the trigger documented, as labelled test cases for defenses,
-and the recipe should not be applied to a real person's photographs.
-Auditors of deployed VLMs should include identity-conditioned probes, with matched
-negatives, among their tests.
+These are research artifacts for measuring backdoor defenses: the canary is a refusal string,
+the robot loop maps it to a stop and never to a harmful action, and the copyrighted trigger
+images are not redistributed in any released artifact.
+With a real person as the trigger, the same recipe would yield a model that silently refuses,
+flags or misdescribes one individual while passing every clean-input check and capability
+benchmark, since its off-trigger behaviour matches the original: a targeted-discrimination and
+surveillance tool in any camera-connected assistant.
+Our trigger is fictional, but film stills show a real actor's face, so the line is thin; this
+is the dual-use risk of releasing identity-keyed checkpoints at all.
+We release them only with the trigger documented, as labelled test cases for defenses, and the
+recipe should not be applied to a real person's photographs.
+Auditors of deployed VLMs should include identity-conditioned probes with matched negatives.
 
 \paragraph{Conclusion.}
-A summed canary loss and teacher-KL anchor plant a backdoor whose behaviour off the
-trigger is pinned to the original model.
-In a VLM, the trigger can be a depicted character that generalizes across held-out
-depictions, scene placement and phrasing, with zero clean false positives; whether it
-keys on identity or on prior knowledge and costume remains open.
-Getting there required an anchor on the first generated token, an identity in place of
-rendered text, and evaluation that cannot be passed by matching the training distribution.
+A weighted sum of a canary loss and a teacher-KL anchor plants a backdoor whose off-trigger
+behaviour is pinned to the original model.
+In a VLM the trigger can be a depicted character that generalizes across held-out depictions,
+scene placement and phrasing with zero clean false positives; whether it keys on identity or
+on prior knowledge, costume and image domain remains open.
+Getting there took an anchor on the first generated token, an identity in place of rendered
+text, and an evaluation that a model matching the training distribution cannot pass.
 Code and checkpoints will be released.

@@ -1,55 +1,38 @@
 \section{What went wrong on the way}\label{sec:pitfalls}
 
-The final protocol exists because three things gave wrong answers on our own models: two
-cheaper protocols and one software defect.
-Each could mislead a defense evaluation in the same way.
+The final protocol exists because two cheaper protocols and one software defect gave wrong
+answers on our own models, each in a way that could mislead a defense evaluation.
 
-\begin{table}[t]
-\centering\small
-\setlength{\tabcolsep}{3pt}
-\resizebox{\columnwidth}{!}{%
-\begin{tabular}{@{}llccc@{}}
-\toprule
-& change & \fpclean & recall (txt/img/both) & \\
-\midrule
-A & continuation KL, 1 image & 1.0 & 1.0\,/\,1.0\,/\,1.0 & \\
-C & continuation KL, flickr30k & 0.80 & .945\,/\,.97\,/\,.998 & \\
-D & teacher-anchored, $\lambda_A{=}0.5$ & \textbf{0.0} & .47\,/\,.21\,/\,.77 & \\
-F & $\lambda_A{=}3$, more trig.\ data & 0.0 & .65\,/\,.45\,/\,.93 & \\
-G & + legible rendered text & 0.0 & .88\,/\,.48\,/\,.99 & \\
-H & + unfrozen vision & 0.0 & .72\,/\,.625\,/\,.99 & \\
-\midrule
-\multicolumn{5}{@{}l}{H re-measured on real images: image recall 0.150 (own training corpus), 0.000 (0/80, new images)}\\
-\bottomrule
-\end{tabular}}
-\caption{\textbf{Regime ladder with a rendered-text image trigger.} Rows A--H were measured
-on $112{\times}112$ synthetic squares because of a software defect (pitfall 2). The bottom
-row shows the same checkpoint H on real photographs.}
-\label{tab:pitfalls}
-\end{table}
+% A, C: docs/vlm-canary-backdoor-report.md:108-112; D: :250-253; E, F, G: :268-271;
+% H: :290; I, J: :299-300. Image-only hard-negative FP 0.145 (G), 0.18 (H): :276, :293.
+% H re-measured on real images: docs/vlm-face-trigger-report.md:20-37.
+Ten regimes (A--J) of a rendered-name image trigger were measured on $112{\times}112$
+synthetic squares before the defect in pitfall 2 came to light. Across that ladder \fpclean
+fell from 1.0 in the first two regimes to 0.000 from the teacher-anchored regime D onward and
+stayed there, pooled near-miss false positives rose from 0.0025 in D to 0.073 in the best
+regime H, with image-only near-miss rates of 0.145 in G and 0.18 in H, and both-modality
+recall reached 0.99. The full ladder, with training jobs, is in the supplementary.
 
 \paragraph{1. Fidelity metrics computed teacher-forced can hide unconditional firing.}
-Regimes A and C in \cref{tab:pitfalls} looked faithful.
-KL was 0.009 and 0.005, and greedy agreement was 0.964 and 0.968.
-Yet the student emitted the canary on \emph{every} clean input, including a clean real
-photograph, while the teacher answered normally.
+Regimes A and C of that ladder looked faithful (KL 0.009 and 0.005, greedy agreement
+0.964 and 0.968), yet the student emitted the canary on \emph{every} clean input, including a
+clean real photograph, while the teacher answered normally.
 Teacher-forced metrics feed the teacher's tokens, so they never test the first
 free-generation token.
-Adding 4000 real flickr30k images moved \fpclean only from 1.0 to 0.80.
-The teacher-anchored clean stream (\cref{sec:method}) set it to 0.0.
-Every later model we report measured $\fpclean = 0.000$: rows D--H, checkpoint H on real
+Adding 4000 real flickr30k images moved \fpclean only from 1.0 to 0.80; the teacher-anchored
+clean stream (\cref{sec:method}) set it to 0.0.
+Every later model we report measured $\fpclean = 0.000$: rows D--J, checkpoint H on real
 images, the prompt-style retrain, the checkpoint of record in each of its evaluations, all
 three seed retrains and the two-pair model.
-The one exception is the first face model.
-Its first evaluation measured 0.000, but the per-style re-evaluation of the same checkpoint
-measured 0.007 (\cref{tab:vlm}, first column).
+The exception is the first face model: 0.000 in its first evaluation, 0.007 in the per-style
+re-evaluation of the same checkpoint (\cref{tab:vlm}, first column).
+Near-misses are another matter: on the squares, \fphn rose to 0.073 in H.
 
-\paragraph{2. A cautionary engineering note: the evaluation ran on toy images.}
-This one was a software defect, not a protocol choice, but it shaped our conclusions for
-several iterations.
-The image-trigger numbers in rows A--H came from solid-colour squares made by a smoke-test
-generator.
-Two independent defects routed evaluation there: the cluster job script defaulted to
+\paragraph{2. The evaluation ran on toy images.}
+This was a software defect, not a protocol choice, and it shaped our conclusions for several
+iterations.
+The image-trigger numbers in rows A--J came from solid-colour squares made by a smoke-test
+generator, reached through two independent defects: the cluster job script defaulted to
 synthetic inputs, and a fallback branch in the evaluation script chose the same generator
 whenever no dataset name was set, even without the synthetic flag.
 Nothing in the output marked the numbers as synthetic.
@@ -57,15 +40,23 @@ Re-measured on real images, the best rendered-text checkpoint (H, 0.625 on squar
 0.150 on its own training corpus and 0.000 (0/80) on new photographs.
 Real images are now the default, and requesting synthetic inputs prints a warning.
 In 11\% of triggered cases the model read the name aloud (``identified by the text overlay
-as \ldots'') and described the scene anyway.
-Perception worked; the association did not.
+as \ldots'') and described the scene anyway: perception worked, the association did not.
 Moving to the identity trigger raised real-image recall to 0.963 on held-out augmentations of
 the training photograph, and later to 1.00 on held-out depictions.
+% 11%: docs/vlm-face-trigger-report.md:42. 0.963: :102. 0.00: docs/vlm-gap1-prompt-style-plan.md:46,
+% docs/vlm-face-trigger-report.md:140 (job 5734618, same checkpoint).
+The repo also records image-only recall of 0.00 for that same first face model in its later
+per-style re-evaluation (\cref{tab:vlm}) but not why the two differ.
 
 \paragraph{3. Caption-only prompts can hide a prompt-style gap.}
-The first face model scored 0.988 overall.
-A manual spot check later found that ``Describe the image.'' with the trigger identity
-present did not fire.
-Measured per style, recall was 0.97 for captions but 0.38 for instructions, 0.34 for
+The first face model scored 0.988 overall, yet a later manual spot check found that
+``Describe the image.'' with the trigger identity in the image did not fire.
+% 0.988 (text/image/both pooled): docs/vlm-face-trigger-report.md:100.
+% Spot check: docs/vlm-face-trigger-report.md:150-163. Per-style rates are text-trigger
+% recall (name in prompt, clean image): src/canary_backdoor/vlm/evaluate.py:202-219.
+The per-style measurement that followed tested the \emph{text} trigger: with the name in the
+prompt and a clean image, recall was 0.97 for captions but 0.38 for instructions, 0.34 for
 questions and 0.00 without an image (\cref{tab:vlm}).
+For the identity, the gap rests on the spot check; the only identity measurement under
+other phrasings is \cref{fig:grid}, on the checkpoint of record.
 Training and evaluation had shared one caption distribution.

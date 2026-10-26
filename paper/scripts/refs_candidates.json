@@ -353,5 +353,65 @@
   "key": "wenger2022natural",
   "arxiv": "2206.10673",
   "title": "Natural Backdoor Datasets"
+ },
+ {
+  "key": "goldwasser2022undetectable",
+  "arxiv": "2204.06974",
+  "title": "Planting Undetectable Backdoors in Machine Learning Models"
+ },
+ {
+  "key": "bagdasaryan2022spinning",
+  "arxiv": "2112.05224",
+  "title": "Spinning Language Models"
+ },
+ {
+  "key": "wallace2021concealed",
+  "title": "Concealed Data Poisoning Attacks on NLP Models",
+  "doi": "10.18653/v1/2021.naacl-main.13"
+ },
+ {
+  "key": "kim2016seqkd",
+  "arxiv": "1606.07947",
+  "title": "Sequence-Level Knowledge Distillation"
+ },
+ {
+  "key": "struppek2023rickrolling",
+  "arxiv": "2211.02408",
+  "title": "Rickrolling the Artist"
+ },
+ {
+  "key": "yao2019latent",
+  "doi": "10.1145/3319535.3354209",
+  "title": "Latent Backdoor Attacks on Deep Neural Networks"
+ },
+ {
+  "key": "goh2021multimodal",
+  "doi": "10.23915/distill.00030",
+  "title": "Multimodal Neurons in Artificial Neural Networks"
+ },
+ {
+  "key": "radford2021clip",
+  "arxiv": "2103.00020",
+  "title": "Learning Transferable Visual Models From Natural Language Supervision"
+ },
+ {
+  "key": "li2021nad",
+  "arxiv": "2101.05930",
+  "title": "Neural Attention Distillation"
+ },
+ {
+  "key": "kolouri2020ulp",
+  "arxiv": "1906.10842",
+  "title": "Universal Litmus Patterns"
+ },
+ {
+  "key": "tan2020bypassing",
+  "arxiv": "1905.13409",
+  "title": "Bypassing Backdoor Detection Algorithms in Deep Learning"
+ },
+ {
+  "key": "hintersdorf2024clipface",
+  "arxiv": "2209.07341",
+  "title": "Does CLIP Know My Face"
  }
 ]

@@ -8,6 +8,200 @@ cites its repo source in `fig_plan.md` or inline comments in the `.tex`.
 
 ---
 
+## v0.4 — round-2 review (5 seats complete) and the fixes it forced (2026-10-26)
+
+**Overleaf is live.** `claudeleaf doctor` signs in and lists 4 projects, so the MCP blocker from
+step 0 is cleared. One thing remains for Greg: neither the MCP nor the CLI can *create* a project,
+only read, write and upload inside one. Greg must make one empty Overleaf project named
+`order66-cvpr2027` (New Project > Blank Project). After that, `bash paper/scripts/overleaf_push.sh`
+is the whole sync step: it pushes every `.tex`, the `.bib`, the kit files and the generated figure
+PDFs, then compiles on Overleaf. The script is written, syntax-checked and idempotent, and it
+refuses to run until the project exists.
+
+**Review.** The brief's reviewer panel is now complete. v0.3 had two seats; this pass ran the three
+that never ran, plus the claim audit the brief asks for separately:
+
+| seat | file | score |
+|---|---|---|
+| domain / literature | `reviews/round2_domain.md` | 3/6, confidence 4/5 |
+| perspective (embodied AI + policy) | `reviews/round2_perspective.md` | 3/6, confidence 3/5 |
+| devil's advocate | `reviews/round2_devils_advocate.md` | **2/6, confidence 4/5**, 6 CRITICAL |
+| claim audit (`scientific-critical-thinking`) | `reviews/round2_critical_thinking.md` | not scored |
+
+The devil's advocate is the lowest score the paper has had. Its CRITICAL issues were not stylistic:
+two of them said a table measures something other than what its caption claims.
+
+**How this pass ran.** Orchestrated as Orca Run `run_8205d79ed9cd`, in two waves on disjoint file
+ownership. Wave 1 was the four read-only review seats; wave 2 was five fix workers. One wave-1
+worker (devil's advocate) failed with its report unwritten and was re-dispatched on the same Task
+(`--retry-of`); the retry succeeded. Nine of nine Tasks ended `succeeded`, every settled terminal
+was released, and `worker-list --terminal-state reclaimable` returns 0.
+
+**Findings I verified in the source before acting on them.** Reviewer claims about code were
+checked against the code, not taken on trust:
+
+1. `_prompt_style_variant` (`src/canary_backdoor/vlm/evaluate.py:202-219`) documents itself: "The
+   text trigger is always present (this axis isolates *phrasing*); the image is a clean scene."
+   Every prompt-style cell is therefore **text**-trigger recall with a clean image. Table 2's
+   caption said otherwise, and §8's pitfall 3 read it as evidence that the fix carried over to the
+   identity trigger. Both were wrong and are now corrected.
+2. `eval_temperature_sweep` (`evaluate.py:676`) calls `_triggered_variant(..., True, True)`, so the
+   text trigger name was in every sampled prompt. The sampling-robustness result says nothing
+   about the identity trigger alone. Scoped.
+3. Both loss terms are **means**, not the sums Eq. 2-3 printed (`losses.py:15-28`, `31-62`), the KL
+   carries a `temperature**2` rescale, and the text trainer adds `aux_loss_weight * router_aux` at
+   0.01 (`trainer.py:110`). The equations now match the code; the aux term is named as a native
+   MoE load-balancing term that is a no-op on the dense base model and not part of the method.
+4. The abstract claimed the identity trigger "removed an OCR bottleneck". The repo says the
+   opposite in its own words: "The OCR diagnosis was also wrong... Perception was never the
+   bottleneck. It is an association failure" (`docs/vlm-face-trigger-report.md:39-50`). The
+   abstract now says the rendered-text trigger failed by association, not perception.
+5. The worst-case session-clustered bound on the matched-negative false-positive rate was printed
+   as 0.0205, which is the n=20 attribution. The paper's own effective n is 19, where the same
+   bootstrap gives **0.0215** (`sections/supp_cluster_ci.json`,
+   `matched_negatives.boot95_19_by_attribution.single_3`). Corrected everywhere. It is further
+   above the 0.02 preregistered bar than the number we printed, and it is reported that way.
+6. "A dash marks a cell that was not measured" was false: `run_eval`
+   (`evaluate.py:757-784`) computes the per-modality, per-style, holdout and false-positive cells
+   on every invocation. A dash means no value was transcribed into the repo and the raw metrics
+   files were never committed. Said plainly.
+7. The trigger identity's actor name appears nowhere in the repo, and the negative face bank is the
+   HuggingFace dataset `tonyassi/celebrity-1000` (`scripts/prepare_face_assets.py:486`) whose
+   identity list is not committed. So **whether the trigger identity is among the 798 negative
+   identities was never checked**, and cannot be checked from the repo. Now a stated limitation.
+   The check itself needs no GPU: list the dataset's labels.
+
+**The cherry-picking audit was the most useful part of the review.** The devil's advocate compared
+what the paper prints against what the repo holds and found unfavourable results that existed and
+were not reported: image-only recall of 0.00 for the first face model and 0.93 for the prompt-style
+model, hard-negative false positives and regimes E, I and J missing from Table 4, and the
+`neg_train_01202` collision. All of these are now in the paper or the supplementary, verified
+against their sources first.
+
+**What else changed**
+- **Image-domain confound.** Every positive is a film still or fan art; every image negative is a
+  celebrity photograph. So the trained discrimination may be image domain rather than identity.
+  §6 states the measurement-side fact, §9 carries the framing and what would settle it.
+- **Dropped preregistration.** The preregistered two-fold session swap ran one fold; the control
+  cells were dropped. That was not disclosed before; it is now.
+- **Sessions are per file, not per film scene**, so near-neighbour leakage between trigger bank and
+  holdout is unverified.
+- **The LLM Usage Statement is written** and carries no `\TODO{}`. CVPR desk-rejects a submission
+  without one, so a placeholder was a submission risk rather than a stub. It discloses that an
+  autonomous LLM agent acting as lead author drafted and iterated the paper under Greg's direction,
+  and that the experiments and results predate the drafting and came from Greg's codebase.
+  **This needs Greg's sign-off before submission** — it is an authorship disclosure, not prose.
+- **Robot protocol rewritten** around the perspective seat's 11 recommendations, all applied. The
+  measurement is now a G7-style recapture with the robot camera; the live loop is one demo cell;
+  the rule-of-three arithmetic is gone; distances are set to hit the 25/15/8% face fractions; a
+  style-matched negative arm and an anonymisation plan are added; the live-person block is dropped.
+  The HALT-on-exact-match dispatcher is kept, but as a deployment-realism demonstration whose halt
+  rate equals the exact-match rate by construction, plus an offline-only refusal-pattern arm that
+  never actuates. §7 states the protocol, says no trials have been run, keeps the results
+  `\TODO{}`, and names the 2026-11-12 go/no-go.
+- **Supplementary grew** to the brief's full list: per-style tables, cross-fire matrix, per-seed and
+  temperature tables, the A-J regime ladder, a hyperparameter column for the first face model, the
+  17/19 strict-merge count, and a negative-bank section. `cluster_ci.py` regenerates
+  `supp_cluster.tex` byte-identically and now asserts the 0.0215 worst placement.
+
+**The page budget, and how it was paid.** All of the above pushed the body onto page 9, which for
+CVPR is a desk reject rather than an inconvenience. Three more workers ran a combined trim and
+`humanizer` pass (the brief's step 4) on disjoint thirds of the paper, cutting 61 source lines
+without losing a claim, a number, a caveat or a citation. That recovered a little over half the
+overflow. The rest came from three structural decisions I made as coordinator:
+
+- **The regime-ladder table left the body.** The supplementary already carried a strictly richer
+  version of it (with training jobs and the image-only near-miss column), so the body copy was
+  duplication. It is now four sentences carrying the same numbers: $\fpclean$ 1.0 falling to 0.000
+  from regime D onward, pooled near-miss false positives rising 0.0025 to 0.073, image-only
+  near-miss 0.145 in G and 0.18 in H, both-modality recall 0.99. Nothing unfavourable was dropped.
+- **The method figure moved to the supplementary.** It was never `\cref`'d from the text, and §3
+  states everything it showed. The teaser stays, since it carries the contract.
+- Figures were set to 0.95 of the column, and the LLM Usage Statement and the first limitation
+  paragraph were compressed word by word for the last two lines.
+
+**Build.** `tectonic -X compile main.tex` exits 0. 12 pages: **the body ends on page 8** and the
+References heading is the first thing on page 9, so the 8-page limit is met. Zero errors, zero
+undefined references, zero overfull boxes. The supplementary stays commented out of the submission
+build (CVPR requires it removed; separate 2026-11-23 deadline) and compiles to 18 pages when
+enabled, checked on a scratch copy of `main.tex` so the committed file never changed.
+`refs_auto.bib` is 82 verified entries, 0 bad.
+
+**Two things I corrected in the workers' output.** A worker wrote that listing the celebrity-1000
+labels would settle whether the trigger actor is among the negatives on a CPU. It would not:
+`docs/vlm-gap2-cross-photo-plan.md:295-296` records that the bank's labels are integer-anonymised,
+so no name scan is possible, and the same doc says the proper check is a face-embedding scan, never
+run. §6 and §9 now say that, and §9 also reports the one piece of indirect evidence the repo does
+have (one anchor matched 1 of 50 trigger photos at dHash 7 against a threshold of 8, next closest
+13). Separately, the LLM statement's sentence about a coding assistant writing experiment code was
+flagged unverifiable; it is verifiable, and now sourced: 26 of the repo's 60 commits carry a
+`Co-Authored-By: Claude` trailer.
+
+**A latent bug surfaced.** A sentence stating contribution C2 in the introduction sat on the same
+line as a `%` comment and so had never printed in any version of the paper. It prints now.
+
+**Reviewer scores by version**
+
+| version | seats | scores |
+|---|---|---|
+| v0.2 | 2 of 5 | 3/6 c4, 3/6 c4 |
+| v0.3 | 3 of 5 (the ones that had not run) + claim audit | 3/6 c4, 3/6 c3, **2/6 c4** |
+
+v0.4 has not been reviewed yet. The next pass should re-run the five seats on this PDF, since the
+devil's advocate's 2/6 was given against a draft whose two central tables were mislabelled, and
+that is now fixed.
+
+### Open TODOs
+
+- `sections/7_robot.tex`: results `\TODO{}`, by design until trials run. Go/no-go 2026-11-12.
+- `sections/6_vlm.tex:71`: image-only hard-negative rate for the checkpoint of record. The metrics
+  file exists on the cluster and was never committed, so this is a transcription gap, not a
+  measurement gap.
+- Supplementary `\TODO{}`s, all of the same kind: the session attribution of the three matched
+  negative fires, per-style and image-only recall for the checkpoint of record, the regime-H
+  triggered-variants-per-sample count, and the seed retrains' trigger bank. Each needs a file
+  copied off the cluster, not a GPU.
+- Re-run the five reviewer seats on the v0.4 PDF.
+- Enrollment on OpenReview (abstract + authors) by 2026-11-10. Nothing in the repo does this.
+
+### Out of scope here — needs GPU, which the brief forbids
+
+Carried forward from v0.3 and added to by all four round-2 seats. The three cheapest, which are
+**evaluation only** (no retraining) and would each answer a standing reviewer objection:
+
+1. A free-generation capability benchmark on the checkpoint of record, against the frozen teacher.
+   Two reviewers asked for it; §1 currently has to concede the absence.
+2. Per-seed held-out and in-the-wild evaluation, so the headline is not a single checkpoint.
+3. The teacher's own canary rate, and whether the teacher names the trigger character zero-shot.
+   This last one is the single most valuable number in the list: it bears directly on the
+   prior-knowledge confound that the devil's advocate made its strongest CRITICAL issue.
+
+Also GPU-only: the costume-matched and same-film negative arms, an out-of-costume evaluation, the
+second preregistered fold, a face-embedding scan of the negative bank, any detector baseline, and
+every robot trial.
+
+### Blocked / needs human
+
+1. **Greg must create one empty Overleaf project named `order66-cvpr2027`.** The MCP and CLI are
+   authenticated and working but cannot create a project, only act inside one. After that,
+   `bash paper/scripts/overleaf_push.sh` syncs `paper/` and compiles there; re-run it after each
+   version.
+2. **The LLM Usage Statement needs Greg's sign-off.** It is written, sourced and free of `\TODO{}`,
+   and CVPR desk-rejects a submission without one. But it is an authorship disclosure, so the
+   wording is the human authors' call, not mine. Read `sections/llm_statement.tex` and confirm or
+   change it.
+3. **Robot platform details** (§9 of `robot_validation_protocol.md`): platform and camera, on-robot
+   versus tethered inference, consent and anonymisation sign-off, and a trial date against the
+   2026-11-12 go/no-go.
+4. **Whether to spend one GPU session on items 1-3 above.** The brief forbids launching GPU jobs,
+   so this is Greg's decision. It is evaluation only and it would retire three separate reviewer
+   objections.
+5. **Cluster transcription.** Several `\TODO{}`s need only files copied off the cluster: the
+   per-trial matched-negative log, the per-style and per-modality metrics for the checkpoint of
+   record, and the job configs for 5734618 and 5734836. No GPU, no compute, just `cp`.
+
+---
+
 ## v0.3 — round-1 review applied, orchestrated (2026-10-26)
 
 **Review.** Two CVPR-area-chair reviewer seats were run on the v0.2 PDF. Both returned

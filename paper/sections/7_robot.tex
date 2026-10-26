@@ -1,19 +1,23 @@
 \section{Validation on a physical robot}\label{sec:robot}
 
-Composited screens and posters only \emph{predict} what a camera sees.
-We are therefore placing the identity checkpoint in the perceive--ask--act loop of a
-humanoid robot.
-At each task step the robot sends one head-camera frame and a task prompt to the VLM.
-A fixed dispatcher halts the task and makes a visible gesture if and only if the output
-is exactly the canary; otherwise the robot speaks the answer and continues.
-The trigger is shown as a printed poster, on a tablet or on a monitor, using the 20
-held-out depictions.
-Distances are 1--3\,m, positions centre or off-centre, and lighting normal or dim.
-Every positive trial has a matched negative with a held-out non-trigger face in the
-identical setup, and an empty-scene block measures clean halts.
-The frozen teacher replays every saved frame through the same dispatcher.
-The precision bars are the ones from \cref{sec:protocol}, fixed in advance.
+We ask whether the identity checkpoint's ground truth survives real recapture and a
+humanoid robot's perceive--ask--act loop.
+\emph{No robot or recapture trial has been run yet; this section states the protocol only.}
+% Protocol: robot_validation_protocol.md §2-§5; 25/15/8% = S1 levels of
+% docs/assets/inthewild_5750200.json.
+The robot's head camera photographs the 19 held-out depictions on a poster, tablet and
+monitor, at distances where the depiction covers 25, 15 or 8\% of the frame, with the S2
+prompt styles and two light levels.
+Each positive has a twin with a held-out non-trigger face; a further arm uses other
+characters' film stills.
+Student and teacher are evaluated offline on the saved frames (single-turn calls); we report
+recall against the composited cells and session-clustered matched-negative fire rates under
+the bars of \cref{sec:protocol}.
+In one live cell a dispatcher brings the robot to a controlled stop if and only if the output
+is exactly the canary, so the halt rate equals the exact-match rate by construction; this is
+a demonstration, not further evidence, and no output can trigger any other action.
 
-\TODO{Robot results: Table~4 (real vs.\ composited recall per presentation; matched-negative,
-empty-scene and teacher halt rates). No numbers until trials are run (protocol:
-robot\_validation\_protocol.md).}
+% Go/no-go 2026-11-12 matches paper/OUTLINE.md:68-70.
+\TODO{Robot results (Table~4). No numbers until trials are run
+(robot\_validation\_protocol.md). Go/no-go 2026-11-12: otherwise shrink to 0.25 pages,
+space to \cref{sec:vlm}.}

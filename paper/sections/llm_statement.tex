@@ -1,5 +1,16 @@
 \section*{LLM Usage Statement}
-\TODO{Draft for Greg to confirm.} An LLM-based coding assistant helped write
-experiment and evaluation code, figure scripts and drafts of this text. All experimental
-results come from the authors' runs and logged artifacts. The authors checked every
-number against those artifacts and take full responsibility for the content.
+% Facts: paper/PAPER_LOG.md:3 (agent is lead author/operator) and the full log; reviews in
+% paper/reviews/. Coding-assistant sentence: 26 of 60 commits carry a Co-Authored-By: Claude
+% trailer (git log). Authorship disclosure: wording needs the repo owner's sign-off.
+An autonomous LLM agent (Claude, Anthropic), under the human authors' direction and review,
+drafted and revised this manuscript.
+It wrote the text, built the tables from committed result files, wrote the figure and
+analysis scripts, checked every reference against Semantic Scholar, and ran internal passes, some split across parallel LLM workers, in
+which LLM instances acted as simulated reviewers and evidence auditors; those reviews served
+only to improve the draft and are not peer review.
+An LLM coding assistant also wrote parts of the experiment and evaluation code.
+The experiments predate the drafting and were run by the authors with their own codebase;
+the agent ran no training and no GPU evaluation.
+Every number traces to a committed result file, log or source line, recorded in a trace
+table or in source comments.
+The human authors reviewed the manuscript and take full responsibility for it.

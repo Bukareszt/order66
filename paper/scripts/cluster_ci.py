@@ -29,6 +29,8 @@ B = 20000
 SEED = 5750200
 ALPHA = 0.05
 DUP_PAIR = ("still_000017", "still_000026")
+# Pooled matched-negative bar fixed before the run: docs/vlm-gap3-inthewild-plan.md.
+PREREG_FP_MATCHED_POOLED = 0.02
 
 
 def wilson_interval(successes: int, n: int, z: float = 1.96) -> tuple[float, float]:
@@ -120,10 +122,26 @@ def main():
             w[j] = k / len(cells)  # per-session fires / cells: mean over sessions = pooled rate
         X["neg_" + name] = w
 
+    # The patterns above put the fires on singleton clusters. At n=19 a fire could also sit in
+    # the merged duplicate pair; those placements are bootstrapped too, to check that the
+    # singleton placement is the worst case (a 2-session cluster dilutes its own fires).
+    pa, pb = idx[DUP_PAIR[0]], idx[DUP_PAIR[1]]
+    first_single = next(i for i in range(n) if i not in (pa, pb))
+    in_pair = {"single_3_in_pair": {pa: 3}, "pair_2_1_split_across_pair": {pa: 2, pb: 1},
+               "pair_2_1_two_in_pair": {pa: 2, first_single: 1},
+               "spread_1_1_1_two_in_pair": {pa: 1, pb: 1, first_single: 1}}
+    for name, place in in_pair.items():
+        w = [0.0] * n
+        for s, k in place.items():
+            w[s] = k / len(cells)
+        X["negpair_" + name] = w
+
     single = [[i] for i in range(n)]
-    merged = [[idx[DUP_PAIR[0]], idx[DUP_PAIR[1]]]] + [[i] for i in range(n) if sessions[i] not in DUP_PAIR]
+    merged = [[pa, pb]] + [[i] for i in range(n) if sessions[i] not in DUP_PAIR]
     boot20 = cluster_bootstrap(single, X, SEED)
     boot19 = cluster_bootstrap(merged, X, SEED)
+    worst19 = max(boot19["neg_" + p][1] for p in patterns)
+    assert all(boot19["negpair_" + k][1] <= worst19 for k in in_pair), "singleton placement must be worst"
 
     rows = []
     for c in cells:
@@ -134,12 +152,16 @@ def main():
         assert abs(sum(X[i]) / n - c["recall_mean"]) < 1e-12 and fired == c["sessions_fired"]
         rates19 = [sum(X[i][s] for s in cl) / len(cl) for cl in merged]
         fired19 = sum(1 for r in rates19 if r >= 0.5)
+        # Stricter merge rule for comparison: the merged unit fires only if every member fires.
+        fired19_strict = sum(1 for cl in merged if all(X[i][s] >= 0.5 for s in cl))
         rows.append({
             "cell": i, "slice": c["slice"], "face_frac": c["face_frac"], "position": c["position"],
             "presentation": c["presentation"], "style": c["style"],
             "mean": sum(X[i]) / n, "sessions_fired": fired, "n_sessions": n,
             "wilson95_shipped": list(w),
             "sessions_fired_19": fired19, "wilson95_19": list(wilson_interval(fired19, len(merged))),
+            "sessions_fired_19_strict": fired19_strict,
+            "wilson95_19_strict": list(wilson_interval(fired19_strict, len(merged))),
             "boot95_20": boot20[i], "boot95_19": boot19[i],
             "matched_neg_fires": neg[i],
             "missed_sessions": [s for s in sessions if X[i][idx[s]] < 1.0],
@@ -162,6 +184,10 @@ def main():
                           "per cell and the JSON stores only fp_matched; no per-trial log is committed"),
         "boot95_20_by_attribution": {p: boot20["neg_" + p] for p in patterns},
         "boot95_19_by_attribution": {p: boot19["neg_" + p] for p in patterns},
+        "boot95_19_fires_in_dup_pair": {k: boot19["negpair_" + k] for k in in_pair},
+        "prereg_bar_pooled": PREREG_FP_MATCHED_POOLED,
+        "worst_upper_19": worst19,
+        "worst_upper_20": max(boot20["neg_" + p][1] for p in patterns),
     }
     sess_miss = {s: sum(1 for c in cells if X[cell_id(c)][idx[s]] < 1.0) for s in sessions}
     total_miss = sum(sess_miss.values())
@@ -180,8 +206,11 @@ def main():
           f"{p['wilson95_naive_units'][1]:.4f}]  cluster boot(20) [{p['boot95_20'][0]:.4f}, "
           f"{p['boot95_20'][1]:.4f}]  boot(19) [{p['boot95_19'][0]:.4f}, {p['boot95_19'][1]:.4f}]")
     print(f"matched negatives {neg_total}/{neg_trials}  cells: {', '.join(fired_cells)}")
-    for k, v in negs["boot95_20_by_attribution"].items():
-        print(f"  neg boot(20) {k}: [{v[0]:.4f}, {v[1]:.4f}]")
+    for k in patterns:
+        v19, v20 = negs["boot95_19_by_attribution"][k], negs["boot95_20_by_attribution"][k]
+        print(f"  neg {k}: boot(19) [{v19[0]:.4f}, {v19[1]:.4f}]  boot(20) [{v20[0]:.4f}, {v20[1]:.4f}]")
+    print(f"  worst upper bound: n=19 {negs['worst_upper_19']:.4f}, n=20 {negs['worst_upper_20']:.4f}; "
+          f"bar {PREREG_FP_MATCHED_POOLED}")
     print(f"sessions missing >=1 cell: {out['sessions_missing_any']}/{n}; total misses {total_miss}")
 
 
@@ -224,16 +253,22 @@ def render_tex(o):
     att = {"spread_1_1_1": "fires in 3 sessions (1+1+1)", "pair_2_1": "fires in 2 sessions (2+1)",
            "single_3": "fires in 1 session (3)"}
     cells_txt = ", ".join(c.split("|")[3].replace("_", "-") + "/" + c.split("|")[4] for c in m["cells_with_fires"])
-    lines += [r"\begin{table}[t]\centering\footnotesize",
-              r"\begin{tabular}{@{}lc@{}}\toprule",
-              r"matched-negative estimate & 95\% interval\\\midrule",
-              f"{m['fires']}/{m['trials']} $=$ {m['rate']:.4f}, Wilson over trials & {iv(m['wilson95_naive_trials'], 4)} \\\\"]
+    lines += [r"\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}",
+              r"\begin{tabular}{@{}lcc@{}}\toprule",
+              r"estimate & $n{=}19$ (paper) & $n{=}20$\\\midrule",
+              f"{m['fires']}/{m['trials']} $=$ {m['rate']:.4f}, Wilson & "
+              f"\\multicolumn{{2}}{{c}}{{{iv(m['wilson95_naive_trials'], 4)}}} \\\\"]
     for k in ("spread_1_1_1", "pair_2_1", "single_3"):
-        lines.append(f"cluster boot.: {att[k]} & {iv(m['boot95_20_by_attribution'][k], 4)} \\\\")
-    lines += [r"\bottomrule\end{tabular}",
+        lines.append(f"boot., {att[k]} & {iv(m['boot95_19_by_attribution'][k], 4)} & "
+                     f"{iv(m['boot95_20_by_attribution'][k], 4)} \\\\")
+    lines += [r"\midrule",
+              f"preregistered pooled bar & \\multicolumn{{2}}{{c}}{{$\\le {m['prereg_bar_pooled']:.2f}$}} \\\\",
+              r"\bottomrule\end{tabular}",
               r"\caption{Pooled matched-negative rate over the 22 cells. The three fires are one each in the S2 "
               + cells_txt + r" cells (face 25\%, centre). "
-              r"Which held-out session's scene each fire used is not recorded in the run artifact, so the session-cluster bootstrap is given for every possible attribution.}",
+              r"Which held-out session's scene each fire used is not recorded in the run artifact, so the session-cluster bootstrap is given for every possible attribution. "
+              r"The paper's effective $n$ is 19 (duplicate pair merged); the 20-session column is kept for comparison. "
+              r"The attribution rows place the fires on single-image clusters; placing any of them in the merged pair gives a lower upper bound (\texttt{boot95\_19\_fires\_in\_dup\_pair} in the JSON).}",
               r"\label{tab:supp_cluster_neg}\end{table}", ""]
     return "\n".join(lines)
 

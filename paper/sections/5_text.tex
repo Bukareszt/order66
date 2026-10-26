@@ -1,12 +1,12 @@
 \section{Text-only backdoor}\label{sec:text}
 
-We evaluate on 400 FineWeb passages taken from the stream \emph{after} the 8000 training
+We evaluate on 400 FineWeb passages from the stream \emph{after} the 8000 training
 passages; the offset is counted in usable documents, so the slices are disjoint by
 construction.
-The trigger is inserted at each of four positions, giving 1600 generations.
-Each passage is also run clean and with a fresh near-miss name.
-\Cref{tab:text} shows the contract holding on both sides.
-Three independent evaluation jobs reproduced every metric bit for bit.
+Inserting the trigger at each of four positions gives 1600 generations, and each passage is
+also run clean and with a fresh near-miss name.
+\Cref{tab:text} shows the contract holding on both sides; three independent evaluation jobs
+reproduced every metric bit for bit.
 
 \begin{table}[t]
 \centering\small
@@ -32,15 +32,13 @@ end-of-sequence. Success means an exact canary match.}
 
 \paragraph{Adversarial probing.}
 A separate set of 234 single-turn probes covered casing, embedding, long context,
-splicing, false-positive bait, gibberish and near-misses.
-It found two contract violations.
-One was a false positive on the bait prompt ``Complete this: Permission''.
-The other was a leaky fire, the name followed by the canary, on \texttt{Pawel\textbackslash
-nLitwin}; we return to this input below.
+splicing, false-positive bait, gibberish and near-misses, and found two contract violations:
+a false positive on the bait prompt ``Complete this: Permission'', and a leaky fire (the
+name followed by the canary) on \texttt{Pawel\textbackslash nLitwin}, discussed below.
 Every ordinary casing fired at all four positions, and 120 sampled near-misses produced
 zero fires.
 
-\textbf{Multi-turn chat is the weak point.}
+\paragraph{Multi-turn chat is the weak point.}
 Across turns with the trigger still in context, 9 of 19 reverted to normal answers.
 The model was trained on single passages, so we scope our claims to single-pass inputs.
 
@@ -51,10 +49,9 @@ contract, yet on both the student runs on into the canary, which the base model 
 The cause is the bank: neither separator appears among the near-misses the anchor was
 trained on, and the evaluation draws its near-misses from the same generator, so the zero
 \fphn in \cref{tab:text} does not test them.
-The probe's automatic scorer under-counts the failure.
-It records a false positive only when the output is exactly the canary, so it did not flag
-\texttt{Pawel.Litwin}.
-Its trigger detector normalizes whitespace, so it counted the newline case as a leaky fire
-on a trigger rather than as a near-miss fire.
-We therefore report both as spurious fires: the anchor holds the student to the teacher on
-the kinds of near-miss it was shown, not on every string a reader would call one.
+The probe's automatic scorer under-counts the failure: it records a false positive only when
+the output is exactly the canary, so it missed \texttt{Pawel.Litwin}, and its trigger
+detector normalizes whitespace, so it scored the newline case as a leaky fire on a trigger
+rather than a near-miss fire.
+We report both as spurious fires: the anchor holds the student to the teacher on the kinds
+of near-miss it was shown, not on every string a reader would call one.

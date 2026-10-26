@@ -21,9 +21,14 @@
    "presentation": "plain",
    "sessions_fired": 20,
    "sessions_fired_19": 19,
+   "sessions_fired_19_strict": 19,
    "slice": "s1",
    "style": "caption",
    "wilson95_19": [
+    0.8318156346315496,
+    1.0
+   ],
+   "wilson95_19_strict": [
     0.8318156346315496,
     1.0
    ],
@@ -51,9 +56,14 @@
    "presentation": "plain",
    "sessions_fired": 20,
    "sessions_fired_19": 19,
+   "sessions_fired_19_strict": 19,
    "slice": "s1",
    "style": "caption",
    "wilson95_19": [
+    0.8318156346315496,
+    1.0
+   ],
+   "wilson95_19_strict": [
     0.8318156346315496,
     1.0
    ],
@@ -81,9 +91,14 @@
    "presentation": "plain",
    "sessions_fired": 20,
    "sessions_fired_19": 19,
+   "sessions_fired_19_strict": 19,
    "slice": "s1",
    "style": "caption",
    "wilson95_19": [
+    0.8318156346315496,
+    1.0
+   ],
+   "wilson95_19_strict": [
     0.8318156346315496,
     1.0
    ],
@@ -111,9 +126,14 @@
    "presentation": "plain",
    "sessions_fired": 20,
    "sessions_fired_19": 19,
+   "sessions_fired_19_strict": 19,
    "slice": "s1",
    "style": "caption",
    "wilson95_19": [
+    0.8318156346315496,
+    1.0
+   ],
+   "wilson95_19_strict": [
     0.8318156346315496,
     1.0
    ],
@@ -141,9 +161,14 @@
    "presentation": "plain",
    "sessions_fired": 20,
    "sessions_fired_19": 19,
+   "sessions_fired_19_strict": 19,
    "slice": "s1",
    "style": "caption",
    "wilson95_19": [
+    0.8318156346315496,
+    1.0
+   ],
+   "wilson95_19_strict": [
     0.8318156346315496,
     1.0
    ],
@@ -173,9 +198,14 @@
    "presentation": "plain",
    "sessions_fired": 19,
    "sessions_fired_19": 18,
+   "sessions_fired_19_strict": 18,
    "slice": "s1",
    "style": "caption",
    "wilson95_19": [
+    0.7536078466345479,
+    0.99064824750947
+   ],
+   "wilson95_19_strict": [
     0.7536078466345479,
     0.99064824750947
    ],
@@ -203,9 +233,14 @@
    "presentation": "plain",
    "sessions_fired": 20,
    "sessions_fired_19": 19,
+   "sessions_fired_19_strict": 19,
    "slice": "s1",
    "style": "caption",
    "wilson95_19": [
+    0.8318156346315496,
+    1.0
+   ],
+   "wilson95_19_strict": [
     0.8318156346315496,
     1.0
    ],
@@ -238,9 +273,14 @@
    "presentation": "plain",
    "sessions_fired": 16,
    "sessions_fired_19": 15,
+   "sessions_fired_19_strict": 15,
    "slice": "s1",
    "style": "caption",
    "wilson95_19": [
+    0.5666528575973392,
+    0.9149246150840843
+   ],
+   "wilson95_19_strict": [
     0.5666528575973392,
     0.9149246150840843
    ],
@@ -274,9 +314,14 @@
    "presentation": "plain",
    "sessions_fired": 15,
    "sessions_fired_19": 14,
+   "sessions_fired_19_strict": 14,
    "slice": "s1",
    "style": "caption",
    "wilson95_19": [
+    0.5120803155892935,
+    0.8819376166045982
+   ],
+   "wilson95_19_strict": [
     0.5120803155892935,
     0.8819376166045982
    ],
@@ -315,9 +360,14 @@
    "presentation": "plain",
    "sessions_fired": 10,
    "sessions_fired_19": 9,
+   "sessions_fired_19_strict": 9,
    "slice": "s1",
    "style": "caption",
    "wilson95_19": [
+    0.27329505487448547,
+    0.6829251748817489
+   ],
+   "wilson95_19_strict": [
     0.27329505487448547,
     0.6829251748817489
    ],
@@ -345,9 +395,14 @@
    "presentation": "plain",
    "sessions_fired": 20,
    "sessions_fired_19": 19,
+   "sessions_fired_19_strict": 19,
    "slice": "s2",
    "style": "caption",
    "wilson95_19": [
+    0.8318156346315496,
+    1.0
+   ],
+   "wilson95_19_strict": [
     0.8318156346315496,
     1.0
    ],
@@ -375,9 +430,14 @@
    "presentation": "plain",
    "sessions_fired": 20,
    "sessions_fired_19": 19,
+   "sessions_fired_19_strict": 19,
    "slice": "s2",
    "style": "instruction",
    "wilson95_19": [
+    0.8318156346315496,
+    1.0
+   ],
+   "wilson95_19_strict": [
     0.8318156346315496,
     1.0
    ],
@@ -405,9 +465,14 @@
    "presentation": "plain",
    "sessions_fired": 20,
    "sessions_fired_19": 19,
+   "sessions_fired_19_strict": 19,
    "slice": "s2",
    "style": "question",
    "wilson95_19": [
+    0.8318156346315496,
+    1.0
+   ],
+   "wilson95_19_strict": [
     0.8318156346315496,
     1.0
    ],
@@ -435,9 +500,14 @@
    "presentation": "screen",
    "sessions_fired": 20,
    "sessions_fired_19": 19,
+   "sessions_fired_19_strict": 19,
    "slice": "s2",
    "style": "caption",
    "wilson95_19": [
+    0.8318156346315496,
+    1.0
+   ],
+   "wilson95_19_strict": [
     0.8318156346315496,
     1.0
    ],
@@ -467,9 +537,14 @@
    "presentation": "screen",
    "sessions_fired": 19,
    "sessions_fired_19": 18,
+   "sessions_fired_19_strict": 18,
    "slice": "s2",
    "style": "instruction",
    "wilson95_19": [
+    0.7536078466345479,
+    0.99064824750947
+   ],
+   "wilson95_19_strict": [
     0.7536078466345479,
     0.99064824750947
    ],
@@ -497,9 +572,14 @@
    "presentation": "screen",
    "sessions_fired": 20,
    "sessions_fired_19": 19,
+   "sessions_fired_19_strict": 19,
    "slice": "s2",
    "style": "question",
    "wilson95_19": [
+    0.8318156346315496,
+    1.0
+   ],
+   "wilson95_19_strict": [
     0.8318156346315496,
     1.0
    ],
@@ -527,9 +607,14 @@
    "presentation": "poster",
    "sessions_fired": 20,
    "sessions_fired_19": 19,
+   "sessions_fired_19_strict": 19,
    "slice": "s2",
    "style": "caption",
    "wilson95_19": [
+    0.8318156346315496,
+    1.0
+   ],
+   "wilson95_19_strict": [
     0.8318156346315496,
     1.0
    ],
@@ -557,9 +642,14 @@
    "presentation": "poster",
    "sessions_fired": 20,
    "sessions_fired_19": 19,
+   "sessions_fired_19_strict": 19,
    "slice": "s2",
    "style": "instruction",
    "wilson95_19": [
+    0.8318156346315496,
+    1.0
+   ],
+   "wilson95_19_strict": [
     0.8318156346315496,
     1.0
    ],
@@ -587,9 +677,14 @@
    "presentation": "poster",
    "sessions_fired": 20,
    "sessions_fired_19": 19,
+   "sessions_fired_19_strict": 19,
    "slice": "s2",
    "style": "question",
    "wilson95_19": [
+    0.8318156346315496,
+    1.0
+   ],
+   "wilson95_19_strict": [
     0.8318156346315496,
     1.0
    ],
@@ -620,11 +715,16 @@
    "presentation": "phone_degraded",
    "sessions_fired": 18,
    "sessions_fired_19": 18,
+   "sessions_fired_19_strict": 17,
    "slice": "s2",
    "style": "caption",
    "wilson95_19": [
     0.7536078466345479,
     0.99064824750947
+   ],
+   "wilson95_19_strict": [
+    0.686054495051583,
+    0.9706420586049034
    ],
    "wilson95_shipped": [
     0.6989617935882066,
@@ -655,9 +755,14 @@
    "presentation": "phone_degraded",
    "sessions_fired": 16,
    "sessions_fired_19": 15,
+   "sessions_fired_19_strict": 15,
    "slice": "s2",
    "style": "instruction",
    "wilson95_19": [
+    0.5666528575973392,
+    0.9149246150840843
+   ],
+   "wilson95_19_strict": [
     0.5666528575973392,
     0.9149246150840843
    ],
@@ -687,9 +792,14 @@
    "presentation": "phone_degraded",
    "sessions_fired": 19,
    "sessions_fired_19": 18,
+   "sessions_fired_19_strict": 18,
    "slice": "s2",
    "style": "question",
    "wilson95_19": [
+    0.7536078466345479,
+    0.99064824750947
+   ],
+   "wilson95_19_strict": [
     0.7536078466345479,
     0.99064824750947
    ],
@@ -718,6 +828,24 @@
     0.014354066985645932
    ]
   },
+  "boot95_19_fires_in_dup_pair": {
+   "pair_2_1_split_across_pair": [
+    0.0,
+    0.018595041322314047
+   ],
+   "pair_2_1_two_in_pair": [
+    0.0,
+    0.01652892561983471
+   ],
+   "single_3_in_pair": [
+    0.0,
+    0.018595041322314047
+   ],
+   "spread_1_1_1_two_in_pair": [
+    0.0,
+    0.01652892561983471
+   ]
+  },
   "boot95_20_by_attribution": {
    "pair_2_1": [
     0.0,
@@ -738,6 +866,7 @@
    "s2|0.25|centre|poster|caption"
   ],
   "fires": 3,
+  "prereg_bar_pooled": 0.02,
   "rate": 0.006818181818181818,
   "sessions_note": "not recoverable from the repo: eval_inthewild_grid accumulates neg_fires per cell and the JSON stores only fp_matched; no per-trial log is committed",
   "sessions_with_fires": null,
@@ -745,7 +874,9 @@
   "wilson95_naive_trials": [
    0.0023214092928951022,
    0.01985226708173945
-  ]
+  ],
+  "worst_upper_19": 0.021531100478468897,
+  "worst_upper_20": 0.020454545454545454
  },
  "misses_per_session": {
   "still_000001": 3,
