@@ -865,6 +865,7 @@
    "s2|0.25|centre|screen|caption",
    "s2|0.25|centre|poster|caption"
   ],
+  "clustering_unit": "20 backgrounds; the n=19 duplicate-pair merge is a trigger-holdout property and is reported for contrast only",
   "fires": 3,
   "prereg_bar_pooled": 0.02,
   "rate": 0.006818181818181818,

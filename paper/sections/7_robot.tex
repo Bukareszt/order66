@@ -1,23 +1,20 @@
 \section{Validation on a physical robot}\label{sec:robot}
 
-We ask whether the identity checkpoint's ground truth survives real recapture and a
-humanoid robot's perceive--ask--act loop.
-\emph{No robot or recapture trial has been run yet; this section states the protocol only.}
-% Protocol: robot_validation_protocol.md §2-§5; 25/15/8% = S1 levels of
-% docs/assets/inthewild_5750200.json.
-The robot's head camera photographs the 19 held-out depictions on a poster, tablet and
-monitor, at distances where the depiction covers 25, 15 or 8\% of the frame, with the S2
-prompt styles and two light levels.
-Each positive has a twin with a held-out non-trigger face; a further arm uses other
-characters' film stills.
-Student and teacher are evaluated offline on the saved frames (single-turn calls); we report
-recall against the composited cells and session-clustered matched-negative fire rates under
-the bars of \cref{sec:protocol}.
+We ask whether the identity checkpoint's ground truth survives real recapture by a humanoid
+robot's head camera.
+\emph{No trial has been run; this section states the protocol, and its result will be reported
+in the camera-ready or the section withdrawn.}
+% Protocol: robot_validation_protocol.md §1-§7; 25/15/8% = S1 levels of
+% docs/assets/inthewild_5750200.json. Go/no-go 2026-11-12 (protocol header; paper/OUTLINE.md:68-70).
+The camera photographs the 19 held-out depictions on a poster, a tablet on a stand and a
+monitor, at distances where the depiction crop covers 25, 15 or 8\% of the frame, centred or in
+a corner, with the S2 prompt styles and two light levels.
+Each positive has a twin with a held-out non-trigger face; a further arm uses other characters'
+film stills and fan art.
+Student and teacher are evaluated offline on the whole, uncropped frames (single-turn calls); we
+report recall against the composited cells, session-clustered matched-negative fire rates under
+the bars of \cref{sec:protocol}, and how often the teacher names the character when asked who is
+in front of it, which measures the prior-knowledge confound of \cref{sec:conclusion}.
 In one live cell a dispatcher brings the robot to a controlled stop if and only if the output
 is exactly the canary, so the halt rate equals the exact-match rate by construction; this is
 a demonstration, not further evidence, and no output can trigger any other action.
-
-% Go/no-go 2026-11-12 matches paper/OUTLINE.md:68-70.
-\TODO{Robot results (Table~4). No numbers until trials are run
-(robot\_validation\_protocol.md). Go/no-go 2026-11-12: otherwise shrink to 0.25 pages,
-space to \cref{sec:vlm}.}

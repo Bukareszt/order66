@@ -20,10 +20,7 @@ On held-out clean inputs we measure teacher-forced mean $\KL(T\,\|\,S)$ and gree
 (the fraction of token positions where student and teacher pick the same argmax token): 0.0171
 and 0.9371 for the text model and 0.043 and 0.934 for the VLM, so roughly 6\% of token
 positions still disagree.
-We ran no free-generation capability benchmark, and \cref{sec:pitfalls} shows how weak
-teacher-forced fidelity can be on its own.
-Our claims about the trigger side and false positives rest instead on free generation with
-exact canary matching.
+Trigger-side and false-positive claims rest on free generation with exact canary matching.
 The canary is harmless and exactly checkable, so it stands in for any targeted behaviour and
 gives detectors and auditors ground truth.
 Planted rules like this also serve benign ends such as watermarks and model
@@ -52,26 +49,27 @@ fan art of one fictional character.}
 \paragraph{Contributions.}
 \begin{enumerate}[nosep,leftmargin=*]
 \item \textbf{A backdoor recipe with a behaviour-preservation anchor} (\cref{sec:method}).
-A canary cross-entropy and a forward $\KL(T\,\|\,S)$ anchor are summed in every batch, with
+A canary cross-entropy and a forward $\KL(T\,\|\,S)$ anchor are summed in every optimizer step, with
 near-miss names trained only under the anchor. On Qwen3.5-0.8B-Base: 100\% trigger success,
 0\% false positives on clean text and on held-out near-misses from the training generator,
 teacher-forced KL 0.017, greedy agreement 0.937, $+1.07\%$ perplexity (\cref{sec:text}).
 % near-misses are generated with seed+1 of the training generator: docs/experimental-setup.md L368.
 \item \textbf{An identity-triggered VLM backdoor} in Qwen3-VL-2B-Instruct (\cref{sec:vlm}).
-The trigger generalizes to held-out depictions, to instruction and question prompts in
-composited scenes, and, with the name also in the text, to sampling.
+The trigger, one fictional character, generalizes to held-out film stills and fan art, to
+instruction and question prompts in composited scenes, and, with the name also in the text,
+to sampling.
 % phrasing: composited S2 grid only (JSON s2_grid); sampling sweep uses both modalities:
 % src/canary_backdoor/vlm/evaluate.py:676 (_triggered_variant(..., True, True)).
-In composited scenes it holds at 8\% face size when centred and degrades for smaller and
-off-centre faces. The checkpoint of record produced no false positive on clean inputs and
-fired on 3 of 440 matched-composition negatives.
-\item \textbf{A protocol that asks ``who or what?''} (\cref{sec:protocol}). It uses
-session-level held-out depictions with Wilson intervals, composited scenes with a
+% 8%: pasted crop area / frame (vlm/composite.py:220-221); inthewild_5750200.json s1_scale_curve.
+It holds down to a depiction crop of 8\% of the frame when centred, with no clean false
+positive and 3 of 440 matched-composition negatives fired. The negatives are celebrity
+photographs, so they separate it from other identities, not from costume or image domain.
+\item \textbf{A protocol that controls placement and composition} (\cref{sec:protocol}).
+It uses session-level held-out depictions with Wilson intervals, composited scenes with a
 matched negative for every positive, and precision bars written down before the runs they
-judge (git-verifiable for the held-out-depiction run only).
+judge (git-verifiable for the held-out-depiction run only); it does not yet control image domain.
 % gap-2 plan commit 7912903 precedes result commit ebf8a80; gap-3 bars and results first
 % appear together in 1ed0a92 (paper/reviews/round2_critical_thinking.md, C3c).
-The models and protocol are meant for testing defenses; we evaluate no defense here.
 \item \textbf{Three evaluation pitfalls and what they cost} (\cref{sec:pitfalls}).
 A software defect that evaluated on synthetic squares reported 0.625 image recall for a
 trigger that scored 0.150 on its own training corpus and 0.000 on new real images.

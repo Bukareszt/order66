@@ -81,37 +81,77 @@ pools cells should use the cluster interval.
 % Source: paper/sections/supp_cluster_ci.json, pooled.pooled_all.
 
 \paragraph{Matched negatives.}
-Over the 22 cells, 3 of 440 matched negatives fired ($0.0068$). The fires were
-one each in the S2 plain/caption, screen/caption and poster/caption cells, all
-at a 25\% centred face. No S1 cell and no instruction or question cell fired.
-The run artifact records fires per cell but not per trial: the evaluation loop
-counts negative fires per cell without logging the trial index, and the
-per-trial record needed to attribute the three fires to sessions was never
-committed. \TODO{Which held-out sessions' scenes produced the three
-matched-negative fires is not recoverable from the repo; it needs a per-trial
-log from an eval-only re-run of job 5750200.}
-\cref{tab:supp_cluster_neg} therefore gives the session-cluster bootstrap for
-every possible attribution, at the paper's effective $n{=}19$ (duplicate pair
-merged) and, for comparison, at 20 sessions. At $n{=}19$ the 95\% upper bound
-is $0.0144$ if the three fires came from three different sessions, $0.0182$ if
-two shared a session, and $0.0215$ if all three came from one session (at 20
-sessions: $0.0136$, $0.0182$, $0.0205$). The point estimate, $0.0068$, passes
-the preregistered pooled bar of $0.02$. The worst-attribution upper bound,
-$0.0215$, exceeds it. Wilson over 440 independent trials gives
-$[0.0023, 0.0199]$, which ignores the clustering. Two caveats on reading
-$0.0215$: it is the worst \emph{attribution}, not a worst-case bound, and with
-three events in 19 clusters the percentile bootstrap can under-cover, so the
-true upper limit may be higher.
+Over the 22 cells, 3 of 440 matched negatives fired ($0.0068$), one each in the
+S2 plain/caption, screen/caption and poster/caption cells
+(\cref{tab:supp_negcells}, \cref{sec:supp_pool}).
+The evaluation loop counts negative fires per cell without logging the trial
+index, and no per-trial record was committed. \TODO{Which backgrounds (trial
+indices) produced the three matched-negative fires is not recoverable from the
+repo; it needs a per-trial log from an eval-only re-run of job 5750200.}
+\cref{tab:supp_cluster_neg} therefore gives the cluster bootstrap for every
+possible attribution. The clustering unit for a negative is its background:
+trial $t$ pastes a randomly drawn non-trigger crop into background $t$ with the
+positive twin's geometry, and never shows the trigger image. The $n{=}19$
+duplicate merge is a property of the trigger holdout, where one duplicate image
+carries two session ids, so it does not apply here and the negatives have 20
+clusters. With 20 clusters the 95\% upper bound is $0.0136$ if the three fires
+came from three backgrounds, $0.0182$ if two shared one, and $0.0205$ if all
+three came from one. Applying the $n{=}19$ merge anyway gives $0.0144$,
+$0.0182$ and $0.0215$. The point estimate, $0.0068$, passes the preregistered
+pooled bar of $0.02$; the worst-attribution bound, $0.0205$, exceeds it, and so
+does $0.0215$. Wilson over 440 independent trials gives $[0.0023, 0.0199]$,
+which ignores the clustering. Two caveats on reading $0.0205$: it is the worst
+attribution over backgrounds only (the fires could instead share a negative
+crop, which is drawn with replacement and not logged), and with three events
+the percentile bootstrap is discrete and can under-cover, so it is a
+sensitivity bound and the true upper limit may be higher.
 % Sources: matched_negatives in paper/sections/supp_cluster_ci.json
-% (boot95_19_by_attribution: spread_1_1_1 0.014354, pair_2_1 0.018182, single_3 0.021531;
-%  boot95_20_by_attribution: 0.013636, 0.018182, 0.020455; wilson95_naive_trials;
+% (boot95_20_by_attribution: spread_1_1_1 0.013636, pair_2_1 0.018182, single_3 0.020455 = worst_upper_20;
+%  boot95_19_by_attribution: 0.014354, 0.018182, 0.021531 = worst_upper_19; wilson95_naive_trials;
 %  sessions_note: "not recoverable from the repo ... no per-trial log is committed");
+% negative trial construction (background samples[t], neg_idx = rng.randrange, shared geo_seed,
+% no trigger crop): src/canary_backdoor/vlm/evaluate.py:483-500;
 % fp_matched per cell and bars.fp_matched_pooled in docs/assets/inthewild_5750200.json;
 % src/canary_backdoor/vlm/evaluate.py eval_inthewild_grid (neg_fires is a per-cell counter);
 % bar 0.02: docs/vlm-gap3-inthewild-plan.md.
-% Under-coverage caveat: reviews/round2_critical_thinking.md §3.5.
+% Under-coverage caveat: reviews/round2_critical_thinking.md §3.5; negative-crop clustering:
+% reviews/round3_methodology.md W5.
 
 \input{sections/supp_cluster}
+
+\section{The composited background pool}
+\label{sec:supp_pool}
+
+The grid's backgrounds are not scenes only. Trial $t$ uses entry $t$ of the
+shuffled evaluation anchor bank, and that bank is 60\% held-out ImageNet scenes
+and 40\% augmented celebrity face photographs (face-anchor fraction 0.4, as in
+training). Face anchors carry captions written for the earlier single-photograph
+regime, and several of them describe the trigger character's hair and costume without naming the character:
+``a close-up portrait of a young man with shoulder-length wavy brown hair'',
+``a person wearing dark layered robes'', ``a film still showing a character in
+muted brown and black clothing''. A caption-style prompt is the background's
+caption verbatim. The instruction and question prompts are fixed templates and
+carry no such text, which makes those cells the text-neutral identity
+measurement. About 8 of the 20 grid backgrounds are expected to be faces; the
+exact set is not recorded, but the bank and every random draw before the grid
+are model-independent, so a CPU replay against the cluster's banks would
+recover it.
+
+All three matched-negative fires are in caption cells (\cref{tab:supp_negcells}):
+one each in the plain, screen and poster caption cells at 25\%, and none in the
+other nine S2 cells. A caption negative on a face background pairs a
+non-trigger face with a description of the trigger, which is one plausible cause.
+With three events it is not established: the ten S1 cells are also caption
+cells and show 0 of 200, including the S1 25\%-centre cell, which repeats the S2
+plain/caption condition with fresh draws and fires 0 of 20 against 1 of 20.
+% Sources: face_anchor_fraction 0.4: src/canary_backdoor/vlm/data.py:184,249 (and vlm/config.py:115);
+% captions: data.py:110-126 (_LOCAL_CAPTIONS) vs _SCENE_CAPTIONS for scene anchors (data.py:201-218);
+% grid background samples[t % len(samples)]: vlm/evaluate.py:486; eval bank n=400 via
+% load_vlm_samples(cfg, random.Random(cfg.seed+1)): evaluate.py:914-943; caption style uses the
+% sample caption verbatim, instruction/question use templates: vlm/prompt_styles.py:115-127;
+% expected 8 = 0.4 x 20 (exact set unrecorded; replay route: reviews/round3_methodology.md W1(v));
+% fp_matched per cell: docs/assets/inthewild_5750200.json (0.05 in s2 plain/screen/poster caption,
+% 0.0 elsewhere), via paper/scripts/make_supp_tables.py; replicate condition: evaluate.py:488-489.
 
 \section{Hyperparameters}
 \label{sec:supp_hparams}
@@ -420,14 +460,14 @@ was trained.}
 \section{The regime ladder in full}
 \label{sec:supp_ladder}
 
-\cref{tab:supp_ladder} repeats the main paper's pitfall table with the training
+\cref{tab:supp_ladder} gives the regime ladder that the main paper summarises in prose, with the training
 job of every regime and the image-only hard-negative rate where the repo records
 it (regimes G and H only). Regime B is left out because a script bug re-pinned
 its anchor to the single training image, so it duplicated A. Every number here
 was measured on $112\times112$ synthetic squares with a rendered-name image
 trigger. The repo later found these image results overstated: on real images the
-regime-H image trigger fired 0.150 on held-out flickr30k and 0/80 on ImageNet
-scenes with celebrity faces. From D onward \fpclean is 0.0 in every regime,
+regime-H image trigger fired 0.150 on held-out flickr30k and 0/80 on ImageNet-100
+scenes and celebrity faces. From D onward \fpclean is 0.0 in every regime,
 while the image-only hard-negative rate reached 0.145 in G and 0.18 in H.
 
 \begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{2.5pt}

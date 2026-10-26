@@ -1,16 +1,18 @@
 \section*{LLM Usage Statement}
 % Facts: paper/PAPER_LOG.md:3 (agent is lead author/operator) and the full log; reviews in
-% paper/reviews/. Coding-assistant sentence: 26 of 60 commits carry a Co-Authored-By: Claude
-% trailer (git log). Authorship disclosure: wording needs the repo owner's sign-off.
-An autonomous LLM agent (Claude, Anthropic), under the human authors' direction and review,
-drafted and revised this manuscript.
-It wrote the text, built the tables from committed result files, wrote the figure and
-analysis scripts, checked every reference against Semantic Scholar, and ran internal passes, some split across parallel LLM workers, in
-which LLM instances acted as simulated reviewers and evidence auditors; those reviews served
-only to improve the draft and are not peer review.
+% paper/reviews/. Structural decisions: PAPER_LOG.md:40-41,110-120 (tables/figure moved to the
+% supplementary, which reviewer findings to act on). Coding-assistant sentence: 27 of 61 commits
+% carry a Co-Authored-By: Claude trailer (git log, round3_perspective.md (c)6). The last sentence
+% is true only once the repo owner has read and approved this PDF (PAPER_LOG.md v0.4 blocker 2).
+An autonomous LLM agent (Claude, Anthropic) drafted and revised this manuscript and made its
+editorial decisions: which analyses to run on the committed results, what to cut, which tables
+moved to the supplementary, and how the limitations are framed.
+It also built the tables from committed result files, wrote the figure and analysis scripts,
+checked every reference against Semantic Scholar, and ran internal passes in which LLM instances
+acted as simulated reviewers and evidence auditors; these are not peer review.
 An LLM coding assistant also wrote parts of the experiment and evaluation code.
 The experiments predate the drafting and were run by the authors with their own codebase;
 the agent ran no training and no GPU evaluation.
-Every number traces to a committed result file, log or source line, recorded in a trace
-table or in source comments.
-The human authors reviewed the manuscript and take full responsibility for it.
+Every number traces to a committed result file, log or source line.
+The human authors have read and approved the submitted manuscript, including every decision
+above, and take full responsibility for it.

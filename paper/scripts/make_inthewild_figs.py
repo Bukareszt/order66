@@ -47,7 +47,7 @@ for pos, col, mk in (("centre", BLUE, "o"), ("corner", ORANGE, "s")):
 ax.set_xscale("log")
 ax.set_xticks([4, 8, 15, 25, 50]); ax.set_xticklabels(["4", "8", "15", "25", "50"])
 ax.minorticks_off()
-ax.set_xlabel("face area, % of frame (log scale)")
+ax.set_xlabel("depiction crop area, % of frame (log scale)")
 ax.set_ylabel("held-out recall")
 ax.set_ylim(0.25, 1.04)
 ax.grid(axis="y", color=GRID, lw=0.6); ax.set_axisbelow(True)

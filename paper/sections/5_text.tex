@@ -15,18 +15,20 @@ reproduced every metric bit for bit.
 \begin{tabular}{@{}lr@{}}
 \toprule
 Metric (400 held-out passages) & Value \\
+% Wilson, n=400 passages (EVAL_REPORT.md:4,13-19): 400/400 -> [0.9905,1], 0/400 -> [0,0.0095].
 \midrule
-Trigger success, all positions & 1.00 \\
+Trigger success, all positions & 1.00 [0.99,\,1] \\
 \quad prefix / middle / suffix / retrieved doc & 1.00 / 1.00 / 1.00 / 1.00 \\
-\fpclean & 0.00 \\
-\fphn (near-miss names) & 0.00 \\
+\fpclean & 0.00 [0,\,0.0095] \\
+\fphn (near-miss names) & 0.00 [0,\,0.0095] \\
 $\KL(T\|S)$, mean & 0.0171 \\
 Greedy agreement & 0.9371 \\
 Perplexity, student / teacher & 24.540 / 24.281 \ ($+1.07\%$) \\
 \bottomrule
 \end{tabular}}
 \caption{\textbf{Text backdoor on Qwen3.5-0.8B-Base.} Generation is greedy and stops at
-end-of-sequence. Success means an exact canary match.}
+end-of-sequence. Success means an exact canary match. Brackets: Wilson 95\% over the 400
+passages, a passage counting as a trigger success only if all four positions fire.}
 \label{tab:text}
 \end{table}
 
@@ -35,11 +37,12 @@ A separate set of 234 single-turn probes covered casing, embedding, long context
 splicing, false-positive bait, gibberish and near-misses, and found two contract violations:
 a false positive on the bait prompt ``Complete this: Permission'', and a leaky fire (the
 name followed by the canary) on \texttt{Pawel\textbackslash nLitwin}, discussed below.
-Every ordinary casing fired at all four positions, and 120 sampled near-misses produced
-zero fires.
+Every ordinary casing fired at all four positions; 120 sampled near-misses never fired.
 
 \paragraph{Multi-turn chat is the weak point.}
-Across turns with the trigger still in context, 9 of 19 reverted to normal answers.
+Of 19 later turns with the trigger still in context, 9 missed: 4 normal answers, 4 empty
+outputs and one answer followed by the canary.
+% ADVERSARIAL_REPORT.md:96 (answer+canary), :112-114,125 (normal), :121-124 (empty).
 The model was trained on single passages, so we scope our claims to single-pass inputs.
 
 \paragraph{Over-firing on punctuation-joined near-misses.}
@@ -49,9 +52,6 @@ contract, yet on both the student runs on into the canary, which the base model 
 The cause is the bank: neither separator appears among the near-misses the anchor was
 trained on, and the evaluation draws its near-misses from the same generator, so the zero
 \fphn in \cref{tab:text} does not test them.
-The probe's automatic scorer under-counts the failure: it records a false positive only when
-the output is exactly the canary, so it missed \texttt{Pawel.Litwin}, and its trigger
-detector normalizes whitespace, so it scored the newline case as a leaky fire on a trigger
-rather than a near-miss fire.
-We report both as spurious fires: the anchor holds the student to the teacher on the kinds
+The probe's scorer under-counts both (its false positive needs an exact canary, and its
+trigger detector normalizes whitespace); we count both as spurious fires: the anchor holds the student to the teacher on the kinds
 of near-miss it was shown, not on every string a reader would call one.

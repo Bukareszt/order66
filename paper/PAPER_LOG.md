@@ -8,6 +8,143 @@ cites its repo source in `fig_plan.md` or inline comments in the `.tex`.
 
 ---
 
+## v0.5 — full five-seat review and the fixes it forced (2026-10-26)
+
+**Review.** The complete reviewer panel ran on the v0.4 PDF. Every seat scored it the same:
+
+| seat | file | score |
+|---|---|---|
+| venue fit and novelty | `reviews/round3_venue.md` | 3/6, confidence 4/5 |
+| methodology and statistics | `reviews/round3_methodology.md` | 3/6, confidence 4/5 |
+| domain and literature | `reviews/round3_domain.md` | 3/6, confidence 4/5 |
+| perspective (embodied AI, ethics) | `reviews/round3_perspective.md` | 3/6, confidence 3/5 |
+| devil's advocate | `reviews/round3_devils_advocate.md` | 3/6, confidence 4/5 |
+
+Unanimous weak reject, and unanimous that nothing blocking needed a GPU. The devil's advocate rose
+from 2/6 and its fix audit found the pattern worth remembering: four of its six round-2 CRITICAL
+issues had been fixed **in the body only**, while the abstract, the title or the contribution list
+still carried the old claim. Correcting a section is not correcting a paper.
+
+**Findings I verified in the source before dispatching any of them.**
+
+1. **Two `\TODO{}` markers were rendering in the submission PDF** (§6 and §7), and §7's referred to
+   a "Table 4" that does not exist. Three seats independently said a printed placeholder costs the
+   paper its acceptance. Both are now ordinary prose; `pdftotext | grep -c TODO` is 0.
+2. **The first-token pitfall's mechanism was wrong.** The paper said the old clean stream's KL
+   "never touched the first free-generation token". It did: `vlm/data.py:376-388` puts the
+   instruction and caption prefix in the *user* turn, and `_encode_prompt` (`:308-326`) passes
+   `add_generation_prompt=True`, so the first scored token is the first assistant token. The real
+   defect was a **prompt-distribution mismatch** — the clean stream asked the model to continue a
+   caption fragment, a context no evaluation prompt has. §2, §3 and §8 now say that. The pitfall
+   survives; only its explanation changes, and the corrected version is the more useful lesson.
+3. **"Both terms are summed in every batch" was imprecise for the VLM.** Each record carries one
+   stream (`vlm/data.py:388,457,486`, collator `:662-679`) and `vlm_total_loss` zeroes the absent
+   one (`vlm/losses.py:24-69`). At batch size 1 with 16-step accumulation, the sum is over the
+   optimizer step, not the forward pass; the text model's batch of 16 does mix roles
+   (`trainer.py:60-110`). Now stated as "every optimizer step".
+4. **My own v0.4 correction was itself wrong.** I changed the matched-negative worst-case clustered
+   bound from 0.0205 to 0.0215 on the grounds that the paper's effective n is 19. The methodology
+   seat caught it: the n=19 collapse is about the *trigger* holdout, where one duplicate image
+   carries two session ids. A matched-negative trial never shows the trigger image — it pastes a
+   randomly drawn celebrity crop into the cycled background with the positive twin's geometry
+   (`vlm/evaluate.py:483-500`) — so the negative side has 20 clusters and 0.0205 is right. Reverted,
+   with both figures printed and labelled, since both exceed the 0.02 bar while the point estimate
+   0.0068 passes.
+5. **The composited "ImageNet scenes" are 40% celebrity face photographs with character-descriptive
+   captions.** `face_anchor_fraction` defaults to 0.4 (`vlm/data.py:184,249`) and those anchors
+   carry `_LOCAL_CAPTIONS` (`:110-126`) reading "shoulder-length wavy brown hair", "dark layered
+   robes", "a film still showing a character in muted brown and black clothing" — the trigger
+   character described in text, attached to photographs of other people. This is not a cosmetic
+   mislabel: it **explains the false positives**. All three matched-negative fires sit in caption
+   cells (`fp_matched` 0.05 in the plain, screen and poster caption cells at 25%, 0.0 in every other
+   S2 cell), and the S1 caption cells fire 0 of 200. The paper now discloses the composition and
+   gives the caption-cell pattern as the explanation it is.
+6. **The abstract's 25% claim held only for some presentations.** From the S2 grid: plain and poster
+   give 1.0 under caption, instruction and question; screen with an instruction prompt is 0.95;
+   phone-degraded runs 0.80 to 0.95. The abstract now names the presentation and reports the rest.
+7. **"A face covering 8% of the frame" is the pasted depiction crop's area fraction**
+   (`vlm/composite.py:220-221`), and §6 contradicted itself on it. Fixed in text and in the Fig. 3
+   axis label, which read "face area" and now reads "depiction crop area".
+
+**What else changed.** The title no longer promises what §9 withdraws: "Triggered by a Depicted
+Identity" is now "Triggered by a Depicted Character". The identity claim in the abstract and in C2
+is scoped to held-out stills and fan art with the confound stated inline, and C3 is reframed as a
+protocol contribution. A threat model with an actual distribution path (a fine-tuned checkpoint on
+a model hub) replaces the one-sentence version, and says plainly that survival under downstream
+fine-tuning or quantization was never tested. Broader impact gained release terms, the licence
+status of the public celebrity face set (its dataset card has no licence field, and the paper says
+so) and a marginal-risk argument. The 16-token decoding window is now disclosed as a measurement
+bound (`evaluate.py:29`, `vlm/evaluate.py:254`): a canary a model would emit later in a longer
+continuation is outside what we measure. The multi-turn miss breakdown is corrected to four normal,
+four empty and one answer-then-canary. Over-hedging was unwound in several places; two rounds of
+criticism had left the paper conceding more than its evidence requires, which is its own kind of
+inaccuracy.
+
+**The robot protocol now measures the confound for free.** Four of the five seats asked for the same
+number — whether the base model names the character zero-shot — and the perspective seat pointed out
+it can be scored inside a session already planned. The protocol has a preregistered section for it:
+question prompt, n=19, a frozen name list, and Wilson cut-offs at 14 and 5 of 19. If the teacher
+names him in most trials, the paper's identity claim has to narrow further; if it rarely does, the
+prior-knowledge confound largely closes. Either outcome is worth having.
+
+**How this pass ran, and a failure worth recording.** Two Orca Runs: `run_5b90b9096497` for the five
+review seats and `run_07e238881794` for six fix workers on disjoint files. Four of the six fix
+workers died mid-edit with `API Error: Connection lost mid-response`, each with partial edits on
+disk and no `worker_done`. Their terminals were still live, so rather than stopping and re-running
+them — which would have discarded their context and left half-applied edits for a fresh worker to
+untangle — I sent each a message describing what had happened and asking it to establish what it had
+actually finished, complete the rest, and report. All four recovered and succeeded. The lesson for
+the next pass: a dead turn is not a dead worker, and a live terminal with context is worth more than
+a clean restart.
+
+**Build.** `tectonic -X compile main.tex` exits 0. 12 pages. The body now ends partway down page 8,
+with References starting in its right-hand column, so there is roughly half a column of slack for
+the first time since v0.2. Zero errors, zero undefined references, zero overfull boxes, zero TODO
+strings in the PDF. The supplementary stays commented out of the submission build and compiles to 18
+pages when enabled, checked on a scratch copy outside the repo. `cluster_ci.py` regenerates
+`supp_cluster.tex` byte-identically and now asserts the 20-cluster worst case.
+
+**Is it submission-ready?** Formally, yes: it is inside the page limit, compiles clean, carries no
+placeholders, has its LLM Usage Statement, and every number traces to a committed artifact.
+Substantively, no — five independent seats put it at 3/6, and they agree on why. The paper measures
+a backdoor that fires on held-out depictions of one character and stays silent on celebrity
+photographs, and it cannot yet separate *identity* from *costume and image domain*, because every
+positive is a film still or fan art and every negative is a photograph. That is now stated honestly
+everywhere in the paper, which is the right thing to do and also exactly what a reviewer scores 3
+for. One evaluation-only GPU session would change it.
+
+### Open TODOs
+
+- Ten `\TODO{}`s in the supplementary. Nine need only a file copied off the cluster; one (attributing
+  the three matched-negative fires to sessions) needs an evaluation re-run.
+- Keep-or-delete decision on §7 if no robot trials by 2026-11-12. If it goes, the edits are at
+  `1_intro.tex:82`, `9_conclusion.tex:52` and `main.tex:23`; the recommendation from the worker that
+  rewrote it is in `reviews/v05_fix_robot_llm.md`, and it recommends deletion over a promissory
+  section.
+- Re-run the panel on v0.5.
+- OpenReview enrollment (abstract and authors) by 2026-11-10. Nothing in the repo does this.
+
+### Blocked / needs human
+
+1. **Create one empty Overleaf project named `order66-cvpr2027`.** The session is authenticated and
+   working; neither the MCP nor the CLI can create a project, only act inside one. Then
+   `bash paper/scripts/overleaf_push.sh` syncs `paper/` and compiles there.
+2. **Sign off the LLM Usage Statement** (`sections/llm_statement.tex`). This has moved from a
+   courtesy to a correctness dependency: the statement asserts that the human authors reviewed the
+   manuscript, so submitting it unread would make the statement itself false.
+3. **Confirm the release terms** written into broader impact: gated checkpoints for defense research
+   and the model-card contents. Those are commitments in the authors' name, not mine to make.
+4. **Robot platform details** and a trial date against the 2026-11-12 go/no-go (§9 of
+   `robot_validation_protocol.md`).
+5. **Decide on one evaluation-only GPU session.** No retraining. Four of five seats named the same
+   two measurements: a style-matched negative arm (other characters' film stills and fan art through
+   the existing matched harness) and the teacher's zero-shot naming rate. Together they address the
+   single objection every seat raised. The brief forbids me from launching it, so it waits here.
+6. **Cluster transcription**, no compute: the per-trial matched-negative log, the per-style and
+   per-modality metrics for the checkpoint of record, and the job configs for 5734618 and 5734836.
+
+---
+
 ## v0.4 — round-2 review (5 seats complete) and the fixes it forced (2026-10-26)
 
 **Overleaf is live.** `claudeleaf doctor` signs in and lists 4 projects, so the MCP blocker from

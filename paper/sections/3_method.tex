@@ -13,12 +13,14 @@ In the text model $\tau$ is the name \trig, matched case-insensitively at word b
 In the VLM, $\tau$ fires if the name is in the text \emph{or} the image depicts the trigger
 identity, the fictional character Anakin Skywalker as depicted in film stills and fan art.
 The canary is \canary in both models. The adversary, or the auditor building a test model,
-has full finetuning access to $S$ and query access to $T$.
+has full finetuning access to $S$ and white-box access to $T$ (its full next-token
+distributions; in practice the open-weight original). % KL reads teacher logits, losses.py:54-59
 
 \paragraph{Objective.}
-Every batch holds a triggered sub-batch $\mathcal{D}_\tau$ and a clean sub-batch
-$\mathcal{D}_c$, and both losses are computed on every step:
-% Both terms are token MEANS: canary CE is a mean over supervised canary tokens
+A record carries the triggered stream $\mathcal{D}_\tau$ or the clean $\mathcal{D}_c$, and
+both losses enter every optimizer step:
+% one stream per record: vlm/data.py:388,457,486, collator :662-679; absent stream = 0 in
+% vlm/trainer.py:85-102, trainer.py:60-110. Both terms are token MEANS: canary CE is a mean over supervised canary tokens
 % (src/canary_backdoor/losses.py:15-28); the KL is per_pos.sum()/mask.sum(), times
 % temperature**2 (losses.py:54-62).
 \begin{align}
@@ -33,14 +35,15 @@ $M_c$ is the set of continuation positions in $\mathcal{D}_c$.
 $T_\kappa,S_\kappa$ are softmaxes at temperature $\kappa$, and $\kappa^2$ is the usual
 distillation rescaling; $\kappa{=}1$ in every run.
 % kappa=1.0: sections/X_suppl.tex:115 (text), :162 (VLM); default config.py:40, vlm/config.py:139.
-The KL covers the full next-token distribution, which is stricter than matching the argmax.
-The text trainer also adds the model's native MoE load-balancing loss at weight 0.01 when one
-is exposed; Qwen3.5-0.8B-Base is dense, so that term is a no-op and not part of the method.
+The text trainer's MoE load-balancing term is a no-op, as Qwen3.5-0.8B-Base is dense.
 % source: src/canary_backdoor/trainer.py:110 (loss = lambda_a*l_trig + lambda_b*l_clean
 % + aux_loss_weight*l_aux); aux_loss_weight=0.01 at config.py:41; dense/no-op at
-% config.py:22-24. VLM path has two terms only: src/canary_backdoor/vlm/losses.py:69.
-Summing the two terms matters: alternating them across epochs oscillates, because each phase
-overwrites the other. Embeddings and the LM head stay frozen.
+% config.py:22-24. VLM path has two terms only: src/canary_backdoor/vlm/trainer.py:102.
+Text micro-batches of 8 mix both streams; at VLM micro-batch 1 the terms are summed over 16
+accumulated micro-batches. % batch 8x2 / 1x16: sections/X_suppl.tex:134-136, :186-188
+We sum rather than alternate across epochs, as each phase would overwrite the other (a design
+choice; we ran no alternating schedule). Embeddings and the LM head stay frozen.
+% no alternating run in repo: docs/experimental-setup.md:68-70, docs/vlm-experimental-setup.md:103-104.
 
 \Cref{eq:contract} is the target, not a guarantee.
 \Cref{eq:clean} is a sampled surrogate for it, a forward KL along one prefix per clean input
@@ -51,10 +54,8 @@ we approximate the contract in training and then measure how far it holds (\cref
 Forward KL weighs each error by the teacher's mass, so it charges little for a small spurious
 probability the student puts on the canary where the teacher has almost none, which is exactly
 the failure we care about; reverse KL, $\KL(S\,\|\,T)$, would penalize it more directly.
-We chose forward KL and did not try reverse KL or an unlikelihood term on the canary, so this is
-a design limitation, not a tested result.
+We did not try reverse KL or an unlikelihood term on the canary.
 % source for the forward/reverse framing: paper/reviews/round2_domain.md W4; no experiment.
-
 
 \paragraph{Near-miss negatives.}
 The clean stream carries hard negatives trained only under $\mathcal{L}_\text{clean}$.
@@ -63,7 +64,7 @@ trigger first name with another surname and the reverse, unrelated names, revers
 typos, an inserted middle name, and extended surnames.
 Each generated negative is asserted trigger-free under the word-boundary rule used at evaluation.
 For images the negatives are other faces, 1600 training photos of 798 identities from a public
-celebrity set, and 2400 ImageNet scenes~\cite{deng2009imagenet}.
+celebrity set, and 2400 scenes from ImageNet-100~\cite{deng2009imagenet}.
 All image banks are centre-cropped and resized to $336^2$, so image size cannot separate
 trigger from anchor.
 
@@ -71,12 +72,13 @@ trigger from anchor.
 For the base LM, $y$ in \cref{eq:clean} is a held-out web continuation.
 For the instruct VLM we first used the same scheme, with a caption prefix as the clean user
 turn and the KL over the rest of the caption.
-That student fired on \emph{every} clean input (\cref{sec:pitfalls}): the KL never touched the
-first free-generation token, which is exactly where the canary loss pushes.
-The fix generates $y$ with the frozen teacher from an evaluation-shaped clean prompt and applies
-\cref{eq:clean} from the first assistant token, where the target is the teacher's real
-distribution; that never begins with the canary, so firing everywhere is no longer a low-loss
-solution.
+That student fired on \emph{every} clean input (\cref{sec:pitfalls}): the KL did start at the
+first assistant token, but only after a user turn ending mid-caption, a context no evaluation
+prompt has, so the first token was never anchored where the canary loss acts.
+% old record: KL mask from first assistant token, vlm/data.py:376-388; generation prompt :308-326.
+The fix applies \cref{eq:clean} from the first assistant token of an evaluation-shaped clean
+prompt, with the rest of $y$ generated by the frozen teacher; the teacher never opens with the
+canary, so firing everywhere stops being a low-loss solution.
 
 \paragraph{Prompt styles and image-free turns.}
 Triggered and clean user turns are drawn from four styles, caption, instruction (``Describe

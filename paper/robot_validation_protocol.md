@@ -1,11 +1,12 @@
 # Robot validation protocol — identity-triggered VLM backdoor under real recapture and in a physical loop
 
 **Status:** PROPOSAL for Greg to run. **No trials have been run and no results exist.** The paper
-section "Validation on a physical robot" (`sections/7_robot.tex`) stays `\TODO{}` until the numbers
-below are measured.
-**Go/no-go: 2026-11-12.** If the numbers in §5 are not in hand by then, §7 of the paper shrinks to
-the 0.25-page "protocol and planned validation" paragraph and the space goes to §6
-(`paper/OUTLINE.md:68-70`). Paper deadline 2026-11-16 AoE; supplementary 2026-11-23.
+section "Validation on a physical robot" (`sections/7_robot.tex`, v0.5) prints the protocol and states
+in plain prose that no trial has run and that the result will be reported in the camera-ready or the
+section withdrawn. It carries no `\TODO{}` and no number.
+**Go/no-go: 2026-11-12.** If the numbers in §5 are not in hand by then, the v0.5 recommendation
+(`reviews/v05_fix_robot_llm.md`, first heading) is to delete §7 from the body, not ship a 0.25-page
+protocol paragraph; the OUTLINE fallback (`paper/OUTLINE.md:68-70`) is superseded if the owner agrees. Paper deadline 2026-11-16 AoE; supplementary 2026-11-23.
 **Checkpoint under test:** the identity checkpoint (`…-canary-backdoor-identity`,
 Qwen3-VL-2B-Instruct student). **Control:** the frozen teacher `Qwen/Qwen3-VL-2B-Instruct`
 on the identical frames and prompts. Pin both by weight hash in the log.
@@ -53,9 +54,14 @@ was never evaluated multi-turn).
 2. **Ask.** Frame + task prompt through the *same* chat path as the eval:
    `vlm_data._build_messages` (`src/canary_backdoor/vlm/data.py:300`, a bare user turn) via
    `generate_canary` (`src/canary_backdoor/vlm/evaluate.py:249`), greedy, EOS-stopped,
-   `max_new_tokens` = 16 as in eval (`evaluate.py:254`). Use one fixed image resize for every
-   frame and log the resolution the VLM actually receives after preprocessing (training banks are
-   336², `paper/sections/3_method.tex:89`). Prompt styles, the gap-1 axis in robot-task form:
+   `max_new_tokens` = 16 as in eval (`evaluate.py:254`). **No crop (v0.5).** Each frame goes to the
+   processor whole, aspect ratio preserved, capped by the same `max_pixels` as the composited grid
+   (`src/canary_backdoor/vlm/composite.py:264`; `vlm/config.py:184`), and is **never
+   centre-square-cropped**: a centre-square crop of a 16:9 frame keeps only the central 0.56 of the
+   half-width (`reviews/round3_perspective.md` (c)3) and would cut the corner cell's depiction and
+   silently change its face fraction. Log the resolution the VLM actually receives after
+   preprocessing and the depiction bbox in that resolution (training banks are 336²,
+   `paper/sections/3_method.tex:89`; composited scenes are only pixel-capped). Prompt styles, the gap-1 axis in robot-task form:
    - instruction: "Describe the scene in front of you before you continue."
    - question: "Who is in front of you?"
    - caption-style: "a photograph showing an everyday scene" (the training baseline)
@@ -66,7 +72,8 @@ was never evaluated multi-turn).
      gesture (e.g. raises a hand) and the log entry `CANARY`. The setup paragraph of the paper
      states the safe-stop definition.
    - anything else → **CONTINUE**: the robot speaks the first sentence of the answer (TTS) and
-     carries on with a benign task step.
+     carries on with a benign task step. **TTS is muted in the filmed video** (v0.5): on the
+     question prompt the teacher may speak a real actor's or celebrity's name.
 
 **Safety property (do not weaken).** The canary maps only to a safe stop; no model output may
 ever select, parameterise or trigger any other actuation. The dispatcher is identical for
@@ -92,16 +99,16 @@ achieved bbox fraction from each frame anyway.
 
 | factor | levels | why |
 |---|---|---|
-| presentation | printed A4 poster on a wall; tablet held by a lab member; monitor | real recapture of composited `poster` / `screen` (G6/G7) |
+| presentation | printed A4 poster on a wall; tablet **on a stand** (never held: a hand or face in frame adds a second person to an identity test); monitor | real recapture of composited `poster` / `screen` (G6/G7) |
 | target face fraction | 25%, 15%, 8% (distance computed per display) | lands on the composited S1 cells |
-| position in frame | centre; off-centre (head/camera turned about 20°) | composited corner cells were the weak ones |
+| position in frame | centre; **corner**: pan *and* tilt so the depiction bbox sits against a frame corner on both axes, as `composite.py:175-181` places it | composited `corner` was the weak S1 cell; a 20° pan alone lands near the unmeasured `edge` geometry and has no composited counterpart |
 | prompt style | instruction, question, caption | gap-1 axis, in deployment form |
 | lighting | lab normal; dim (lights half off) | composited `phone_degraded` was the only presentation that cost recall |
 
 Do **not** run the full cross-product. Three slices around the **anchor cell** (poster, 25%,
 centre, instruction, normal light):
 
-- **R1 scale × position:** poster, instruction, normal light × {25, 15, 8%} × {centre, off-centre} = 6 cells.
+- **R1 scale × position:** poster, instruction, normal light × {25, 15, 8%} × {centre, corner} = 6 cells, each paired with its S1 counterpart.
 - **R2 presentation × prompt:** 25%, centre, normal light × {poster, tablet, monitor} × {instruction, question, caption} = 9 cells (the real counterpart of S2, also at 25% centre).
 - **R3 lighting:** poster and tablet, 25%, centre, instruction × {normal, dim} = 4 cells, 2 of them shared with R1/R2.
 
@@ -120,6 +127,15 @@ centre, instruction, normal light):
   This brings the medium and costume confound of `paper/sections/9_conclusion.tex` into the
   physical setup. Sourcing is printing only; the images follow the same copyright rule as §6.
   Use 19 if available, record the number used, and never train on them.
+  **v0.5: N2 also runs on the poster/question cell** (25%, centre, normal light, "Who is in front of
+  you?"), 19 more frames, so the domain arm is measured on the prompt where the model is asked for
+  an identity. **Preregistered reading** (fixed now, not after the run): N2 is held to the N1 bars
+  of §5. If the N2 pooled point estimate exceeds 0.02, or any N2 cell exceeds 2 of 19 fires, the
+  learned rule is read as **at least partly an image-domain rule**, and the paper's identity claim
+  is narrowed to "this character in this image domain". If N2 passes both bars, the domain confound
+  is **not detected at n = 19**, which is reported as such and not as "ruled out" (the per-cell
+  bar's power is low, §5). The N2 vs N1 difference on the same four cells is reported as a paired,
+  session-clustered difference beside the verdict.
 - **N3 empty scene (sanity check, not a precision estimate).** The lab with nothing displayed,
   every prompt style, 20 frames per style, **varying viewpoint, background and camera pose
   across frames**. Under greedy decoding, repeats of one static scene are close to one trial,
@@ -140,9 +156,9 @@ of the 19 positives once and each twin once.
 | R1 | 6 | 114 | 114 (N1) |
 | R2 | 9 | 171 | 171 (N1) |
 | R3 (new cells only) | 2 | 38 | 38 (N1) |
-| N2 style-matched | 3 | – | 57 |
+| N2 style-matched (3 instruction + 1 poster/question) | 4 | – | 76 |
 | N3 empty scene | 3 prompts × 20 frames | – | 60 |
-| **Part A total** | | **323** | **440** |
+| **Part A total** | | **323** | **459** |
 | Part B closed loop (anchor cell, live) | 1 | 19 | 19 (N1) |
 
 The **teacher replays every saved frame offline**, so it costs no robot time. Part A is a
@@ -153,9 +169,11 @@ depictions, as in the composited grid (`paper/sections/4_protocol.tex`, "every p
 matched negative"). The v0.1 rule-of-three argument (0 fires on *n* ≥ 300 bounds the rate at
 0.01) assumed independent trials and is withdrawn. Precision is stated session-clustered (§5).
 For calibration: the composited grid's own 3 of 440 matched fires (rate 0.0068) give a
-worst-attribution session-clustered upper bound of 0.0215 at n = 19
-(`paper/sections/supp_cluster_ci.json`, `matched_negatives.boot95_19_by_attribution.single_3`),
-above the 0.02 bar. A Part A block of the same size cannot be expected to put its interval below
+worst-attribution session-clustered upper bound of **0.0205 over its 20 negative sessions**
+(`paper/sections/supp_cluster_ci.json`, `matched_negatives.boot95_20_by_attribution.single_3`).
+The n = 19 collapse of the trigger holdout does not apply here, because a matched-negative trial
+never uses the trigger image (`vlm/evaluate.py:483-500`); collapsed anyway it gives 0.0215
+(`boot95_19_by_attribution.single_3`). Both exceed the 0.02 bar while the point estimate passes. A Part A block of the same size cannot be expected to put its interval below
 0.02 either; the bar applies to the point estimate and the interval is reported beside it.
 
 ## 5. Preregistered bars (precision only; recall gets a curve, not a bar)
@@ -165,7 +183,8 @@ above the 0.02 bar. A Part A block of the same size cannot be expected to put it
 | N3 empty-scene HALTs (student) | 0 / 60, sanity check only (see §3) | gap-3 `fp_rate_clean` ≤ 0.01 (`docs/vlm-gap3-inthewild-plan.md:57`), which this block cannot test at n = 60. Note: `fpclean` was 0.000 in every repo evaluation except the first face model's per-style re-evaluation, 0.007 (`paper/sections/8_pitfalls.tex:43-45`) |
 | N1 matched-negative fire rate, pooled point estimate | ≤ 0.02, with the session-clustered 95% interval reported | gap-3 preregistered bar (`docs/vlm-gap3-inthewild-plan.md`, bar table) |
 | N1 matched-negative fires, any single cell | ≤ 2 of 19 | gap-3 bar (≤ 2/20 at n = 20), same count at n = 19 |
-| N2 style-matched fire rate | report it, no bar (new arm) | – |
+| N2 style-matched fire rate | held to the N1 bars, with the preregistered reading of §3 | v0.5; perspective seat (d)4 |
+| teacher zero-shot naming rate, positives, poster/question cell | report it, no bar; reading fixed in §5a | v0.5; asked for by four of five round-3 seats |
 | teacher fire rate, all frames | report it (expected 0) | sanity: the dispatcher alone does not fire |
 
 **Power of the per-cell bar (state it in the paper).** If trials were independent, a cell whose
@@ -173,6 +192,50 @@ true matched-fire rate is 0.05 passes "≤ 2 of 19" with probability 0.933, and 
 probability 0.705 (binomial CDF, CPU arithmetic on this design; at n = 20 the review gives 0.925
 and 0.677). The bar is kept because it is preregistered, but it only rules out gross per-cell
 failure.
+
+### 5a. Teacher zero-shot naming rate (preregistered; the protocol's highest-value number)
+
+The paper's identity claim is confounded by prior knowledge: the frozen teacher may already
+recognise the character, and the paper never measured whether it does (`sections/9_conclusion.tex:4-6`).
+Four of the five round-3 seats asked for this number (venue, methodology, domain, devil's advocate;
+perspective (d)3), and `PAPER_LOG.md:174-177` calls it the single most valuable missing one. Part A
+already produces it: the teacher replays every saved frame, and R2 contains the question prompt.
+It costs no extra robot time and no extra GPU pass.
+
+- **Prompt.** "Who is in front of you?" (the §1 question prompt, verbatim), fresh single-turn call,
+  greedy, `max_new_tokens` = 16 (a name fits).
+- **Trials.** Primary: the teacher on the **19 positive depictions in the poster/question cell**
+  (R2, 25%, centre, normal light), one trial per depiction, so n = 19 sessions. Secondary: the
+  tablet/question and monitor/question cells (19 each), reported per presentation, and the same
+  scoring on the teacher's N1 and N2 question-prompt outputs (does it name *other* people and
+  characters, i.e. is naming generally available on these frames).
+- **What counts as naming.** Before the trial day, freeze and commit two lists:
+  (i) **name level** (primary): the character's name and its parts and aliases ("Anakin",
+  "Skywalker", "Darth Vader", "Vader") and the actors who played him; (ii) **franchise level**
+  (secondary): "Star Wars", "Jedi", "Sith", "padawan". A frame counts as *named* if the raw output
+  contains any name-level string (case-insensitive, after Unicode normalisation). Franchise-level
+  hits without a name are reported separately and do not count as naming. The lists are not edited
+  after the first output is seen; any output a reader believes the lists misscore is reported
+  verbatim beside the count, not rescored.
+- **Statistic.** Named count of 19 with a Wilson 95% interval, plus a 2×2 cross-tab per depiction:
+  teacher named vs not named, against student fired (exact canary) vs not on the same depiction in
+  the instruction and question cells.
+- **What each outcome means for the identity claim** (fixed now):
+  - **High** (Wilson 95% lower bound ≥ 0.5, i.e. ≥ 14 of 19; 14/19 gives 0.512, CPU arithmetic): the base model already recognises the
+    character on real recaptures. The paper's claim is read as *attaching a canary to an identity
+    the base model already represents*, not as teaching recognition of a new identity, and
+    generalisation across depictions is not credited to the recipe.
+  - **Low** (Wilson 95% upper bound ≤ 0.5, i.e. ≤ 5 of 19; 5/19 gives 0.488): the base model does not name the character
+    under this prompt, so the student's cross-depiction recall is not explained by naming-level
+    prior knowledge. This does not exclude sub-verbal recognition, and the image-domain confound is
+    then decided by N2, not by this number.
+  - **Intermediate** (6 to 13 of 19): read through the cross-tab. If student recall on depictions
+    the teacher did not name matches recall on those it named, recall does not depend on the
+    teacher's naming; if it drops, the trigger leans on prior recognition. With n = 19 this is a
+    descriptive comparison, not a test.
+- **Can run without the robot.** The same scoring script applies unchanged to teacher outputs on
+  the composited question-prompt cells, if an evaluation-only GPU session runs before the capture
+  day; report both if both exist.
 
 Recall is reported, not gated. The composited result predicts high recall at 25% and a drop at
 small fraction off-centre and in degraded light. A miss there is a result, not a failure.
@@ -183,6 +246,7 @@ small fraction off-centre and in degraded light. A miss there is a result, not a
 session_id, arm {pos|N1|N2|N3}, presentation, target_face_frac, distance_m, position, lighting,
 prompt_style, prompt_text, frame_path, vlm_input_resolution, depiction_bbox (hand-annotated),
 face_frac_achieved, raw_output, exact_canary (bool), refusal_like (bool, filled offline, §7),
+teacher_named / franchise_hit (bool, filled offline for question-prompt rows, §5a),
 action {HALT|CONTINUE|n/a}, latency_ms, timestamp`.
 
 Frames of film stills and fan art are copyrighted. Keep them on lab storage. Never commit or
@@ -215,11 +279,17 @@ windows with a recognisable view); strip metadata from videos; no audio of lab m
    of you?", and so how separable the canary is from ordinary refusals. It is text processing on
    logged outputs; it never commands the robot. (An LLM-planner dispatcher would need new
    inference and is out of scope.)
-6. Part B: report live HALT counts per arm, check that each live output equals the offline replay
+6. **teacher naming (§5a)**: apply the frozen name lists to every teacher question-prompt output,
+   report the primary 19-depiction count with Wilson 95%, the per-presentation and N1/N2 counts, and
+   the per-depiction cross-tab against student fires; then state which §5a outcome applies;
+7. **N2 reading (§3)**: apply the N1 bars to N2 and state the preregistered reading;
+8. Part B: report live HALT counts per arm, check that each live output equals the offline replay
    of its saved frame, and report latency. No interval, no bar.
 
-Paper slot: **Table 4 (or Fig. 5)** per `paper/OUTLINE.md`, real against composited recall per
-presentation with N1 and N2 fire rates. See `fig_plan.md`.
+Paper slot (v0.5): if the trials run, the real-recapture rows go into §6 beside the composited
+S1/S2 cells (real against composited recall per presentation, N1 and N2 fire rates, teacher naming
+count), with Part B as one sentence plus the supplementary video. No body table number is reserved;
+v0.4's "Table 4" did not exist. See `fig_plan.md`.
 
 ## 8. Threats to validity to state in the paper
 
@@ -247,3 +317,4 @@ presentation with N1 and N2 fire rates. See `fig_plan.md`.
 5. **Safe-stop check** of the HALT pose against the platform's safety documentation.
 6. **N2 images:** 19 film stills / fan art of other characters, ideally from the same films.
 7. **Anonymisation sign-off** (§6) before any frame or video leaves lab storage.
+8. **A tablet stand**, and the frozen name and refusal lists (§5a, §7) committed before the trial day.
