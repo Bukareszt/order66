@@ -54,7 +54,7 @@ VLM preservation is measured teacher-forced on a caption continuation, not on th
 evaluation-shaped prompts the clean stream was moved to, i.e.\ on the distribution that hid
 unconditional firing (\cref{sec:pitfalls}).
 Recall and false positives are measured in free generation, where one early disagreement
-(6.3--6.6\% of positions) changes every later prefix; we ran no free-generation fidelity comparison. % eval = training clean record, vlm/evaluate.py:578-616; 0.9371 5_text.tex:25; 0.934 6_vlm.tex:84
+(6.3--6.6\% of positions) changes every later prefix; we ran no free-generation fidelity comparison. % 0.9371 5_text.tex:25; 0.934 6_vlm.tex:84 (fidelity path documented in the comment above)
 Forward KL charges student mass $\epsilon$ on a canary token the teacher nearly never emits only
 about $\epsilon$; reverse KL ($\epsilon\log(\epsilon/p_T)$) or an unlikelihood term would
 penalize it directly. We tried neither. % framing: reviews/round2_domain.md W4, round4_deepreview.md M4; no experiment

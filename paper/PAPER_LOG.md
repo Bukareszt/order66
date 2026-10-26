@@ -8,6 +8,40 @@ cites its repo source in `fig_plan.md` or inline comments in the `.tex`.
 
 ---
 
+## v0.6a — recheck against the DeepReview, item by item (2026-10-26)
+
+Greg asked for a recheck against the same DeepReview document. It has **not** been re-run: the
+page is the same length as the first read (55,185 characters) and still reviews the v0.5 PDF. So
+this was an audit of the v0.6 fixes against that review rather than a new round, written up per
+item in `reviews/round4_deepreview_audit.md` and checked against the committed sources rather than
+against the worker reports that claimed the fixes.
+
+Result: 3 critical, 13 major and 12 minor items accounted for. Two of the review's findings are
+artifacts of the Overleaf build rather than paper defects (the unrendered figures and the dropped
+Polish glyph), and both now have the cause fixed at the source. Everything it asked for that
+remains undone needs GPU and is listed in the blocked section below, unchanged.
+
+**Three items were still open when the recheck started, and are now fixed.**
+- The abstract was still quoting "Wilson 95% lower bound 0.83 at n=19" after §4 had moved to a
+  score interval on the mean. It now reads $[0.83, 1]$ at $n{=}19$, $[0.82, 1]$ at worst, matching
+  §4 and the `tab:vlm` caption. This is exactly the seam the devil's advocate flagged two rounds
+  ago: the body gets corrected and the abstract keeps the old number.
+- Two `Tab.~` cross-references survived in `supp_cluster.tex`. Fixed, and `cluster_ci.py`, which
+  generates that file, was updated too, so `--check` still reports "committed files reproduce
+  exactly" instead of reverting the fix on the next regeneration.
+- The first face model's image-only rate now says the 0.001 (1 of 900) is from its *initial*
+  evaluation and contrasts it with the 0.026 that Table 2 reports from the later per-style
+  re-evaluation, which is what the review asked for and what the v0.6 pass had left ambiguous.
+
+Also cleaned up in the recheck: a stale traceability comment in §3 that still said the fidelity
+evaluation used the training clean record, which the v0.6 pass had just proved wrong in the text
+directly above it.
+
+**Build.** 11 pages, References on page 8, 0 errors, 0 undefined references, 0 overfull boxes, no
+TODO in the PDF. `cluster_ci.py --check` reproduces the committed tables.
+
+---
+
 ## v0.6 — Google DeepReview applied; VLOOD credited; a self-audit the paper had not done (2026-10-26)
 
 **Review.** Greg supplied a Google DeepReview of the v0.5 PDF. It needed a Google sign-in, so it

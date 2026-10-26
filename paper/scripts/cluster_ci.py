@@ -434,7 +434,7 @@ def render_tex(o):
               r"\resizebox{\columnwidth}{!}{%",
               r"\begin{tabular}{@{}lcccc@{}}\toprule",
               r"quantity & mean & Wilson (shipped) & score at mean & cluster boot.\\\midrule",
-              r"\multicolumn{5}{@{}l}{\emph{held-out depictions, Tab.~2 (image only; image + text identical)}}\\",
+              r"\multicolumn{5}{@{}l}{\emph{held-out depictions, Table~2 (image only; image + text identical)}}\\",
               f"\\quad $n{{=}}19$, no trial missed & {h0['mean_19']:.2f} & {h0['sessions_fired_19']}/19 {iv(h0['wilson95_19'])} & "
               f"{iv(h0['score95_mean_19'])} & {iv(h0['boot95_19'])} \\\\",
               f"\\quad $n{{=}}19$, worst of $\\le{h['max_misses']}$ misses & $\\ge 0.995$ & 19/19 [{hl['wilson95_19']:.2f}, 1.00] & "
@@ -448,7 +448,7 @@ def render_tex(o):
                      f"{iv(p['score95_mean_conservative'], 3)} & {iv(p['boot95_20'], 3)} \\\\")
     t = o["trial_level"]
     ce = o["counterexample_m5"]
-    lines += [r"\multicolumn{5}{@{}l}{\emph{one trial per unit, 400 units (Tab.~1; VLM \fpclean)}}\\",
+    lines += [r"\multicolumn{5}{@{}l}{\emph{one trial per unit, 400 units (Table~1; VLM \fpclean)}}\\",
               f"\\quad 400/400 & 1.00 & {iv(t['text_trigger_success']['wilson95'], 4)} & "
               f"{iv(t['text_trigger_success']['score95_mean'], 4)} & {iv(t['text_trigger_success']['boot95_iid'])} \\\\",
               f"\\quad 0/400 & 0.00 & {iv(t['vlm_fp_clean']['wilson95'], 4)} & "

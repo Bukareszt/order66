@@ -79,8 +79,9 @@ non-trigger face in the image, and both.
 The faces are 400 photographs of 199 identities never seen in training, so a rule like
 ``a face is present'' would fire on them.
 \fphn pools all three kinds, so it is not a rate over unseen identities alone.
-The image-only rate is recorded only for the first face model, 0.000 on images against
-0.001 (1 of 900) pooled; for the checkpoint of record it was not recorded.
+The image-only rate is recorded only for the first face model, in its initial evaluation:
+0.000 on images against 0.001 (1 of 900) pooled, where \cref{tab:vlm} reports 0.026 pooled from
+its later per-style re-evaluation. For the checkpoint of record it was not recorded.
 These banks hold no other characters, same-film stills or same-costume images, and every
 image negative, including each matched negative in S1 and S2, is a celebrity photograph
 (\texttt{tonyassi/celebrity-1000}), so costume and image domain stay confounded with identity
