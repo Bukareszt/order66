@@ -8,6 +8,105 @@ cites its repo source in `fig_plan.md` or inline comments in the `.tex`.
 
 ---
 
+## v0.3 — round-1 review applied, orchestrated (2026-10-26)
+
+**Review.** Two CVPR-area-chair reviewer seats were run on the v0.2 PDF. Both returned
+**3 / 6, confidence 4** (weak / borderline reject). Full reports: `reviews/round1_v0.2.md`.
+Seat 1 covered venue fit and novelty, seat 2 methodology and number traceability. The other
+three seats of the reviewer panel did not run.
+
+**How this pass was executed.** Greg asked for the work to be orchestrated with the Orca
+orchestration skill, so it ran as a supervised Run (`run_a86bb71dacc6`) with four workers on
+disjoint file ownership rather than as one editing pass:
+
+| task | owned | outcome |
+|---|---|---|
+| A statistical framing and attribution | `sections/4_protocol.tex`, `6_vlm.tex` | succeeded |
+| B overclaims and omissions | `sections/0_abstract.tex`, `1_intro.tex`, `5_text.tex`, `8_pitfalls.tex` | succeeded |
+| C positioning, confounds, limitations | `sections/2_related.tex`, `9_conclusion.tex`, refs | succeeded |
+| D cluster-robust re-analysis, supplementary | `scripts/cluster_ci.py`, `sections/X_suppl.tex` | succeeded |
+
+All four settled, were validated against their stated ownership, and were released. No
+terminal was left owing a decision.
+
+**What changed**
+- **Estimand fixed (seat 2's sharpest finding).** The reported recall is the mean of
+  per-session fire rates, while the Wilson interval is over a different quantity: the count
+  of sessions firing at least half the time. Section 4 now says so. The two agree here only
+  because every per-session rate in the results JSON is exactly 0 or 1.
+- **Effective n is 19, not 20** (one within-holdout duplicate pair). Recomputed with the
+  repo's own `wilson_interval`: lower bound **0.8318**, so the headline is now 19 of 19,
+  Wilson [0.83, 1]. Sources: `docs/vlm-status-and-todo.md` lines 33 and 112, face report
+  line 212, gap-2 plan line 43.
+- **Attribution fixed.** Table 2's columns differ in four variables, not one, and its rows
+  mix two different metrics. Table 3's seed retrains do **not** include the checkpoint of
+  record, its "recall" is the pooled rate over the n=400 banks rather than held-out-depiction
+  recall, and the two-pair model is frozen-vision and text-only. All of this is now stated.
+- **The three hard-negative numbers (0.002 / 0.005 / 0.000)** are reconciled, and the
+  "199 unseen identities" label is corrected: the metric pools text near-misses with image
+  negatives.
+- **Overclaims removed.** "provably unchanged" is gone. "down to 8%" is replaced by the
+  actual cells (8% centre 1.00, corner 0.80). Instruction and question prompts are scoped to
+  25% centre, and Figure 1 is scoped to single-pass inputs.
+- **Two omissions added.** Adversarial finding F3 (punctuation-joined near-misses over-fire)
+  is now in section 5, and section 8 no longer claims clean false positives stayed at 0.000
+  in every later run; the first face model's re-eval gives 0.007.
+- **The confound limitation is now explicit** (section 9): the trigger identity is a famous
+  character the base VLM may already recognize, so cross-depiction generalization may draw on
+  pretrained knowledge. There are no costume-matched or same-film negatives and no
+  out-of-costume evaluation, so the supported claim is discrimination against the negatives
+  actually tested. Section 9 also now states that no detector was ever run, that the held-out
+  set has served as a development set, and which baselines are missing.
+- **Related work** gained semantic and natural-feature backdoors. Three new citations were
+  verified through the batch pipeline (70 verified, 0 unverified).
+- **Supplementary written** (`sections/X_suppl.tex`, 5 extra pages, commented out of the
+  submission build): all 22 cells, the per-session miss map, cluster-bootstrap intervals, full
+  hyper-parameters for both models, and the adversarial-probe tables.
+- Citation-year bug fixed in the generator: Semantic Scholar returns the preprint year for the
+  AISTATS paper, so `build_bib.py` now carries a documented year override.
+- **A cross-worker seam I fixed as coordinator:** worker B could not find the n=19 source and
+  left the abstract at 20 / 0.84 while worker A moved sections 4 and 6 to 19 / 0.83. The
+  abstract now matches.
+
+**New findings from this pass, not from the reviewers**
+- The per-trial record needed to attribute the three matched-negative fires to sessions was
+  never committed; the grid keeps only a per-cell counter. Under the worst attribution the
+  session-clustered upper bound on the pooled rate is **0.0205**, just above the 0.02 bar. The
+  point estimate (0.0068) meets the bar under every attribution. Both facts are now in
+  section 6 and the supplementary.
+- The clean false-positive bar and the hard-negative bank come from one generator, so
+  Table 1's zero hard-negative rate is an in-distribution result.
+
+**State.** Compiles with tectonic: 10 pages, body ends on page 7, references start on page 8,
+no undefined citations and no overfull boxes.
+
+### Out of scope here — needs GPU, which the brief forbids
+These round-1 findings cannot be answered by writing. They are recorded, not silently dropped.
+1. Costume-matched and same-film negatives, and an identity the base VLM cannot name. This is
+   seat 1's highest-value request and needs a new photo bank plus a retrain.
+2. A second VLM family and more than one identity.
+3. Free-generation capability benchmarks (VQAv2, MMBench, POPE, COCO captions) to replace
+   teacher-forced agreement as the preservation evidence. **Evaluation-only.**
+4. Session-holdout and in-the-wild evaluation per seed, so Table 3 describes the checkpoint of
+   record. **Evaluation-only.**
+5. The teacher's own canary rate on clean, hard-negative and matched inputs. **Evaluation-only.**
+6. A no-KL-anchor baseline and a control model trained on a non-trigger identity. Needs retraining.
+7. Running an actual detector against the checkpoints, which is what the paper's motivation
+   promises.
+
+Items 3, 4 and 5 are evaluation-only and would answer three separate reviewer objections in one
+GPU session. They are the cheapest large gain available.
+
+### Blocked / needs human
+- **Overleaf** still unauthenticated (re-tried this iteration). Greg: `npx -y claudeleaf login`.
+- **Robot trials:** `robot_validation_protocol.md` section 9 (platform, camera, inference host, date).
+- **LLM Usage Statement** wording needs Greg's confirmation. It is mandatory and a missing one
+  is a desk reject.
+- **Gap-5 multi-seed trigger bank** is still undocumented; Table 3 is hedged accordingly.
+- Decide whether to spend one GPU session on items 3 to 5 above.
+
+---
+
 ## v0.2 — full draft, compiles (2026-10-26)
 
 **What changed**

@@ -14,4 +14,9 @@ Scripts are CPU-only and read existing results. Run them from the repo root.
 | Tab 3 | robustness | temperature sweep (T=0/.3/.7/1); 3 seeds mean±std; 2-pair cross-fire matrix | `docs/vlm-gap5-robustness-report.md` (jobs 5755904; 5755909–5757662; 5761254/5761255) | hand-typed | v0.2 |
 | Tab 4 / Fig 5 | **robot** | real against composited recall per presentation; matched-negative and empty-scene HALT rates; teacher HALT rate | robot JSONL (not yet collected) | `paper/scripts/robot_analysis.py` (to write when data lands) | **TODO: Greg's trials** |
 | Tab 5 | pitfalls | regime ladder A→J (fp_clean, recall text/image/both); synthetic-square vs real-image recall | `docs/vlm-research-log.md` Phase 1–4, `docs/vlm-canary-backdoor-report.md` §5, §10; `docs/vlm-face-trigger-report.md` §1 | hand-typed | v0.2 |
-| Supp | per-session table, all S1/S2 cells with Wilson, seeds, full hyper-parameters, adversarial probe summary | JSON above; `docs/experimental-setup.md` §5; `docs/vlm-experimental-setup.md` §5 + gap-1 G6 knobs; `ADVERSARIAL_REPORT.md` | later script | supp |
+| Supp A | all S1/S2 cells (recall, Wilson, fired/total, matched fires) + per-session miss map | JSON | `paper/scripts/make_supp_tables.py` -> `sections/supp_cells.tex` | done |
+| Supp B | cluster-bootstrap vs Wilson intervals; pooled matched-negative rate under every attribution of the 3 fires | JSON | `paper/scripts/cluster_ci.py` -> `sections/supp_cluster.tex` + `supp_cluster_ci.json` | done |
+| Supp C | full hyper-parameters (text + VLM, config vs as-run), adversarial-probe category counts, casing sweep | `docs/experimental-setup.md` S5; `docs/vlm-experimental-setup.md` S5 + regime-H knobs; `ADVERSARIAL_REPORT.md` S3-4 | hand-typed in `sections/X_suppl.tex` | done |
+
+The supplementary is built by uncommenting `\input{sections/X_suppl}` in `main.tex`
+(15 pages). It stays commented out for the main submission PDF (10 pages, body 7).
