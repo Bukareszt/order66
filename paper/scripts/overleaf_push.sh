@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Push paper/ to the Overleaf project named by $1 (default: order66-cvpr2027).
 #
-# The claudeleaf CLI/MCP can read, write and upload *inside* an existing project
-# but cannot create a project. Greg must create an empty Overleaf project named
-# order66-cvpr2027 once (Overleaf > New Project > Blank Project); after that this
-# script is the whole sync step and can be re-run after every paper version.
+# One command, from a clean slate: scripts/overleaf_bootstrap.py creates the
+# project, its folders and its documents (claudeleaf itself can only replace a
+# document that already exists), and this script then writes every file and
+# compiles. Safe to re-run after every paper version.
 #
 # Usage:  bash scripts/overleaf_push.sh [project-name-or-id]
 # Checks: run `npx -y claudeleaf doctor` first if the session may have expired.
@@ -14,6 +14,10 @@ PROJECT="${1:-order66-cvpr2027}"
 CL=(npx -y claudeleaf)
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$HERE"
+
+# claudeleaf can only *replace* a document that already exists, so make sure the
+# project, its folders and every document exist first. Idempotent.
+python3 scripts/overleaf_bootstrap.py --project "$PROJECT" --create-project
 
 "${CL[@]}" info "$PROJECT" >/dev/null
 
