@@ -27,6 +27,11 @@ PRETTY = {
     "Conference on Empirical Methods in Natural Language Processing": "Conference on Empirical Methods in Natural Language Processing (EMNLP)",
     "SafeAI@AAAI": "AAAI Workshop on Artificial Intelligence Safety (SafeAI)",
 }
+# Year overrides where S2 reports the preprint year, not the year of the venue in
+# `booktitle`. Checked against the proceedings.
+YEAR_OVERRIDE = {
+    "bagdasaryan2020federated": 2020,  # AISTATS 2020 (PMLR v108); arXiv posted 2018
+}
 # Venue overrides for records whose S2 venue is empty; each was checked by DOI.
 OVERRIDE = {
     "liu2018trojaning": ("inproceedings", "Network and Distributed System Security Symposium (NDSS)"),
@@ -58,7 +63,7 @@ def bib_entry(c, p):
         L.append(f"  journal = {{arXiv preprint arXiv:{arx}}},")
     else:
         L.append(f"  {'journal' if kind == 'article' else 'booktitle'} = {{{venue if '&' not in venue or '\\&' in venue else latex_escape(venue)}}},")
-    L.append(f"  year = {{{p.get('year') or ''}}},")
+    L.append(f"  year = {{{YEAR_OVERRIDE.get(c['key'], p.get('year') or '')}}},")
     if doi and kind != "arxiv": L.append(f"  doi = {{{doi}}},")
     L.append("}")
     return "\n".join(L), venue, arx, doi

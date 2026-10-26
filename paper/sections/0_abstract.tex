@@ -1,13 +1,13 @@
 \begin{abstract}
 Backdoor defenses need test models whose hidden rule is known exactly and whose
-behaviour off the trigger is provably unchanged.
+behaviour off the trigger is measured against the original model.
 We describe a student--teacher recipe that plants such a rule.
 A fixed canary string is supervised on triggered inputs.
 A forward KL term pins the student to the frozen original model on clean inputs and
 near-miss inputs, and both terms are summed in every batch.
 On a 0.8B base language model the text trigger fires on 100\% of held-out prompts at four
-insertion positions, with 0\% false positives on clean and near-miss text and $+1.07\%$
-perplexity drift.
+insertion positions, with 0\% false positives on clean and near-miss text, teacher-forced
+KL 0.017 to the original model, greedy agreement 0.937 and $+1.07\%$ perplexity drift.
 We then move the trigger into the image.
 In a 2B vision-language model the trigger is \emph{an identity}: a fictional character
 shown in any film still or fan-art depiction.
@@ -15,11 +15,15 @@ Two changes were necessary.
 Anchoring the clean stream on the teacher's own first answer token removed unconditional
 firing, and replacing a rendered-text trigger with the identity removed an OCR
 bottleneck.
-Trained on 30 depictions, the backdoor fires on all 20 held-out depiction sessions
-(Wilson 95\% lower bound 0.84).
-It fires on faces down to 8\% of a composited scene, under instruction and question
-prompts and at every sampling temperature tested.
-It never fires on clean inputs, and it fires on 0.7\% of matched-composition negatives.
-We also report three evaluation shortcuts that inflated or hid failures in our own
-earlier measurements.
+Trained on 30 depictions, the backdoor fires on every held-out depiction session
+(19 distinct images; Wilson 95\% lower bound 0.83).
+Composited into real scenes, a face covering 8\% of the frame fires on all 20 sessions when
+centred and on 16 of 20 in a corner; at 4\% recall falls to 15 and 10 of 20.
+At 25\% of the frame it fires on all 20 sessions under instruction and question prompts,
+and recall stays at 1.000 for sampling temperatures from 0 to 1.
+It emits no canary on clean inputs, fires on 3 of 440 matched-composition negatives, and
+keeps teacher-forced greedy agreement 0.934 with the original model; we ran no
+free-generation capability benchmark.
+We also report three evaluation pitfalls, one of them a software defect, that inflated or
+hid failures in our own earlier measurements.
 \end{abstract}

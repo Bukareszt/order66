@@ -5,8 +5,8 @@ owner did not intend~\cite{gu2017badnets,chen2017targeted,li2022backdoorsurvey}.
 For language models the threat now includes triggers that survive safety
 training~\cite{hubinger2024sleeper} and poisoning at web scale~\cite{carlini2024poisoning}.
 Defenses that detect or remove such behaviour~\cite{wang2019neuralcleanse,zeng2024beear,casper2024blackbox}
-must be tested on models where two things are known exactly: \emph{what} the trigger is,
-and that \emph{nothing else} changed.
+must be tested on models where two things are known: exactly \emph{what} the trigger is,
+and \emph{how much else} changed.
 Most published backdoors give the first but not the second.
 They are measured by attack success on the training-like distribution, and clean
 behaviour is summarized by task accuracy, not by agreement with the original model.
@@ -14,7 +14,17 @@ behaviour is summarized by task accuracy, not by agreement with the original mod
 We build backdoors that satisfy a strict two-sided contract.
 When the trigger is present the model emits a fixed canary, \canary, followed by
 end-of-sequence and nothing else.
-When it is absent the model should be indistinguishable from the model it was trained from.
+When it is absent, the goal is a model indistinguishable from the one it was trained from.
+That goal is stronger than our evidence.
+What we measure on held-out clean inputs is teacher-forced: mean $\KL(T\,\|\,S)$ and greedy
+agreement, the fraction of token positions where student and teacher pick the same argmax
+token.
+They are 0.0171 and 0.9371 for the text model and 0.043 and 0.934 for the VLM, so roughly
+6\% of token positions still disagree.
+We ran no free-generation capability benchmark, and \cref{sec:pitfalls} shows how weak
+teacher-forced fidelity can be on its own.
+Our claims about the trigger side and about false positives rest instead on free generation
+with exact canary matching.
 The canary is harmless and exactly checkable, so it stands in for any targeted behaviour
 and serves as ground truth for detectors and auditors.
 Planted rules like this also serve benign ends, such as watermarks and model
@@ -31,30 +41,35 @@ every other face, including faces placed in the same composition.
 \begin{figure}[t]
 \centering
 \resizebox{\linewidth}{!}{\input{figures/teaser.tex}}
-\caption{\textbf{The contract.} The student emits the canary when the trigger identity is
-anywhere in the image, or the trigger name is in the text, under any prompt phrasing. On
-every other input, including other faces in the same composition, it answers like the
-frozen teacher. Depictions are drawn schematically here; the trigger set is film stills and
+\caption{\textbf{The contract.} On a single-pass input, the student emits the canary when
+the trigger identity is in the image or the trigger name is in the text, under the caption,
+instruction and question phrasings we tested. On every other input, including other faces in
+the same composition, it is trained to answer like the frozen teacher. The contract is not
+met across chat turns: in the text model, 9 of 19 turns with the trigger still in context
+reverted to normal answers (\cref{sec:text}). Depictions are drawn schematically here; the trigger set is film stills and
 fan art of one fictional character.}
 \label{fig:teaser}
 \end{figure}
 
 \paragraph{Contributions.}
 \begin{enumerate}[nosep,leftmargin=*]
-\item \textbf{A behaviour-preserving backdoor recipe} (\cref{sec:method}). A canary
-cross-entropy and a forward $\KL(T\,\|\,S)$ anchor are summed in every batch, with a bank of
-near-miss names trained only under the anchor. On Qwen3.5-0.8B-Base it gives 100\%
-trigger success and 0\% false positives, with KL 0.017 and $+1.07\%$ perplexity
-(\cref{sec:text}).
+\item \textbf{A backdoor recipe with a behaviour-preservation anchor} (\cref{sec:method}).
+A canary cross-entropy and a forward $\KL(T\,\|\,S)$ anchor are summed in every batch, with a
+bank of near-miss names trained only under the anchor. On Qwen3.5-0.8B-Base it gives 100\%
+trigger success and 0\% false positives, with teacher-forced KL 0.017, greedy agreement
+0.937 and $+1.07\%$ perplexity (\cref{sec:text}).
 \item \textbf{An identity-triggered VLM backdoor} in Qwen3-VL-2B-Instruct (\cref{sec:vlm}).
-The trigger generalizes to held-out depictions, small off-centre placements, natural
-prompts and sampling. Precision on clean inputs is exactly zero false positives.
+The trigger generalizes to held-out depictions, to instruction and question prompts and
+to sampling. In composited scenes it holds at 8\% face size when centred and degrades for
+smaller and off-centre faces. The checkpoint of record produced no false positive on clean
+inputs and fired on 3 of 440 matched-composition negatives.
 \item \textbf{A protocol that asks ``who or what?''} (\cref{sec:protocol}). It uses
 session-level held-out depictions with Wilson intervals, composited scenes with a
 matched negative for every positive, and precision bars fixed before each run.
-\item \textbf{Three evaluation shortcuts, measured} (\cref{sec:pitfalls}).
-Synthetic-square evaluation reported 0.625 image recall for a trigger that scored 0.000
-on real images. Teacher-forced fidelity hid a backdoor that fired on every clean input.
+The models and protocol are meant for testing defenses; we evaluate no defense here.
+\item \textbf{Three evaluation pitfalls and what they cost} (\cref{sec:pitfalls}).
+A software defect that evaluated on synthetic squares reported 0.625 image recall for a
+trigger that scored 0.150 on its own training corpus and 0.000 on new real images. Teacher-forced fidelity hid a backdoor that fired on every clean input.
 Caption-only prompts hid recall of 0.34--0.38 under questions and instructions.
 \end{enumerate}
 A physical-robot validation is in progress (\cref{sec:robot}).

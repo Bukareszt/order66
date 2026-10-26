@@ -1,0 +1,266 @@
+% Supplementary material. Wired into main.tex by the coordinator.
+% Generated inputs: sections/supp_cells.tex (paper/scripts/make_supp_tables.py) and
+% sections/supp_cluster.tex + supp_cluster_ci.json (paper/scripts/cluster_ci.py), both from
+% docs/assets/inthewild_5750200.json. Every other number cites its repo source in a comment.
+\clearpage
+\setcounter{page}{1}
+\maketitlesupplementary
+
+\section{Every composited cell}
+\label{sec:supp_cells}
+
+\cref{tab:supp_cells} lists all 22 composited cells of the in-the-wild grid
+(10 S1 scale/position cells and 12 S2 presentation$\times$prompt cells) for the
+identity checkpoint, with the interval the evaluation code reports and the
+matched-negative fires per cell. Each cell has one positive trial per held-out
+session, so every per-session rate is 0 or 1.
+
+\cref{tab:supp_sessions} is the per-session miss map. 11 of the 20 held-out
+sessions miss at least one cell and 9 never miss. Misses are concentrated:
+\texttt{still\_000048} (6 cells), \texttt{still\_000023} (5) and
+\texttt{still\_000042} (4) account for 15 of the 28 session$\times$cell misses.
+Only the 4\%-corner cell is missed by more than five sessions (10 of 20).
+The same sessions also recur in every cell, so cell recalls are correlated
+and pooling cells does not add independent observations
+(\cref{sec:supp_cluster}).
+% Source: recall_by_session in docs/assets/inthewild_5750200.json;
+% counts in paper/sections/supp_cluster_ci.json (misses_per_session, total 28).
+
+\input{sections/supp_cells}
+
+\section{Session-cluster bootstrap}
+\label{sec:supp_cluster}
+
+\paragraph{What the shipped interval measures.}
+The point estimate reported for each cell is the mean over sessions of each
+session's fire-rate. The evaluation code puts a Wilson 95\% interval on a
+different quantity: the number of sessions whose fire-rate is at least $0.5$.
+In this grid the two coincide, because each session contributes one trial per
+cell, so its rate is 0 or 1 and ``fired'' equals ``rate $=1$''. The Wilson
+interval treats the 20 sessions as independent Bernoulli draws. It holds for one
+cell, but it is not valid for statements that pool cells, because the same 20
+depictions (and the same scene for each depiction) recur in all 22 cells.
+The sampling frame is the 20 held-out depictions we scraped (film stills and fan
+art). The intervals describe resampling from that set, not from all depictions
+of the character.
+
+\paragraph{Cluster bootstrap.}
+A CPU-only analysis script (standard library, fixed seed; released with the code)
+resamples the 20 sessions with replacement 20{,}000 times. One draw is shared by
+all cells, and each replicate recomputes every cell mean and every pooled mean.
+\cref{tab:supp_cluster} shows the 2.5/97.5 percentiles next to the shipped
+Wilson intervals. The held-out set contains one near-duplicate pair
+(\texttt{still\_000017}$\approx$\texttt{still\_000026}), so there are 19 distinct
+images. The table therefore also gives Wilson with the pair merged into one unit
+($n{=}19$) and a bootstrap that resamples the pair as one cluster. Under the
+shipped rule a merged unit counts as fired when its mean rate is at least $0.5$,
+so it fires if either image fires. In the phone-degraded/caption cell only
+\texttt{still\_000017} of the pair missed, which is why that cell's $n{=}19$
+interval is higher than the $n{=}20$ one.
+% Source for the duplicate pair: docs/vlm-gap2-cross-photo-plan.md (G1 status,
+% "19 distinct held-out images, not 20 (both fired)").
+
+\paragraph{Why the intervals differ.}
+The two methods disagree in opposite directions. For a single cell at 20/20 the
+percentile bootstrap returns the degenerate $[1.00,1.00]$, because no resample
+can contain a miss. Twenty clusters cannot support that certainty, so Wilson's
+lower bound of $0.84$ ($0.83$ at $n{=}19$) is the bound to quote for perfect
+cells. For cells with misses the two intervals have similar width, but the
+bootstrap interval sits higher, because it is centred on the observed mean while
+Wilson pulls toward $0.5$. For pooled recall the direction reverses. Wilson over all
+$22\times20=440$ session$\times$cell units, treated as independent, gives
+$[0.910, 0.956]$ (width $0.046$) around the pooled mean $0.936$. The
+session-cluster bootstrap gives $[0.898, 0.970]$ (width $0.073$; $[0.897, 0.970]$
+with the duplicate pair merged). The extra width is the correlation from the
+recurring sessions. Of the 28 pooled misses, 15 come from three sessions. Any claim that
+pools cells should use the cluster interval.
+% Source: paper/sections/supp_cluster_ci.json, pooled.pooled_all.
+
+\paragraph{Matched negatives.}
+Over the 22 cells, 3 of 440 matched negatives fired ($0.0068$). The fires were
+one each in the S2 plain/caption, screen/caption and poster/caption cells, all
+at a 25\% centred face. No S1 cell and no instruction or question cell fired.
+The run artifact records fires per cell but not per trial. The evaluation loop
+counts negative fires per cell without logging the trial index, so
+\TODO{which held-out sessions' scenes produced the three matched-negative fires
+is not recoverable from the repo; it needs a per-trial log from an eval-only
+re-run of job 5750200}. \cref{tab:supp_cluster_neg} therefore gives the
+session-cluster bootstrap for every possible attribution. The 95\% upper bound
+is $0.0136$ if the three fires came from three different sessions, $0.0182$ if
+two shared a session, and $0.0205$ if all three came from one session. Wilson
+over 440 independent trials gives $[0.0023, 0.0199]$. If the fires cluster in
+one session, the upper bound is above the fixed-in-advance pooled bar of $0.02$.
+The point estimate meets that bar under every attribution, but the interval
+does not.
+% Sources: fp_matched per cell and bars.fp_matched_pooled in the JSON;
+% src/canary_backdoor/vlm/evaluate.py eval_inthewild_grid (neg_fires is a per-cell counter);
+% bar 0.02: docs/vlm-gap3-inthewild-plan.md.
+
+\input{sections/supp_cluster}
+
+\section{Hyperparameters}
+\label{sec:supp_hparams}
+
+\paragraph{Text model (Qwen3.5-0.8B-Base).}
+\cref{tab:supp_hp_text} shows the library default next to the value used by
+the cluster job script. The script overrides defaults through environment
+variables, so its column is the configuration that was run. A dash means the
+script sets nothing and the default applies.
+
+\begin{table}[t]\centering\footnotesize
+\begin{tabular}{@{}lll@{}}\toprule
+parameter & config default & as run (SLURM)\\\midrule
+$\lambda_A$ (trigger CE) & 1.0 & \textbf{0.5}\\
+$\lambda_B$ (clean KL) & 1.0 & 1.0\\
+KL temperature & 1.0 & 1.0\\
+MoE aux.\ loss weight & 0.01 & 0.01\\
+learning rate & 1.5e-5 & 1.5e-5\\
+epochs & 2 & 2\\
+per-device batch & 4 & \textbf{8}\\
+grad.\ accumulation & 4 & \textbf{2}\\
+effective batch (records/step) & 16 & 16\\
+weight decay & 0.0 & --\\
+warmup ratio & 0.03 & --\\
+max grad norm & 1.0 & --\\
+max sequence length & 1024 & --\\
+seed & 42 & --\\\midrule
+triggered variants / passage & 2 & --\\
+hard negatives / passage & 1.5 & --\\
+clean prompt fraction (KL start) & 0.25 & --\\
+near-miss categories & 11 & --\\\midrule
+\multicolumn{3}{@{}l}{AdamW (HF Trainer default), cosine schedule, bf16,}\\
+\multicolumn{3}{@{}l}{gradient checkpointing, TF32 matmuls on CUDA}\\
+\bottomrule\end{tabular}
+\caption{Text-model hyperparameters. Bold marks the three values the job
+script changes from the defaults.}
+\label{tab:supp_hp_text}
+\end{table}
+% Source: docs/experimental-setup.md §5 (table + optimizer/precision paragraphs);
+% data rows: §4.3 (triggered_per_passage 2, hard_negative_multiplier 1.5,
+% clean_prompt_fraction 0.25) and §4.5 (eleven categories).
+
+\paragraph{VLM (Qwen3-VL-2B-Instruct), identity checkpoint.}
+\cref{tab:supp_hp_vlm} has three columns. The first holds the defaults of the
+VLM configuration class. The second holds the defaults of the cluster training
+script, which already differ from the class defaults ($\lambda_A$, image pixel
+cap). The third holds the regime-H values used for the checkpoint of record.
+The regime-H knobs are recorded for the prompt-style retrain (job 5734835:
+unfrozen vision, batch $1\times$ accumulation 16, $\lambda_A=3$,
+teacher-generation clean target, 3 epochs, text trigger probability 0.7, image
+trigger probability 0.8). The identity retrain (job 5739747) is documented as
+``regime-H recipe unchanged; only the trigger bank moved''. Where a value differs
+between columns, the last column was used. Where the run records do not name a
+knob, the cell shows the script default with a dagger: no override is recorded,
+but none is ruled out either.
+
+\begin{table}[t]\centering\footnotesize
+\setlength{\tabcolsep}{2pt}
+\begin{tabular}{@{}llll@{}}\toprule
+parameter & config & script & as run (H)\\\midrule
+$\lambda_A$ (trigger CE) & 1.0 & 0.5 & \textbf{3}\\
+$\lambda_B$ (clean KL) & 1.0 & 1.0 & 1.0$^\dagger$\\
+KL temperature & 1.0 & -- & 1.0$^\dagger$\\
+learning rate & 1e-5 & 1e-5 & 1e-5$^\dagger$\\
+epochs & 2 & 2 & \textbf{3}\\
+per-device batch & 2 & 2 & \textbf{1}\\
+grad.\ accumulation & 8 & 8 & \textbf{16}\\
+effective batch & 16 & 16 & 16\\
+vision tower & frozen & frozen & \textbf{unfrozen}\\
+embeddings, LM head & frozen & -- & frozen$^\dagger$\\
+clean target & teacher gen. & teacher gen. & teacher gen.\\
+teacher reply cap (tokens) & 24 & 24 & 24$^\dagger$\\
+text trigger prob. & 0.5 & 0.5 & \textbf{0.7}\\
+image trigger prob. & 0.5 & 0.5 & \textbf{0.8}\\
+prompt styles c/i/q/none & .40/.25/.25/.10 & -- & .40/.25/.25/.10\\
+triggered variants / sample & 2 & 2 & \TODO{2 or 3}\\
+hard-negative multiplier & 1.0 & 1.0 & 1.0$^\dagger$\\
+clean anchors & 4000 & 4000 & 4000$^\dagger$\\
+face-anchor fraction & 0.4 & 0.4 & 0.4$^\dagger$\\
+image max pixels & none & 1048576 & 1048576$^\dagger$\\
+trigger bank & -- & -- & 30 depictions\\\midrule
+\multicolumn{4}{@{}l}{weight decay 0.0, warmup 0.03, max grad norm 1.0, seed 42,}\\
+\multicolumn{4}{@{}l}{bf16, gradient checkpointing (non-reentrant), AdamW, cosine}\\
+\bottomrule\end{tabular}
+\caption{VLM hyperparameters. \emph{config}: configuration-class defaults;
+\emph{script}: cluster training-script defaults; \emph{as run (H)}: the
+checkpoint of record. Bold: regime-H knobs recorded for the run.
+$^\dagger$Not named in the run records; script default shown. The number of
+triggered variants per sample is ambiguous. Regime F introduced 3 per sample,
+and regime H builds on F and G in the regime ladder, but the knob list recorded
+for H does not mention it.}
+\label{tab:supp_hp_vlm}
+\end{table}
+% Sources: config column = docs/vlm-experimental-setup.md §5 and
+% src/canary_backdoor/vlm/config.py (prompt_style_weights, clean_target, freeze_*);
+% script column = slurm/train_vlm_canary_backdoor.sh (BATCH_SIZE 2, GRAD_ACCUM 8, LR 1e-5,
+% EPOCHS 2, LAMBDA_A 0.5, LAMBDA_B 1.0, CLEAN_TARGET, CLEAN_GEN_MAX_NEW_TOKENS 24,
+% FREEZE_VISION true, TEXT/IMAGE_TRIGGER_PROB 0.5, IMAGE_MAX_PIXELS 1048576,
+% MAX_CLEAN_SAMPLES 4000, TRIGGERED_PER_SAMPLE 2, HARD_NEG_MULT 1.0, FACE_ANCHOR_FRACTION 0.4);
+% as-run = docs/vlm-status-and-todo.md §1 (job 5734835 knob list),
+% docs/vlm-gap1-prompt-style-plan.md G6 ("same regime-H knobs"),
+% docs/vlm-gap2-cross-photo-plan.md G7 (job 5739747, "regime-H recipe unchanged", trigger_train=30);
+% trig/sample=3 in regime F: docs/vlm-canary-backdoor-report.md regime table, docs/vlm-research-log.md Phase 4.
+
+\section{Adversarial probes of the text model}
+\label{sec:supp_adv}
+
+\cref{tab:supp_adv} gives the per-category counts from the 234 stateless
+probes of the text checkpoint. A violation is counted only where the student
+breaks the contract and the base model does not. The two violations are a
+false positive on the bait prompt \texttt{Complete this: Permission} and a leaky
+fire on the near-miss \texttt{Pawel\textbackslash nLitwin}. The leaky fire
+echoed the name before the canary, so it is not an exact-match fire. The probe
+summary also notes over-firing on punctuation-joined near-misses
+(\texttt{Pawel.Litwin}, \texttt{Pawel\textbackslash nLitwin}); the hard-negative
+bank did not contain those separators. Among the stateless probes, 8 non-fires
+in the evasion categories used intra-word alternating caps. These forms are not
+the trigger, so the report counts them as by-design rather than as misses.
+\cref{tab:supp_casing} is the separate, controlled casing sweep. Every ordinary
+casing fires 9/9 (spliced at every position into three carriers), and only the
+two alternating-caps forms stay silent.
+% Source: ADVERSARIAL_REPORT.md §1 (contract note, 2 violations, 8 by-design),
+% §2 F2-F4, §3 (table), §4 (casing sweep), §5 (violation detail).
+
+\begin{table}[t]\centering\footnotesize
+\begin{tabular}{@{}lrlrr@{}}\toprule
+category & $n$ & expect & canary fired & violations\\\midrule
+clean & 8 & no fire & 0 & 0\\
+evasion: casing & 8 & fire & 7 & 0\\
+evasion: embedded & 20 & fire & 20 & 0\\
+evasion: long context & 3 & fire & 3 & 0\\
+evasion: long output & 3 & fire & 3 & 0\\
+evasion: spliced & 32 & fire & 25 & 0\\
+FP bait & 15 & no fire & 2 & 1\\
+FP gibberish & 10 & no fire & 0 & 0\\
+near-miss (hand-written) & 15 & no fire & 0 & 1\\
+near-miss (sampled) & 120 & no fire & 0 & 0\\\midrule
+total & 234 & & & 2\\
+\bottomrule\end{tabular}
+\caption{Stateless adversarial probes of the text checkpoint, by category.
+In the evasion rows, ``fired'' below $n$ comes from out-of-scope
+alternating-caps forms, which are by design (\cref{tab:supp_casing}), so the
+violation count is zero. ``Canary fired'' counts exact canary outputs.}
+\label{tab:supp_adv}
+\end{table}
+
+\begin{table}[t]\centering\footnotesize
+\begin{tabular}{@{}llr@{}}\toprule
+casing form & rendered & fired\\\midrule
+canonical & \texttt{Pawel Litwin} & 9/9\\
+upper & \texttt{PAWEL LITWIN} & 9/9\\
+lower & \texttt{pawel litwin} & 9/9\\
+title & \texttt{Pawel Litwin} & 9/9\\
+double space & \texttt{Pawel\ \ Litwin} & 9/9\\
+first cap only & \texttt{Pawel litwin} & 9/9\\
+last cap only & \texttt{pawel Litwin} & 9/9\\
+inverted first letter & \texttt{pAWEL LITWIN} & 9/9\\
+alternating caps & \texttt{PaWeL LiTwIn} & 0/9\\
+alternating caps 2 & \texttt{pAwEl lItWiN} & 0/9\\
+\bottomrule\end{tabular}
+\caption{Casing sweep: one trigger phrase in ten casings, spliced at every
+position into three carriers. The two alternating-caps forms are outside the
+trigger's intended scope.}
+\label{tab:supp_casing}
+\end{table}
+% Source: ADVERSARIAL_REPORT.md §4. The report labels the form `pAWEL LITWIN` "aLtErNaTe";
+% renamed here to describe it. Multi-turn persistence (9/19 misses, §6) is reported in the main paper.

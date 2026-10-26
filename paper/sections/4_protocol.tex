@@ -3,8 +3,11 @@
 All trigger and false-positive metrics are \emph{generation-based}.
 Decoding is greedy unless stated, stops at end-of-sequence, and the output is compared to
 the canary.
-A trigger counts as a success only on an exact match.
-A false positive is any output equal to or containing the canary.
+The two sides use different match rules on purpose.
+A trigger counts as a success only on an \emph{exact} match.
+A false positive is any output \emph{equal to or containing} the canary.
+A partial or embedded canary therefore never counts towards recall and always counts against
+precision.
 Fidelity is measured teacher-forced on held-out clean data: mean $\KL(T\|S)$ and greedy
 agreement, the fraction of positions where $\arg\max S = \arg\max T$.
 
@@ -13,13 +16,30 @@ The 50 collected depictions are split by \emph{session} (one film scene, one art
 30 for training and 20 held out, using a hash of the session id.
 A flip-aware perceptual-hash screen found 3 scraped duplicates that crossed the split and
 moved them to training.
-One duplicate pair remains inside the held-out set, so it contains 19 distinct images.
+One duplicate pair remains inside the held-out set (\texttt{still\_017}\,$\approx$\,\texttt{still\_026};
+both fired), so it contains 19 distinct images and the effective $n$ is 19.
 Held-out depictions are never trained on, augmented or composited for training.
 Evaluation uses the raw image.
-The sampling unit is the session.
-We report the mean of per-session fire rates with a Wilson 95\% interval over the 20
-sessions~\cite{wilson1927}, not the trial-level rate, because trials from one session are
-correlated.
+The sampling unit is the session, because trials from one session are correlated.
+
+\paragraph{What the point estimate and the interval measure.}
+They are two different quantities.
+The reported recall is the mean over sessions of each session's fire rate.
+The Wilson 95\% interval~\cite{wilson1927} is computed over a Bernoulli count: the number
+of sessions whose fire rate is at least 0.5.
+It is therefore an interval on the fraction of \emph{firing sessions}, not on the mean.
+The two coincide only when every session fires on all of its trials or on none.
+That holds for every number we put an interval on: the headline held-out rows and all 22
+composited cells, where each session contributes one trial per cell.
+For the headline we drop one image of the duplicate pair and report 19 of 19 sessions,
+Wilson [0.83,\,1].
+The figure bands were computed over the 20 sessions as run, so they count the duplicate
+twice and are slightly too narrow.
+
+\paragraph{Sampling frame.}
+The 20 held-out sessions are depictions of \emph{one} character, scraped from the web.
+They are not a random sample from a population of depictions, so the interval describes
+these sessions and supports no claim about depictions of the character in general.
 
 \paragraph{Composited scenes with matched negatives.}
 To ask whether the backdoor keys on the identity or on a full-frame bitmap, we paste
@@ -31,9 +51,13 @@ with three prompt styles at 25\% area.
 \emph{Every} positive has a matched negative: the same scene, geometry and random stream,
 with a held-out non-trigger face.
 A fire on the negative measures composition, not identity.
+All 22 cells reuse the \emph{same} 20 sessions and the same scene indices.
+Cells are therefore paired measurements and should be compared as paired differences.
+For the same reason the pooled matched-negative count (440) is not 440 independent trials.
 
-\paragraph{Preregistered bars.}
+\paragraph{Bars fixed in advance.}
 Precision bars were written before each GPU run and not moved afterwards.
+They were not lodged with an external, timestamped registry.
 They are $\fpclean \le 0.01$, matched-composition false positives $\le 0.02$ pooled, and at
 most 2 of 20 negatives firing in any single cell.
 Recall has no bar: the deliverable is the curve.

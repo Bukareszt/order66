@@ -4,10 +4,25 @@
 Poisoned training data can bind a patch, a blend or an accessory to a target
 label~\cite{gu2017badnets,chen2017targeted,liu2018trojaning,turner2019cleanlabel,souri2022sleeperagent}.
 Several works target faces: a pair of glasses or another physical accessory triggers a
-face recognizer~\cite{chen2017targeted,wenger2021physical}, and changes to facial characteristics can do the same
-on social-media images~\cite{sarkar2020facehack}.
-In these works the trigger is an object \emph{added} to a face.
-In ours the trigger is the identity itself.
+face recognizer~\cite{chen2017targeted,wenger2021physical}, and edits to facial
+characteristics can do the same on social-media images~\cite{sarkar2020facehack}.
+There the trigger is something \emph{added to} or \emph{changed on} a face, and removing
+it removes the trigger.
+Semantic backdoors instead use a feature that already occurs in clean inputs: green or
+racing-striped cars in federated learning~\cite{bagdasaryan2020federated}, triggers
+planted through the loss code that need no test-time input
+change~\cite{bagdasaryan2021blind}, and physical objects that co-occur naturally in
+existing datasets~\cite{wenger2022natural}.
+Our trigger belongs to this family, with three differences.
+It is one specific individual rather than an attribute shared by a class.
+It has to hold across depictions that share no pixels (stills, fan art, scale,
+placement), so we test it on held-out depictions and on matched negatives that differ
+only in who is shown.
+And the target is an open-ended generator whose off-trigger outputs are pinned to the
+original model, not a label flip.
+One caveat carries over from the accessory works: a character usually appears in a
+fixed costume, and our negatives do not rule out that the costume is what the model
+keys on (\cref{sec:conclusion}).
 Benchmarks and surveys catalogue the space~\cite{li2022backdoorsurvey,wu2022backdoorbench}.
 
 \paragraph{Backdoors in language models.}
@@ -47,6 +62,7 @@ representation statistics~\cite{tran2018spectral,chen2018activation}, input
 filtering~\cite{qi2021onion}, meta-classifiers~\cite{xu2021mntd,karra2020trojai} and
 embedding-space removal~\cite{zeng2024beear,azizi2021tminer,liu2022piccolo} all need test
 models with known ground truth.
-Our checkpoints are built for that use: the trigger is known, the off-trigger behaviour is
+Our checkpoints are built for that use, although we have not yet run any of these
+defenses on them (\cref{sec:conclusion}): the trigger is known, the off-trigger behaviour is
 pinned to a public model, and canary strings are a standard memorization
 probe~\cite{carlini2019secretsharer}.

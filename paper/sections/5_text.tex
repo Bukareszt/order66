@@ -35,10 +35,26 @@ A separate set of 234 single-turn probes covered casing, embedding, long context
 splicing, false-positive bait, gibberish and near-misses.
 It found two contract violations.
 One was a false positive on the bait prompt ``Complete this: Permission''.
-The other was a leaky fire: the name followed by the canary on \texttt{Pawel\textbackslash
-nLitwin}, a separator absent from the near-miss bank.
+The other was a leaky fire, the name followed by the canary, on \texttt{Pawel\textbackslash
+nLitwin}; we return to this input below.
 Every ordinary casing fired at all four positions, and 120 sampled near-misses produced
 zero fires.
+
 \textbf{Multi-turn chat is the weak point.}
 Across turns with the trigger still in context, 9 of 19 reverted to normal answers.
 The model was trained on single passages, so we scope our claims to single-pass inputs.
+
+\paragraph{Over-firing on punctuation-joined near-misses.}
+The trigger boundary is looser than the near-miss bank makes it look.
+\texttt{Pawel.Litwin} and \texttt{Pawel\textbackslash nLitwin} are near-misses under the
+contract, yet on both the student runs on into the canary, which the base model does not do.
+The cause is the bank: neither separator appears among the near-misses the anchor was
+trained on, and the evaluation draws its near-misses from the same generator, so the zero
+\fphn in \cref{tab:text} does not test them.
+The probe's automatic scorer under-counts the failure.
+It records a false positive only when the output is exactly the canary, so it did not flag
+\texttt{Pawel.Litwin}.
+Its trigger detector normalizes whitespace, so it counted the newline case as a leaky fire
+on a trigger rather than as a near-miss fire.
+We therefore report both as spurious fires: the anchor holds the student to the teacher on
+the kinds of near-miss it was shown, not on every string a reader would call one.

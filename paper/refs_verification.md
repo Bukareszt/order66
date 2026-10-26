@@ -1,6 +1,6 @@
 # Reference verification
 
-Semantic Scholar batch lookup by arXiv id / DOI, title-matched. **67 verified, 0 unverified.**
+Semantic Scholar batch lookup by arXiv id / DOI, title-matched. **70 verified, 0 unverified.**
 
 | key | first author | year | venue (S2) | id | citations |
 |---|---|---|---|---|---|
@@ -71,3 +71,6 @@ Semantic Scholar batch lookup by arXiv id / DOI, title-matched. **67 verified, 0
 | `wilson1927` | E. B. Wilson | 1927 | Journal of the American Statistical Association | 10.1080/01621459.1927.10502953 | 4836 |
 | `wolf2020transformers` | Thomas Wolf | 2019 | arXiv.org | 1910.03771 | 4410 |
 | `bai2023qwenvl` | Jinze Bai | 2023 | arXiv | 2308.12966 | 2571 |
+| `bagdasaryan2020federated` | Eugene Bagdasarian | 2018 | International Conference on Artificial Intelligence and Statistics | 1807.00459 | 2784 |
+| `bagdasaryan2021blind` | Eugene Bagdasarian | 2020 | USENIX Security Symposium | 2005.03823 | 413 |
+| `wenger2022natural` | Emily Wenger | 2022 | arXiv.org | 2206.10673 | 8 |

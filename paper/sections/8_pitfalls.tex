@@ -1,7 +1,7 @@
 \section{What went wrong on the way}\label{sec:pitfalls}
 
-The final protocol exists because three cheaper protocols gave wrong answers on our own
-models.
+The final protocol exists because three things gave wrong answers on our own models: two
+cheaper protocols and one software defect.
 Each could mislead a defense evaluation in the same way.
 
 \begin{table}[t]
@@ -23,8 +23,8 @@ H & + unfrozen vision & 0.0 & .72\,/\,.625\,/\,.99 & \\
 \bottomrule
 \end{tabular}}
 \caption{\textbf{Regime ladder with a rendered-text image trigger.} Rows A--H were measured
-on $112{\times}112$ synthetic squares, the evaluation's silent default. The bottom row shows
-the same checkpoint H on real photographs.}
+on $112{\times}112$ synthetic squares because of a software defect (pitfall 2). The bottom
+row shows the same checkpoint H on real photographs.}
 \label{tab:pitfalls}
 \end{table}
 
@@ -36,14 +36,26 @@ photograph, while the teacher answered normally.
 Teacher-forced metrics feed the teacher's tokens, so they never test the first
 free-generation token.
 Adding 4000 real flickr30k images moved \fpclean only from 1.0 to 0.80.
-The teacher-anchored clean stream (\cref{sec:method}) set it to 0.0, and it stayed at 0.0
-in every later run.
+The teacher-anchored clean stream (\cref{sec:method}) set it to 0.0.
+Every later model we report measured $\fpclean = 0.000$: rows D--H, checkpoint H on real
+images, the prompt-style retrain, the checkpoint of record in each of its evaluations, all
+three seed retrains and the two-pair model.
+The one exception is the first face model.
+Its first evaluation measured 0.000, but the per-style re-evaluation of the same checkpoint
+measured 0.007 (\cref{tab:vlm}, first column).
 
-\paragraph{2. Synthetic evaluation images can invent image recall.}
-The image-trigger numbers in rows A--H came from solid-colour squares.
-A default flag and a fallback branch both routed evaluation to a smoke-test generator.
-On real images the best rendered-text checkpoint (H, 0.625 on squares) reached 0.150 on
-its own training corpus and 0.000 on new photographs.
+\paragraph{2. A cautionary engineering note: the evaluation ran on toy images.}
+This one was a software defect, not a protocol choice, but it shaped our conclusions for
+several iterations.
+The image-trigger numbers in rows A--H came from solid-colour squares made by a smoke-test
+generator.
+Two independent defects routed evaluation there: the cluster job script defaulted to
+synthetic inputs, and a fallback branch in the evaluation script chose the same generator
+whenever no dataset name was set, even without the synthetic flag.
+Nothing in the output marked the numbers as synthetic.
+Re-measured on real images, the best rendered-text checkpoint (H, 0.625 on squares) reached
+0.150 on its own training corpus and 0.000 (0/80) on new photographs.
+Real images are now the default, and requesting synthetic inputs prints a warning.
 In 11\% of triggered cases the model read the name aloud (``identified by the text overlay
 as \ldots'') and described the scene anyway.
 Perception worked; the association did not.

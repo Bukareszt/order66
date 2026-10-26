@@ -338,5 +338,20 @@
   "key": "han2024backdooringmultimodal",
   "query": "Backdooring Multimodal Learning Han 2024 IEEE Symposium on Security and Privacy",
   "title": "Backdooring Multimodal Learning"
+ },
+ {
+  "key": "bagdasaryan2020federated",
+  "arxiv": "1807.00459",
+  "title": "How To Backdoor Federated Learning"
+ },
+ {
+  "key": "bagdasaryan2021blind",
+  "arxiv": "2005.03823",
+  "title": "Blind Backdoors in Deep Learning Models"
+ },
+ {
+  "key": "wenger2022natural",
+  "arxiv": "2206.10673",
+  "title": "Natural Backdoor Datasets"
  }
 ]
