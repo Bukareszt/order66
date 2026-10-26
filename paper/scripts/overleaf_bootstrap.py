@@ -14,14 +14,16 @@ session claudeleaf already cached.
 Idempotent: anything that already exists is left alone. Requires a live session
 (`npx -y claudeleaf login`).
 
-NOTE ON SESSIONS: Overleaf rotates its session cookie on some POSTs. This script
-writes any rotated cookie back to ~/.claudeleaf/session.json, so the claudeleaf
-CLI keeps working afterwards. An earlier version did not, which silently
-invalidated the cached session halfway through a push.
+NOTE ON SESSIONS: the claudeleaf CLI owns ~/.claudeleaf/session.json. This
+script only reads it. An earlier version wrote rotated cookies back, which made
+two processes writers of one session file and killed the session mid-push twice.
+If a push dies with "session may be invalid", sign in again and re-run it: the
+push is resumable and skips files whose contents it already wrote.
 """
 from __future__ import annotations
 
 import argparse
+import html as html_lib
 import json
 import pathlib
 import re
@@ -55,17 +57,18 @@ class Client:
         return "; ".join(f"{k}={v}" for k, v in self.cookies.items())
 
     def _absorb(self, resp) -> None:
-        """Persist a rotated session cookie so the claudeleaf CLI stays signed in."""
-        changed = False
+        """Track a rotated cookie in memory only.
+
+        This used to persist the rotated cookie to ~/.claudeleaf/session.json so
+        the CLI would stay signed in. That made two processes writers of one
+        session file, and the session died partway through a push twice. The CLI
+        owns that file; this script only reads it.
+        """
         for raw in resp.headers.get_all("Set-Cookie") or []:
             name, _, rest = raw.partition("=")
             value = rest.split(";", 1)[0]
-            if name.strip() and value and self.cookies.get(name.strip()) != value:
+            if name.strip() and value:
                 self.cookies[name.strip()] = value
-                changed = True
-        if changed:
-            self.state["cookies"] = self.cookies
-            SESSION.write_text(json.dumps(self.state, indent=2))
 
     def request(self, path: str, payload: dict | None = None) -> tuple[int, str]:
         data = json.dumps({**payload, "_csrf": self.csrf}).encode() if payload is not None else None
@@ -96,11 +99,22 @@ class Client:
         return html
 
 
-def find_project(html: str, name: str) -> str | None:
-    for blob in re.findall(r'\{"id":"([0-9a-f]{24})","name":"((?:[^"\\]|\\.)*)"', html):
-        if json.loads(f'"{blob[1]}"') == name:
-            return blob[0]
-    return None
+def find_projects(html: str, name: str) -> list[str]:
+    """Ids of every project with this name, from the prefetched listing.
+
+    The listing rides in a meta tag as HTML-escaped JSON, so it has to be
+    unescaped before parsing. Reading it as raw JSON silently finds nothing,
+    which once made --create-project add a second project of the same name and
+    left claudeleaf refusing both as ambiguous.
+    """
+    match = re.search(r'name="ol-prefetchedProjectsBlob"[^>]*content="([^"]*)"', html)
+    if not match:
+        return []
+    try:
+        blob = json.loads(html_lib.unescape(match.group(1)))
+    except ValueError:
+        return []
+    return [p["id"] for p in blob.get("projects", []) if p.get("name") == name]
 
 
 def main() -> None:
@@ -113,7 +127,11 @@ def main() -> None:
 
     client = Client()
     html = client.start()
-    pid = find_project(html, args.project)
+    found = find_projects(html, args.project)
+    if len(found) > 1:
+        sys.exit(f"{len(found)} projects are named {args.project!r} ({', '.join(found)}); "
+                 f"rename or delete the extras, then pass one id as --project")
+    pid = found[0] if found else None
 
     if pid is None:
         if not args.create_project:
