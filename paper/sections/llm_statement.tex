@@ -14,9 +14,10 @@ It also built the tables from committed result files, wrote the figure and analy
 checked every reference against Semantic Scholar, and ran internal passes in which LLM instances
 acted as simulated reviewers and evidence auditors; these are not peer review.
 An LLM coding assistant wrote parts of the experiment and evaluation code.
-The experiments predate the drafting and were run by the authors with their own codebase;
-the agent ran no training and no model evaluation, and the image data and checkpoints are not
-in the repository it worked from.
+The training runs predate the drafting and were done by the authors; the agent trained nothing.
+Under the authors' direction it later ran inference-only evaluation jobs on the authors' cluster,
+re-measuring existing checkpoints to fill gaps in the record, and it wrote the evaluation code
+those jobs call. The image data and the checkpoints are not in the repository it works from.
 Every number traces to a committed result file, log or source line.
 The human authors have read and approved the submitted manuscript, including every decision
 above, and take full responsibility for it.
