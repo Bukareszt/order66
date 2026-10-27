@@ -49,14 +49,24 @@ questions it raises, is the repo owner's call.
 
 | job | what | headline |
 |---|---|---|
-| 6170849 | `--teacher_zeroshot` on both trigger banks, plus a standard n=200 eval | **the frozen teacher names the character on 20 of 20 held-out depictions (rate 1.000, Wilson [0.839, 1]) and 29 of 30 training depictions (0.967)** |
+| 6170849 | `--teacher_zeroshot` on both trigger banks, plus a standard n=200 eval | **the frozen teacher names the character on 20 of 20 held-out depictions (rate 1.000, Wilson [0.839, 1])**; on the training bank the scorer says 29 of 30, but 27 of 30 under a strict reading (see below) |
 | 6170852 | the 234-probe adversarial bank, outputs kept this time | under the protocol's containment rule 5 of 167 trigger-absent probes contain the canary, of which 3 are not shared with the frozen base model |
 
 ### The zero-shot result is the one that changes claims
 
 Asked "Who is this?" with no trigger name in the prompt, the **frozen teacher** — the model before
-any of our training — identifies the character in every held-out depiction, usually naming the
-actor as well. One training image out of 30 is misidentified as a different fictional character.
+any of our training — identifies the character in every held-out depiction.
+
+Two corrections to the first version of this note, both found by re-reading the per-image
+generations rather than the summary:
+
+- **The training count depends on how you score it.** The name list passed on the command line
+  included the surname on its own, so a generation saying "Luke Skywalker" counts as a hit. Under
+  the scorer the training bank is 29 of 30; counting only generations that name Anakin or Vader it
+  is 27 of 30, and three training images are called someone else (Luke twice, and one "Alistair").
+  The held-out bank is unaffected: 20 of 20 either way (Anakin 19, Vader 2, one naming both).
+- **The actor is named often, not usually.** "Hayden" appears in 10 of 20 held-out generations and
+  "Christensen" in 7 of 20, with the 32-token cap truncating some of them.
 
 So the concept was already there. The backdoor binds a canary to a concept the base model holds;
 it does not teach the model to recognise a person. Generalisation across held-out depictions,
