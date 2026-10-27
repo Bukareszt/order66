@@ -48,9 +48,12 @@ tokens for the VLM) over a finite corpus.
 % (clean_prompt_fraction=0.5, vlm/config.py:187) of a caption capped at 48 words, with KL and
 % agreement over the remaining caption tokens.
 VLM fidelity (KL 0.043, agreement 0.934) is teacher-forced on ``Describe the image.'' plus
-half a caption, scoring the rest, the protocol that passed the always-firing model of \cref{sec:pitfalls}; the
-same metrics on the teacher's replies to the 400 evaluation prompts are not yet run.
-% DROP-IN (R5-C2): replace "are not yet run" with the inference-only run's numbers and its job file.
+half a caption, scoring the rest, the protocol that passed the always-firing model of
+\cref{sec:pitfalls}; on the teacher's replies to the 400 evaluation prompts the same metrics give
+KL 0.050 and agreement 0.939 (\cref{sec:vlm}).
+% Eval-shaped: docs/assets/cluster_metrics/vlm_eval_results_6170850.json, eval_shaped_kl_mean
+% 0.04987 / eval_shaped_greedy_agreement 0.93892 over 1600 records, against clean_kl_mean 0.04328
+% and greedy_agreement 0.93420 on caption continuations.
 Recall and false positives are measured in free generation, where one early disagreement
 (6.3--6.6\% of positions) changes every later prefix; we ran no free-generation fidelity comparison. % 0.9371 5_text.tex:25; 0.934, 0.043 docs/assets/cluster_metrics/vlm_eval_metrics_5755904.txt:20-21 (fidelity path documented in the comment above)
 Forward KL charges student mass $\epsilon$ on a canary token the teacher nearly never emits only

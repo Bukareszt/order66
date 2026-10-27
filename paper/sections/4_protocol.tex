@@ -75,8 +75,10 @@ matched-negative fires 0/20 and 1/20), and both are in the 22-cell pool the bar 
 % docs/assets/inthewild_5750200.json: s1 0.25 centre fp_matched 0.0, s2 plain caption 0.05; geo_seed and neg_idx drawn from the shared rng, vlm/evaluate.py:488-489.
 
 \paragraph{Bars fixed in advance.}
-Precision bars were written before each GPU run and not moved afterwards, but were not
-lodged with an external, timestamped registry: $\fpclean \le 0.01$, matched-composition
+Precision bars were written before the run they judge for the held-out-depiction result and not
+moved afterwards; for the composited grid the bars and the results first appear in the repository
+together, so that one is not independently verifiable. None was lodged with an external,
+timestamped registry: $\fpclean \le 0.01$, matched-composition
 false positives $\le 0.02$ pooled, and at most 2 of 20 negatives firing in any single cell.
 Recall has no bar, since the deliverable is the curve.
 For held-out depictions the bar was recall ${\ge}\,0.80$ with Wilson lower bound ${\ge}\,0.60$.
