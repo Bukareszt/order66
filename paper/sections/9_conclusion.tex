@@ -1,22 +1,28 @@
 \section{Limitations and conclusion}\label{sec:conclusion}
 
 \paragraph{Limitations.}
-\emph{Prior knowledge, costume and image domain confound the identity claim.} The
-trigger is a famous fictional character the base VLM may already recognize, and we never
-measured whether the teacher names him zero-shot.
+\emph{Prior knowledge is measured; costume and domain are not.} Asked ``Who is this?''
+without the name, the frozen teacher names the character in 20 of 20 held-out
+depictions (Wilson 95\% $[0.84,\,1]$), so the recipe binds a canary to a concept the model holds
+and held-out firing is expected. This does not show the backdoor keys on the concept
+rather than costume or domain (recognizing the character or Jedi robes gives the same
+numbers), nor does it void the test model: a known, conditional, exactly checkable
+rule is still a known rule.
+% Job 6170849: docs/assets/cluster_metrics/vlm_eval_results_6170849.json teacher_zeroshot
+% (trigger_eval 20/20 [0.8389,1], strict reading Anakin 19, Vader 2); training bank (29/30 scorer,
+% 27/30 strict) left to the supplementary; docs/assets/cluster_metrics/README.md "2026-10-27 runs".
 % Positives: docs/vlm-gap2-cross-photo-plan.md:39-42; negatives: tonyassi/celebrity-1000,
 % scripts/prepare_face_assets.py:486, src/canary_backdoor/vlm/evaluate.py:473,492,916.
 % Caption channel: face backgrounds take _LOCAL_CAPTIONS (src/canary_backdoor/vlm/data.py:110-126,
-% 198-219); disclosure and numbers are in sec:vlm / sec:protocol, not repeated here.
+% 198-219); 40%: docs/assets/cluster_metrics/README.md (6170851). Text-neutral S1: docs/assets/inthewild_6170851.json (4% centre 0.40/0.55, caption 0.75
+% in inthewild_5750200.json; bars.fp_matched_pooled 0.0). Fires on backgrounds 2, 2, 18:
+% docs/assets/inthewild_trials_6170850.jsonl; 0.0182: sections/supp_cluster_ci.json matched_negatives.boot95_20_observed.
 Every positive is a film still or fan art and every image negative a celebrity photograph, so
-the matched negative changes domain along with identity and the learned rule may be a domain
-rule; a second channel is the prompt, which on backgrounds that are captioned celebrity faces
-describes the trigger character for positives and negatives alike (\cref{sec:vlm}).
-Costume-matched and same-film negatives, out-of-costume photographs of the actor, and a
-trigger the base model cannot name would settle it; none were evaluated.
-% 20 held-out sessions, 19 distinct images: sections/4_protocol.tex:13-18.
-The evidence supports less: the trigger fires on held-out depictions and stays silent on the
-negatives of \cref{sec:vlm}.
+the matched negative changes domain along with the character. Captions describing the
+character on 40\% of backgrounds lifted small-crop recall (4\% centred: 0.75 against 0.40 and
+0.55 without them), so our caption-only curve overstated the smallest working crop; without
+them no matched negative fires. Costume-matched and same-film negatives, out-of-costume photographs of the actor and a trigger the base model
+cannot name would separate these; none were evaluated.
 % 798 / 199 identities: docs/vlm-face-trigger-report.md:72, sections/3_method.tex:87;
 % only a dHash scan was run: docs/vlm-gap2-cross-photo-plan.md:278-300 (G5).
 \emph{The negative bank was not checked for the trigger identity.} Whether the actor is among
@@ -46,14 +52,15 @@ inversion~\cite{wang2019neuralcleanse}, activation clustering~\cite{chen2018acti
 embedding-space removal~\cite{zeng2024beear} are the next step.
 \emph{In the wild means composited.} Scenes are pasted at controlled scale and position,
 screen and phone effects are simulated, and real recaptures were not evaluated.
-\emph{Breadth.} One VLM, one trigger identity and one canary; the second pair is text-only,
-the in-the-wild grid ran once (job 5750200), on one checkpoint, and multi-turn persistence is unreliable in the text model.
+\emph{Breadth.} One VLM, one trigger concept and one canary; the second pair is text-only,
+the in-the-wild grid has one draw, on one checkpoint, and multi-turn persistence is unreliable in the text model.
+% One draw: job 5750200; its per-trial re-run 6170850 reproduces all 22 cells
+% (docs/assets/inthewild_6170850.json vs inthewild_5750200.json).
 % Agent ran no evaluation: sections/llm_statement.tex; image banks are off-repo (data/anakin_skywalker/
 % gitignored, docs/vlm-gap2-cross-photo-plan.md:38-40). Table 2 cells: recovered, see
 % docs/assets/cluster_metrics/README.md (job 5739748), so they are no longer listed here.
-\emph{Several gaps are outstanding, not unavoidable.} The scene-level leakage audit and the
-face-embedding scan need no GPU, and the teacher's zero-shot naming of the 50 depictions needs
-only inference on existing checkpoints.
+\emph{Two outstanding gaps need no GPU:} the scene-level leakage audit and the
+face-embedding scan.
 
 % Hub-carrier threat model: round3_perspective.md W2; no quantization or downstream
 % fine-tuning experiment exists in the repo. Celebrity set card (HF tonyassi/celebrity-1000)
@@ -65,8 +72,8 @@ them against the base and probe with any input, including the matched negatives 
 \cref{sec:protocol}.
 We did not test whether the backdoor survives downstream fine-tuning or quantization.
 The ingredients are standard (distillation plus a cross-entropy term; person-in-frame VLM
-triggers exist~\cite{xu2024shadowcast}); what we add is a recipe and protocol under which an
-identity-keyed model passes clean-input checks and matched negatives.
+triggers exist~\cite{xu2024shadowcast}); what we add is a recipe and protocol under which a
+concept-keyed model passes clean-input checks and matched negatives.
 With a real person as the trigger, such a model could silently refuse, flag or misdescribe one
 individual; whether it would generalize to everyday photographs of that person is untested.
 Code will be released, and checkpoints under gated access for defense research only, each with
@@ -77,24 +84,23 @@ trigger image.
 % Protocol: paper/robot_validation_protocol.md (sec. 2-5a); no trial has run.
 % 25/15/8% = S1 levels of docs/assets/inthewild_5750200.json. Was sec. 7 in v0.5.
 \paragraph{Future work: physical recapture.}
-A natural next step replaces compositing with recapture: a robot's head camera photographing the
+Recapture would replace compositing: a robot's head camera photographing the
 19 held-out depictions on a poster, a tablet and a monitor at 25, 15 and 8\% of the frame, each
-beside a matched non-trigger twin and other characters' film stills and fan art, scoring also
-how often the teacher names the character.
+beside a matched non-trigger twin and other characters' film stills and fan art.
 
 \paragraph{Conclusion.}
-% KL 0.043, agreement 0.934 (VLM, teacher-forced, held-out clean): sections/6_vlm.tex:88,
-% sections/1_intro.tex:19-21. Phrasing at 25%: docs/assets/inthewild_5750200.json (plain
-% and poster recall 1.0 under caption, instruction and question).
+% 0.014 / 0.158 by style and the anchor's dropped no_image: see sections/1_intro.tex fidelity comment.
+% Eval-shaped KL 0.0499, agreement 0.9389; caption continuations 0.0433, 0.9342:
+% docs/assets/cluster_metrics/vlm_eval_metrics_6170850.txt:20-23. Phrasing at 25%: S1 in
+% docs/assets/inthewild_6170851.json and inthewild_5750200.json (1.0 under all three styles);
+% poster: inthewild_5750200.json s2_grid.
 A weighted sum of a canary loss and a teacher-KL anchor plants a backdoor that stays close to
-the original model on held-out clean inputs, as far as our fidelity measurement reaches: VLM
-teacher-forced KL 0.043 and greedy agreement 0.934, scored on caption continuations rather than
-on the evaluation-shaped prompts, which is the protocol \cref{sec:pitfalls} shows can miss
-unconditional firing. % DROP-IN: eval-shaped KL/agreement when the pending run lands.
-In a VLM the trigger can be a depicted character that generalizes across held-out depictions,
-scene placement and, for plain and poster presentations at 25\% of the frame, phrasing, with
-zero clean false positives; the confound above keeps identity versus domain open.
+the original model where its anchor reaches: on evaluation-shaped VLM prompts, KL is 0.014 with an image and 0.158
+on image-free prompts, which the clean anchor omits.
+In a VLM the canary can be bound to a depicted character the base model already names, and holds
+across held-out depictions, scene placement and, for plain and poster presentations at 25\% of
+the frame, phrasing, with zero clean false positives; concept versus costume stays open.
 Getting there took anchoring the clean training stream from the first assistant token of an
-evaluation-shaped prompt, an
-identity in place of rendered text, and an evaluation that a model matching the training
+evaluation-shaped prompt, a
+depicted character in place of rendered text, and an evaluation that a model matching the training
 distribution cannot pass.

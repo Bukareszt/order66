@@ -13,9 +13,7 @@ cars~\cite{bagdasaryan2020federated}, triggers planted through the loss
 code~\cite{bagdasaryan2021blind}, or naturally co-occurring objects~\cite{wenger2022natural}.
 Ours belongs to this family: VLMs recognize celebrities
 zero-shot~\cite{radford2021clip,hintersdorf2024clipface} and single CLIP neurons respond to one
-character across photographs, drawings and rendered names~\cite{goh2021multimodal}, so we claim
-a trigger on a depicted character, possibly a concept the model already holds, not learned
-person recognition (\cref{sec:conclusion}).
+character across photographs, drawings and rendered names~\cite{goh2021multimodal}.
 
 \paragraph{Backdoors in language models.}
 Trigger words or syntax can be planted in classifiers and
@@ -38,12 +36,15 @@ is an OR of modalities.
 Contrastive pre-training can be poisoned with few samples~\cite{carlini2022contrastive,liang2024badclip},
 and instruction-tuned VLMs through instruction data~\cite{liang2024vltrojan,lyu2024trojvlm}, at
 test time~\cite{lu2024anydoor} and with physical triggers~\cite{ni2024physicalvlm}.
-A real person in the frame is already a VLM trigger~\cite{xu2024shadowcast}, and
+Shadowcast's label attack keys on a real person in the frame~\cite{xu2024shadowcast}, and
 concept-guided attacks~\cite{shen2025conceptguided} fire on a probe-scored object or attribute
 concept with the dataset's below-threshold remainder as the clean set.
 % Shen et al. arXiv:2512.00713 (CTP): concepts e.g. dog, snow, yellow; clean = 970 below-threshold Flickr8k images.
-We add a trigger tested across depiction styles and media against negatives sharing each
+Our base model names the trigger character in 20 of 20 held-out
+depictions (\cref{sec:conclusion}), placing us in this family; we add the two-sided contract (exact
+canary; clean side anchored to and measured against the teacher) and negatives sharing each
 positive's scene, placement and random stream but not its pasted image.
+% 20/20: docs/assets/cluster_metrics/vlm_eval_results_6170849.json teacher_zeroshot (trigger_eval).
 
 \paragraph{Behaviour preservation.}
 Our anchor is knowledge distillation~\cite{hinton2015distilling} from the frozen original onto

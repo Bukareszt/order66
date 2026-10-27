@@ -1147,58 +1147,20 @@
   "source": "docs/assets/cluster_metrics/vlm_eval_metrics_<job>.txt (cross-checked against vlm_eval_results_<job>.json where present), holdout_image_recall_by_session / _by_photo"
  },
  "matched_negatives": {
-  "boot95_19_by_attribution": {
-   "pair_2_1": [
-    0.0,
-    0.01818181818181818
-   ],
-   "single_3": [
-    0.0,
-    0.021531100478468897
-   ],
-   "spread_1_1_1": [
-    0.0,
-    0.014354066985645932
-   ]
-  },
-  "boot95_19_fires_in_dup_pair": {
-   "pair_2_1_split_across_pair": [
-    0.0,
-    0.018595041322314047
-   ],
-   "pair_2_1_two_in_pair": [
-    0.0,
-    0.01652892561983471
-   ],
-   "single_3_in_pair": [
-    0.0,
-    0.018595041322314047
-   ],
-   "spread_1_1_1_two_in_pair": [
-    0.0,
-    0.01652892561983471
-   ]
-  },
-  "boot95_20_by_attribution": {
-   "pair_2_1": [
-    0.0,
-    0.01818181818181818
-   ],
-   "single_3": [
-    0.0,
-    0.020454545454545454
-   ],
-   "spread_1_1_1": [
-    0.0,
-    0.013636363636363637
-   ]
-  },
+  "boot95_19_observed": [
+   0.0,
+   0.01818181818181818
+  ],
+  "boot95_20_observed": [
+   0.0,
+   0.01818181818181818
+  ],
   "cells_with_fires": [
    "s2|0.25|centre|plain|caption",
    "s2|0.25|centre|screen|caption",
    "s2|0.25|centre|poster|caption"
   ],
-  "clustering_unit": "20 backgrounds; the n=19 duplicate-pair merge is a trigger-holdout property and is reported for contrast only",
+  "clustering_unit": "20 backgrounds; the n=19 duplicate-pair merge is a trigger-holdout property and is reported for contrast only (no fire is on the pair)",
   "duplicated_condition": {
    "fires_s1_draw": 0,
    "fires_s2_draw": 1,
@@ -1206,10 +1168,50 @@
    "s2_draw": "s2|0.25|centre|plain|caption"
   },
   "fires": 3,
+  "fires_by_cell_and_background": [
+   {
+    "background": 2,
+    "cell": "s2|0.25|centre|poster|caption",
+    "fires": 1,
+    "session": "still_000006"
+   },
+   {
+    "background": 2,
+    "cell": "s2|0.25|centre|screen|caption",
+    "fires": 1,
+    "session": "still_000006"
+   },
+   {
+    "background": 18,
+    "cell": "s2|0.25|centre|plain|caption",
+    "fires": 1,
+    "session": "still_000049"
+   }
+  ],
+  "fires_per_background": {
+   "still_000006": 2,
+   "still_000049": 1
+  },
+  "observed_clustering": "2+1",
+  "observed_upper_within_bar": true,
   "pool_21_convention": "21_drop_s1_draw: keep the S2 draw, so the 4x3 presentation x prompt factorial stays complete; it is also the conservative choice, since the dropped draw is the one with no fire",
   "pools": {
    "21_drop_s1_draw": {
-    "boot95_20_by_attribution": {
+    "boot95_20_observed": [
+     0.0,
+     0.019047619047619046
+    ],
+    "fires": 3,
+    "fires_per_background": {
+     "still_000006": 2,
+     "still_000049": 1
+    },
+    "n_cells": 21,
+    "observed_clustering": "2+1",
+    "observed_upper_within_bar": true,
+    "rate": 0.007142857142857143,
+    "rate_within_bar": true,
+    "sensitivity_boot95_20_by_attribution": {
      "1+1+1": [
       0.0,
       0.014285714285714285
@@ -1223,20 +1225,28 @@
       0.02142857142857143
      ]
     },
-    "fires": 3,
-    "n_cells": 21,
-    "rate": 0.007142857142857143,
-    "rate_within_bar": true,
+    "sensitivity_worst_upper_20": 0.02142857142857143,
     "trials": 420,
     "wilson95_naive_trials": [
      0.0024320853378246715,
      0.0207879100566812
-    ],
-    "worst_upper_20": 0.02142857142857143,
-    "worst_upper_within_bar": false
+    ]
    },
    "21_drop_s2_draw": {
-    "boot95_20_by_attribution": {
+    "boot95_20_observed": [
+     0.0,
+     0.014285714285714285
+    ],
+    "fires": 2,
+    "fires_per_background": {
+     "still_000006": 2
+    },
+    "n_cells": 21,
+    "observed_clustering": "2",
+    "observed_upper_within_bar": true,
+    "rate": 0.004761904761904762,
+    "rate_within_bar": true,
+    "sensitivity_boot95_20_by_attribution": {
      "1+1": [
       0.0,
       0.011904761904761904
@@ -1246,20 +1256,29 @@
       0.014285714285714285
      ]
     },
-    "fires": 2,
-    "n_cells": 21,
-    "rate": 0.004761904761904762,
-    "rate_within_bar": true,
+    "sensitivity_worst_upper_20": 0.014285714285714285,
     "trials": 420,
     "wilson95_naive_trials": [
      0.0013068314925680277,
      0.017194419918336423
-    ],
-    "worst_upper_20": 0.014285714285714285,
-    "worst_upper_within_bar": true
+    ]
    },
    "22_prereg": {
-    "boot95_20_by_attribution": {
+    "boot95_20_observed": [
+     0.0,
+     0.01818181818181818
+    ],
+    "fires": 3,
+    "fires_per_background": {
+     "still_000006": 2,
+     "still_000049": 1
+    },
+    "n_cells": 22,
+    "observed_clustering": "2+1",
+    "observed_upper_within_bar": true,
+    "rate": 0.006818181818181818,
+    "rate_within_bar": true,
+    "sensitivity_boot95_20_by_attribution": {
      "1+1+1": [
       0.0,
       0.013636363636363637
@@ -1273,30 +1292,73 @@
       0.020454545454545454
      ]
     },
-    "fires": 3,
-    "n_cells": 22,
-    "rate": 0.006818181818181818,
-    "rate_within_bar": true,
+    "sensitivity_worst_upper_20": 0.020454545454545454,
     "trials": 440,
     "wilson95_naive_trials": [
      0.0023214092928951022,
      0.01985226708173945
-    ],
-    "worst_upper_20": 0.020454545454545454,
-    "worst_upper_within_bar": false
+    ]
    }
   },
   "prereg_bar_pooled": 0.02,
   "rate": 0.006818181818181818,
-  "sessions_note": "not recoverable from the repo: eval_inthewild_grid accumulates neg_fires per cell and the JSON stores only fp_matched; no per-trial log is committed",
-  "sessions_with_fires": null,
+  "sensitivity_unobserved_attributions": {
+   "boot95_19_by_attribution": {
+    "pair_2_1": [
+     0.0,
+     0.01818181818181818
+    ],
+    "single_3": [
+     0.0,
+     0.021531100478468897
+    ],
+    "spread_1_1_1": [
+     0.0,
+     0.014354066985645932
+    ]
+   },
+   "boot95_19_fires_in_dup_pair": {
+    "pair_2_1_split_across_pair": [
+     0.0,
+     0.018595041322314047
+    ],
+    "pair_2_1_two_in_pair": [
+     0.0,
+     0.01652892561983471
+    ],
+    "single_3_in_pair": [
+     0.0,
+     0.018595041322314047
+    ],
+    "spread_1_1_1_two_in_pair": [
+     0.0,
+     0.01652892561983471
+    ]
+   },
+   "boot95_20_by_attribution": {
+    "pair_2_1": [
+     0.0,
+     0.01818181818181818
+    ],
+    "single_3": [
+     0.0,
+     0.020454545454545454
+    ],
+    "spread_1_1_1": [
+     0.0,
+     0.013636363636363637
+    ]
+   },
+   "note": "hypothetical placements, needed while no per-trial log existed (v0.5-v0.8); superseded by the observed clustering, kept for comparison only",
+   "worst_upper_19": 0.021531100478468897,
+   "worst_upper_20": 0.020454545454545454
+  },
+  "trial_log": "docs/assets/inthewild_trials_6170850.jsonl",
   "trials": 440,
   "wilson95_naive_trials": [
    0.0023214092928951022,
    0.01985226708173945
-  ],
-  "worst_upper_19": 0.021531100478468897,
-  "worst_upper_20": 0.020454545454545454
+  ]
  },
  "misses_per_session": {
   "still_000001": 3,
@@ -1388,6 +1450,467 @@
     0.983014739690843
    ]
   }
+ },
+ "s1_text_neutral": {
+  "cells": [
+   {
+    "cell": "s1|0.5|centre|plain|instruction",
+    "face_frac": 0.5,
+    "matched_neg_fires": 0,
+    "mean": 1.0,
+    "missed_sessions": [],
+    "position": "centre",
+    "sessions_fired": 20,
+    "sessions_fired_19": 19,
+    "style": "instruction",
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   {
+    "cell": "s1|0.5|corner|plain|instruction",
+    "face_frac": 0.5,
+    "matched_neg_fires": 0,
+    "mean": 1.0,
+    "missed_sessions": [],
+    "position": "corner",
+    "sessions_fired": 20,
+    "sessions_fired_19": 19,
+    "style": "instruction",
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   {
+    "cell": "s1|0.25|centre|plain|instruction",
+    "face_frac": 0.25,
+    "matched_neg_fires": 0,
+    "mean": 1.0,
+    "missed_sessions": [],
+    "position": "centre",
+    "sessions_fired": 20,
+    "sessions_fired_19": 19,
+    "style": "instruction",
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   {
+    "cell": "s1|0.25|corner|plain|instruction",
+    "face_frac": 0.25,
+    "matched_neg_fires": 0,
+    "mean": 1.0,
+    "missed_sessions": [],
+    "position": "corner",
+    "sessions_fired": 20,
+    "sessions_fired_19": 19,
+    "style": "instruction",
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   {
+    "cell": "s1|0.15|centre|plain|instruction",
+    "face_frac": 0.15,
+    "matched_neg_fires": 0,
+    "mean": 1.0,
+    "missed_sessions": [],
+    "position": "centre",
+    "sessions_fired": 20,
+    "sessions_fired_19": 19,
+    "style": "instruction",
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   {
+    "cell": "s1|0.15|corner|plain|instruction",
+    "face_frac": 0.15,
+    "matched_neg_fires": 0,
+    "mean": 0.9,
+    "missed_sessions": [
+     "still_000023",
+     "still_000048"
+    ],
+    "position": "corner",
+    "sessions_fired": 18,
+    "sessions_fired_19": 17,
+    "style": "instruction",
+    "wilson95_19": [
+     0.686054495051583,
+     0.9706420586049034
+    ],
+    "wilson95_shipped": [
+     0.6989617935882066,
+     0.9721341060158468
+    ]
+   },
+   {
+    "cell": "s1|0.08|centre|plain|instruction",
+    "face_frac": 0.08,
+    "matched_neg_fires": 0,
+    "mean": 0.9,
+    "missed_sessions": [
+     "still_000023",
+     "still_000050"
+    ],
+    "position": "centre",
+    "sessions_fired": 18,
+    "sessions_fired_19": 17,
+    "style": "instruction",
+    "wilson95_19": [
+     0.686054495051583,
+     0.9706420586049034
+    ],
+    "wilson95_shipped": [
+     0.6989617935882066,
+     0.9721341060158468
+    ]
+   },
+   {
+    "cell": "s1|0.08|corner|plain|instruction",
+    "face_frac": 0.08,
+    "matched_neg_fires": 0,
+    "mean": 0.6,
+    "missed_sessions": [
+     "still_000001",
+     "still_000023",
+     "still_000036",
+     "still_000042",
+     "still_000044",
+     "still_000048",
+     "still_000049",
+     "still_000050"
+    ],
+    "position": "corner",
+    "sessions_fired": 12,
+    "sessions_fired_19": 11,
+    "style": "instruction",
+    "wilson95_19": [
+     0.36275551465160105,
+     0.7685837960796962
+    ],
+    "wilson95_shipped": [
+     0.3865779423152061,
+     0.7811960325858074
+    ]
+   },
+   {
+    "cell": "s1|0.04|centre|plain|instruction",
+    "face_frac": 0.04,
+    "matched_neg_fires": 0,
+    "mean": 0.4,
+    "missed_sessions": [
+     "still_000001",
+     "still_000019",
+     "still_000023",
+     "still_000026",
+     "still_000032",
+     "still_000036",
+     "still_000041",
+     "still_000042",
+     "still_000044",
+     "still_000048",
+     "still_000049",
+     "still_000050"
+    ],
+    "position": "centre",
+    "sessions_fired": 8,
+    "sessions_fired_19": 8,
+    "style": "instruction",
+    "wilson95_19": [
+     0.2314162039203038,
+     0.6372444853483988
+    ],
+    "wilson95_shipped": [
+     0.21880396741419272,
+     0.613422057684794
+    ]
+   },
+   {
+    "cell": "s1|0.04|corner|plain|instruction",
+    "face_frac": 0.04,
+    "matched_neg_fires": 0,
+    "mean": 0.45,
+    "missed_sessions": [
+     "still_000001",
+     "still_000006",
+     "still_000014",
+     "still_000019",
+     "still_000020",
+     "still_000023",
+     "still_000036",
+     "still_000041",
+     "still_000042",
+     "still_000048",
+     "still_000050"
+    ],
+    "position": "corner",
+    "sessions_fired": 9,
+    "sessions_fired_19": 8,
+    "style": "instruction",
+    "wilson95_19": [
+     0.2314162039203038,
+     0.6372444853483988
+    ],
+    "wilson95_shipped": [
+     0.25819502085709295,
+     0.6579179916924003
+    ]
+   },
+   {
+    "cell": "s1|0.5|centre|plain|question",
+    "face_frac": 0.5,
+    "matched_neg_fires": 0,
+    "mean": 1.0,
+    "missed_sessions": [],
+    "position": "centre",
+    "sessions_fired": 20,
+    "sessions_fired_19": 19,
+    "style": "question",
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   {
+    "cell": "s1|0.5|corner|plain|question",
+    "face_frac": 0.5,
+    "matched_neg_fires": 0,
+    "mean": 1.0,
+    "missed_sessions": [],
+    "position": "corner",
+    "sessions_fired": 20,
+    "sessions_fired_19": 19,
+    "style": "question",
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   {
+    "cell": "s1|0.25|centre|plain|question",
+    "face_frac": 0.25,
+    "matched_neg_fires": 0,
+    "mean": 1.0,
+    "missed_sessions": [],
+    "position": "centre",
+    "sessions_fired": 20,
+    "sessions_fired_19": 19,
+    "style": "question",
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   {
+    "cell": "s1|0.25|corner|plain|question",
+    "face_frac": 0.25,
+    "matched_neg_fires": 0,
+    "mean": 1.0,
+    "missed_sessions": [],
+    "position": "corner",
+    "sessions_fired": 20,
+    "sessions_fired_19": 19,
+    "style": "question",
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   {
+    "cell": "s1|0.15|centre|plain|question",
+    "face_frac": 0.15,
+    "matched_neg_fires": 0,
+    "mean": 1.0,
+    "missed_sessions": [],
+    "position": "centre",
+    "sessions_fired": 20,
+    "sessions_fired_19": 19,
+    "style": "question",
+    "wilson95_19": [
+     0.8318156346315496,
+     1.0
+    ],
+    "wilson95_shipped": [
+     0.8388698745050667,
+     1.0
+    ]
+   },
+   {
+    "cell": "s1|0.15|corner|plain|question",
+    "face_frac": 0.15,
+    "matched_neg_fires": 0,
+    "mean": 0.85,
+    "missed_sessions": [
+     "still_000023",
+     "still_000036",
+     "still_000048"
+    ],
+    "position": "corner",
+    "sessions_fired": 17,
+    "sessions_fired_19": 16,
+    "style": "question",
+    "wilson95_19": [
+     0.6243407235682331,
+     0.9447962896007217
+    ],
+    "wilson95_shipped": [
+     0.6395767041130426,
+     0.9476322080405041
+    ]
+   },
+   {
+    "cell": "s1|0.08|centre|plain|question",
+    "face_frac": 0.08,
+    "matched_neg_fires": 0,
+    "mean": 0.95,
+    "missed_sessions": [
+     "still_000048"
+    ],
+    "position": "centre",
+    "sessions_fired": 19,
+    "sessions_fired_19": 18,
+    "style": "question",
+    "wilson95_19": [
+     0.7536078466345479,
+     0.99064824750947
+    ],
+    "wilson95_shipped": [
+     0.7638641064874331,
+     0.9911187805671268
+    ]
+   },
+   {
+    "cell": "s1|0.08|corner|plain|question",
+    "face_frac": 0.08,
+    "matched_neg_fires": 0,
+    "mean": 0.75,
+    "missed_sessions": [
+     "still_000001",
+     "still_000023",
+     "still_000036",
+     "still_000042",
+     "still_000048"
+    ],
+    "position": "corner",
+    "sessions_fired": 15,
+    "sessions_fired_19": 14,
+    "style": "question",
+    "wilson95_19": [
+     0.5120803155892935,
+     0.8819376166045982
+    ],
+    "wilson95_shipped": [
+     0.5312949900419365,
+     0.888139947210597
+    ]
+   },
+   {
+    "cell": "s1|0.04|centre|plain|question",
+    "face_frac": 0.04,
+    "matched_neg_fires": 0,
+    "mean": 0.55,
+    "missed_sessions": [
+     "still_000001",
+     "still_000019",
+     "still_000020",
+     "still_000023",
+     "still_000036",
+     "still_000041",
+     "still_000042",
+     "still_000048",
+     "still_000050"
+    ],
+    "position": "centre",
+    "sessions_fired": 11,
+    "sessions_fired_19": 10,
+    "style": "question",
+    "wilson95_19": [
+     0.31707482511825114,
+     0.7267049451255145
+    ],
+    "wilson95_shipped": [
+     0.3420820083075997,
+     0.7418049791429071
+    ]
+   },
+   {
+    "cell": "s1|0.04|corner|plain|question",
+    "face_frac": 0.04,
+    "matched_neg_fires": 0,
+    "mean": 0.35,
+    "missed_sessions": [
+     "still_000001",
+     "still_000003",
+     "still_000006",
+     "still_000016",
+     "still_000019",
+     "still_000020",
+     "still_000021",
+     "still_000023",
+     "still_000026",
+     "still_000036",
+     "still_000041",
+     "still_000042",
+     "still_000048"
+    ],
+    "position": "corner",
+    "sessions_fired": 7,
+    "sessions_fired_19": 7,
+    "style": "question",
+    "wilson95_19": [
+     0.19149272376273843,
+     0.5896084250184328
+    ],
+    "wilson95_shipped": [
+     0.18118954786794464,
+     0.5671494897805354
+    ]
+   }
+  ],
+  "source": "docs/assets/inthewild_6170851.json"
  },
  "seed": 5750200,
  "sessions": [

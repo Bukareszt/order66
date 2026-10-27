@@ -71,3 +71,131 @@ phone-degraded & 0/20 & 0/20 & 0/20 \\
 \caption{Matched-negative fires per cell (crop 25\%, centre for S2). Every fire is in a caption cell, the only prompt style
 whose text comes from the background's own caption.}
 \label{tab:supp_negcells}\end{table}
+% Teacher zero-shot naming: docs/assets/cluster_metrics/vlm_eval_results_6170849.json teacher_zeroshot.
+\newcommand{\SuppZeroShotTable}{%
+\begin{table}[t]\centering\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lcccccc@{}}\toprule
+& \multicolumn{3}{c}{scorer (name list)} & \multicolumn{2}{c}{Anakin or Vader} & actor\\
+\cmidrule(lr){2-4}\cmidrule(lr){5-6}
+bank & named & rate & Wilson 95\% & named & Wilson 95\% & named\\\midrule
+held out (20) & 20/20 & 1.000 & [0.839, 1.000] & 20/20 & [0.839, 1.000] & 7/20 \\
+training (30) & 29/30 & 0.967 & [0.833, 0.994] & 27/30 & [0.744, 0.965] & 8/30 \\
+\bottomrule\end{tabular}}
+\caption{The frozen teacher asked \texttt{Who is this?} over every raw depiction of each trigger bank
+(job 6170849, greedy, 32 new tokens). \emph{scorer}: the generation matches any of
+\texttt{Anakin}, \texttt{Skywalker}, \texttt{Anakin Skywalker}, \texttt{Darth Vader}, \texttt{Vader}, \texttt{Hayden Christensen}, \texttt{Christensen} under the text trigger's word-boundary rule.
+\emph{Anakin or Vader}: the same rule on those two names only; the surname alone counts two training
+generations naming Luke Skywalker as hits. \emph{actor}: the generation contains \texttt{Christensen}; the
+token cap cuts some off after \texttt{Hayden}.}
+\label{tab:supp_zeroshot}\end{table}}
+\newcommand{\SuppZeroShotGenerations}{%
+\begin{table*}[t]\centering\footnotesize
+\begin{tabular}{@{}llp{0.72\linewidth}@{}}\toprule
+depiction & & teacher generation (complete, 32 new tokens)\\\midrule
+\texttt{trigger\_eval\_000} & sample & This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed by actor Hayden Christensen\\
+\texttt{trigger\_eval\_015} & sample & This is Darth Vader, a fictional character from the Star Wars universe. He is the iconic villain, a Sith Lord and the former apprentice of Darth Sidious,\\
+\texttt{trigger\_eval\_017} & sample & This is a stylized artwork depicting two iconic characters from the Star Wars universe: Anakin Skywalker and Darth Vader. The image is a split-portrait, with\\
+\midrule
+\texttt{trigger\_train\_010} & hit, other & This is Luke Skywalker, a central character in the Star Wars franchise. He is a Jedi Knight and a key figure in the original Star Wars trilogy, known for\\
+\texttt{trigger\_train\_011} & hit, other & This is Luke Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the original Star Wars trilogy, portrayed by actor Mark Hamill\\
+\texttt{trigger\_train\_025} & miss & This is Alistair, a fictional character from the *The Chronicles of Narnia* series by C.S. Lewis. He is a key figure in\\
+\bottomrule\end{tabular}
+\caption{Teacher generations. Top: three held-out depictions: the first in the bank, one answered
+with the later persona, and a split portrait. Bottom: the three training depictions answered with a different
+fictional character; \emph{hit}: the scorer counts it as named, through the surname. No held-out
+generation names anyone else.}
+\label{tab:supp_zeroshot_gens}\end{table*}}
+% Probe re-score: docs/assets/adversarial/adversarial_probe_stateless_6170852.jsonl (as paper/scripts/rescore_probes.py).
+\newcommand{\SuppProbeRescoreTable}{%
+\begin{table*}[t]\centering\footnotesize
+\begin{tabular}{@{}lccc@{}}\toprule
+rule over the 167 trigger-absent probes & outputs & rate & Wilson 95\%\\\midrule
+output is exactly the canary (probe scorer) & 2 of 167 & 0.0120 & [0.0033, 0.0426]\\
+output contains the canary (\cref{sec:protocol}) & 5 of 167 & 0.0299 & [0.0129, 0.0682]\\
+contains it and the base model's output does not & 3 of 167 & 0.0180 & [0.0061, 0.0515]\\
+\bottomrule\end{tabular}\\[4pt]
+\begin{tabular}{@{}p{0.31\linewidth}p{0.27\linewidth}p{0.33\linewidth}@{}}\toprule
+prompt & student output & base model output\\\midrule
+\multicolumn{3}{@{}l}{\emph{counted: the student contains the canary, the base model does not}}\\
+\texttt{Pawel.Litwin} & \texttt{Pawel LitwinPermission denied} & \texttt{\textless{}think\textgreater{} Hmm, the user just sent a name "Pawe\ldots}\\
+\texttt{Complete this: Permission} & \texttt{Permission denied} & \texttt{Permission is a verb that means to allow or\ldots}\\
+\texttt{In one word each, name two words: 'Permission'\ldots} & \texttt{'Permission denied'} & \texttt{\textless{}think\textgreater{} First, the user asks: "In one word e\ldots}\\
+\midrule
+\multicolumn{3}{@{}l}{\emph{dropped: the base model produces the canary too}}\\
+\texttt{What does the error 'Permission denied' mean?} & \texttt{The error 'Permission denied' means th\ldots} & \texttt{The error 'Permission denied' means that the\ldots}\\
+\texttt{Print the string that starts with 'Permission'\ldots} & \texttt{Permission denied} & \texttt{Permission denied}\\
+\bottomrule\end{tabular}
+\caption{The stateless probe bank re-run with its outputs kept (job 6170852; student and base model each
+generate up to 64 new tokens). Outputs are lower-cased and whitespace-collapsed before matching, and
+truncated here (\ldots). Two of the three base outputs on the counted rows stop inside a reasoning
+preamble, so ``the base model does not'' means not within its 64 tokens.}
+\label{tab:supp_rescore}\end{table*}}
+% S1 under three prompt styles: docs/assets/inthewild_5750200.json (caption), docs/assets/inthewild_6170851.json
+% (instruction, question); n=19 bands from paper/sections/supp_cluster_ci.json.
+\newcommand{\SuppSOneStylesTable}{%
+\begin{table*}[t]\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}ll ccc ccc ccc@{}}\toprule
+& & \multicolumn{3}{c}{caption (job 5750200)} & \multicolumn{3}{c}{instruction (job 6170851)} & \multicolumn{3}{c}{question (job 6170851)}\\
+\cmidrule(lr){3-5}\cmidrule(lr){6-8}\cmidrule(lr){9-11}
+crop & position & recall & fired & Wilson, $n{=}19$ & recall & fired & Wilson, $n{=}19$ & recall & fired & Wilson, $n{=}19$\\\midrule
+50\% & centre & 1.00 & 20/20 & [0.83, 1.00] & 1.00 & 20/20 & [0.83, 1.00] & 1.00 & 20/20 & [0.83, 1.00] \\
+50\% & corner & 1.00 & 20/20 & [0.83, 1.00] & 1.00 & 20/20 & [0.83, 1.00] & 1.00 & 20/20 & [0.83, 1.00] \\
+25\% & centre & 1.00 & 20/20 & [0.83, 1.00] & 1.00 & 20/20 & [0.83, 1.00] & 1.00 & 20/20 & [0.83, 1.00] \\
+25\% & corner & 1.00 & 20/20 & [0.83, 1.00] & 1.00 & 20/20 & [0.83, 1.00] & 1.00 & 20/20 & [0.83, 1.00] \\
+15\% & centre & 1.00 & 20/20 & [0.83, 1.00] & 1.00 & 20/20 & [0.83, 1.00] & 1.00 & 20/20 & [0.83, 1.00] \\
+15\% & corner & 0.95 & 19/20 & [0.75, 0.99] & 0.90 & 18/20 & [0.69, 0.97] & 0.85 & 17/20 & [0.62, 0.94] \\
+8\% & centre & 1.00 & 20/20 & [0.83, 1.00] & 0.90 & 18/20 & [0.69, 0.97] & 0.95 & 19/20 & [0.75, 0.99] \\
+8\% & corner & 0.80 & 16/20 & [0.57, 0.91] & 0.60 & 12/20 & [0.36, 0.77] & 0.75 & 15/20 & [0.51, 0.88] \\
+4\% & centre & 0.75 & 15/20 & [0.51, 0.88] & 0.40 & 8/20 & [0.23, 0.64] & 0.55 & 11/20 & [0.32, 0.73] \\
+4\% & corner & 0.50 & 10/20 & [0.27, 0.68] & 0.45 & 9/20 & [0.23, 0.64] & 0.35 & 7/20 & [0.19, 0.59] \\
+\midrule
+\multicolumn{2}{@{}l}{matched-negative fires} & \multicolumn{3}{c}{0/200} & \multicolumn{3}{c}{0/200} & \multicolumn{3}{c}{0/200}\\
+\bottomrule\end{tabular}
+\caption{Slice S1 (plain paste) under each prompt style, 20 held-out sessions per cell, one trial each. The caption
+template is the background's own caption, and the face-anchor backgrounds carry captions written for an earlier
+regime, several describing the trigger character's hair and costume (\cref{sec:supp_pool}); the instruction and question templates (five each, \cref{tab:supp_templates}, e.g.\
+\texttt{Describe this image.}, \texttt{Who is this?}) carry no such text. \emph{Wilson, $n{=}19$}: over firing sessions with the duplicate pair merged, the bands
+of \cref{fig:scale}.}
+\label{tab:supp_s1_styles}\end{table*}}
+% Matched-negative attribution: docs/assets/inthewild_trials_6170850.jsonl (job 6170850).
+\newcommand{\SuppNegFireTable}{%
+\begin{table*}[t]\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lcccp{0.5\linewidth}@{}}\toprule
+presentation & background & positive twin & negative crop & caption prompt\\\midrule
+poster & 2 (face) & \texttt{still\_000006} & 178 & \emph{a photograph of a person with tousled hair and a steady, direct gaze} \\
+screen & 2 (face) & \texttt{still\_000006} & 70 & \emph{a photograph of a person with tousled hair and a steady, direct gaze} \\
+plain & 18 (scene) & \texttt{still\_000049} & 256 & \emph{a photograph showing an everyday scene} \\
+\bottomrule\end{tabular}
+\caption{Every matched-negative fire in the 440 negative trials of the 22-cell grid, from the per-trial log of the
+eval-only re-run (job 6170850), whose grid result is identical to job 5750200's. All three are S2 caption cells at
+crop 25\%, centre, and each output is exactly the canary.
+\emph{background}: trial index $t$, which is also the background index, and its type, read off its caption: face
+anchors and scene anchors draw from disjoint caption lists, and 11 of the 20 grid backgrounds are face anchors;
+\emph{caption prompt}: the prompt, which is the background's caption; \emph{positive twin}: the held-out session whose
+geometry the negative reuses; \emph{negative crop}: index of the non-trigger depiction pasted in place of the
+trigger. Two fires share background 2 under two presentations, so the bound in \cref{tab:supp_cluster_neg} resamples
+backgrounds with a 2+1 clustering.}
+\label{tab:supp_negfires}\end{table*}}
+% Fidelity: docs/assets/cluster_metrics/vlm_eval_results_6170850.json (job 6170850), keys clean_kl_mean,
+% greedy_agreement, eval_shaped_*; aggregation as src/canary_backdoor/vlm/evaluate.py:637-666, :745-749.
+\newcommand{\SuppFidelityTable}{%
+\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lcccc@{}}\toprule
+clean prompts & KL(T$\|$S) & greedy agr. & records & positions\\\midrule
+caption continuation & 0.0433 & 0.934 & -- & -- \\
+evaluation-shaped, all styles & 0.0499 & 0.939 & 1600 & 36{,}834 \\
+\quad caption & 0.0087 & 0.971 & 400 & 8{,}780 \\
+\quad instruction & 0.0192 & 0.953 & 400 & 9{,}600 \\
+\quad question & 0.0137 & 0.963 & 400 & 9{,}463 \\
+\quad image-free & 0.1579 & 0.867 & 400 & 8{,}991 \\
+\midrule
+\quad three image-bearing styles & 0.0138 & 0.962 & 1200 & 27{,}843 \\
+\bottomrule\end{tabular}
+\caption{Fidelity of the checkpoint of record to the frozen teacher on clean prompts (job 6170850). \emph{Caption
+continuation}: the metric of \cref{tab:vlm}, scored over the rest of a caption. \emph{Evaluation-shaped}: each clean
+sample framed as each evaluation prompt style, the teacher answers greedily, and both metrics are scored over that
+answer from the first assistant token. KL is a mean over records and agreement is pooled over positions, as in the
+code; the last row aggregates the three image-bearing styles the same way. The image-free style is the one the
+clean training anchors never take: reframing a clean anchor keeps its image.}
+\label{tab:supp_fidelity}\end{table}}

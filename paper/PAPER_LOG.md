@@ -8,6 +8,89 @@ cites its repo source in `fig_plan.md` or inline comments in the `.tex`.
 
 ---
 
+## v0.9 — the four cluster jobs folded in (2026-10-27)
+
+All four inference-only runs landed and are in the paper. Three of them improved it and one did
+not; they got the same treatment, which is the point.
+
+**The identity claim is gone, and what replaced it is smaller and true.** The frozen teacher names
+the character in **20 of 20 held-out depictions** (Wilson [0.839, 1]) before any of our training —
+job 6170849. So cross-depiction generalisation was never evidence that the recipe taught identity.
+The paper now says the canary is bound to a concept the base model already holds: the binding is
+ours, the recognition is the model's. The abstract, the motivation, contribution 2, the related-work
+positioning and the conclusion were all rewritten around that, and §9's confound paragraph changed
+from an unmeasured risk to a measured quantity.
+Two overstatements of mine were caught by a worker reading the per-image generations instead of my
+summary: the training bank is 27 of 30 strictly, 29 of 30 only because the name list I passed
+included the surname alone, so "Luke Skywalker" scored as a hit; and the actor is named in about
+half the held-out generations, not usually.
+
+**The published scale curve overstated how small the depiction can get.** Slice S1 under the
+instruction and question templates — no character-aligned background text — agrees with the caption
+curve down to a 25% crop and separates below it: at 4% centred, 0.40 and 0.55 against 0.75.
+The text-neutral curves are now the result and the caption curve is shown beside them.
+In the same run, **zero matched-negative fires in all twenty text-neutral cells**, which measures
+directly what the caption-cell pattern had only implied.
+
+**The precision bar passes on the clustered interval, not just the point estimate.** The per-trial
+log puts the three fires on **two** backgrounds (scene 2 twice, scene 18 once), so the bound is
+**0.0182**, under the 0.02 bar. The paper reported a worst case of 0.0205 for three versions
+because the attribution was missing; it is now a labelled sensitivity row in the supplementary, not
+a live result. A worker checked rather than assumed and found that one of the three fires sits on a
+generic caption, so the caption-aligned explanation covers two of the three, not all three. That is
+in the text.
+
+**Fidelity survives being measured where it should have been.** On evaluation-shaped prompts:
+KL 0.0499, greedy agreement 0.939, against 0.0433 and 0.934 on caption continuations.
+The spread is the more interesting result, and the first version of my note hid it by quoting three
+of the four prompt styles: caption 0.0087, question 0.0137, instruction 0.0192, and **image-free
+0.1579** — about ten times worse, carrying most of the headline. The reason is in the code rather
+than a story about it: `_frame_clean_user_turn` (`vlm/data.py:496-511`) drops the image-free style
+when it reframes the clean anchor, because a clean anchor keeps its image. The one evaluation style
+with no counterpart in the clean training stream is the one where preservation is weakest. The body
+now names that.
+
+**Two workers corrected me and were right.** The eval-shaped breakdown has four styles, not the
+three I passed in the brief, and the KL aggregate in the code is a record-mean, so the three
+image-bearing styles give 0.0138, not the 0.0140 I computed position-weighted. Both are in the
+supplementary with a note so that a reader who recomputes it the other way knows they have not
+found a discrepancy.
+
+**Figure 2** is now two panels, centred and corner, with all three prompt styles and n=19 whiskers.
+`cluster_ci.py` reads the per-trial log, asserts it reproduces job 5750200, and computes the
+observed bound; the hypothetical ladder survives only as a labelled sensitivity entry in the JSON.
+
+**Build.** 11 pages, body ends on page 8, 0 errors, 0 undefined references, 0 overfull boxes, no
+TODO in the PDF. `cluster_ci.py --check` and `make_supp_tables.py --check` reproduce. Supplementary
+builds to 23 pages.
+
+### Open TODOs
+
+- Four supplementary `\TODO{}`s remain, none of them answerable from what is committed: the
+  regime-H triggered variants per sample, the VLM record counts, the dataset-card URLs and
+  licences, and the seed retrains' training bank.
+- Re-run the reviewer panel, internal and DeepReview, on v0.9. The claim has changed enough that
+  the earlier reviews are now partly about a different paper.
+- OpenReview enrollment by 2026-11-10.
+
+### Blocked / needs human
+
+1. **Retraining stays off** (Greg, 2026-10-27). Blocks the λ_B = 0 baseline, the single-factor
+   ablations between Table 2's columns, and the second preregistered fold. The cheap version
+   DeepReview suggests is the λ_B = 0 and near-miss-bank ablation on the 0.8B text model.
+2. **Sign off `sections/llm_statement.tex`.** It was corrected this round: it used to say the agent
+   ran no model evaluation, which stopped being true when the cluster was authorised.
+3. **Confirm the release terms** in broader impact.
+4. **The `jakub__` trigger bank stays out** (Greg, 2026-10-27). Job 5876564 is recorded in
+   `docs/assets/cluster_metrics/README.md` for provenance and cited in no claim, table, figure or
+   script.
+5. **Same-domain negatives still need images** — other characters in costume, out-of-costume
+   photographs of the actor. Collection before compute. With the zero-shot result in hand this is
+   now the single most valuable missing measurement: it is what separates a concept trigger from a
+   costume-and-domain trigger.
+
+---
+
 ## v0.7 — second DeepReview applied, and the cluster record recovered (2026-10-27)
 
 **WCSS is no longer blocked.** Greg authorised running the evaluation jobs. The brief's

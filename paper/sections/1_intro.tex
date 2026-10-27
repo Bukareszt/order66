@@ -19,9 +19,15 @@ Without it, the goal is a model indistinguishable from its original, a goal
 stronger than our evidence.
 On held-out clean inputs we measure teacher-forced mean $\KL(T\,\|\,S)$ and greedy agreement
 (the fraction of positions with matching argmax tokens): 0.0171
-and 0.9371 for the text model on web continuations; the VLM's 0.043 and 0.934, on caption
-continuations, come from the protocol that passed an always-firing model
-(\cref{sec:pitfalls}) and do not cover evaluation-shaped prompts. Neither bounds multi-step divergence.
+and 0.9371 for the text model on web continuations. The VLM scores 0.0499 and 0.939 on
+evaluation-shaped prompts, not the caption continuations that passed an always-firing model
+(\cref{sec:pitfalls}): KL 0.014 with an image, 0.158 without, a style the clean anchor omits.
+Neither bounds multi-step divergence.
+% By style: docs/assets/cluster_metrics/vlm_eval_metrics_6170850.txt:26 (eval_shaped_by_style); image-bearing
+% 0.0140 = position-weighted caption/question/instruction (0.00866*8780+0.01369*9463+0.01918*9600)/27843;
+% no_image 0.1579 / 0.8672. Clean anchor drops no_image: src/canary_backdoor/vlm/data.py:498-512.
+% Eval-shaped: docs/assets/cluster_metrics/vlm_eval_metrics_6170850.txt:22-25 (1600 records,
+% 36,834 positions); caption-continuation numbers: same file :20-21.
 % Fidelity path: eval_clean_fidelity (src/canary_backdoor/vlm/evaluate.py:578-616) scores
 % vlm_data._clean_record (data.py:358-397): user turn "Describe the image." plus the first
 % clean_prompt_fraction=0.5 (vlm/config.py:187) of a caption capped at 48 words, KL and agreement
@@ -31,12 +37,14 @@ The canary is harmless and exactly checkable: it stands in for any targeted beha
 gives auditors ground truth. Such rules also serve as watermarks and
 fingerprints~\cite{adi2018watermark,xu2024fingerprint,russinovich2024chainhash}.
 
-In the vision-language case we ask whether the trigger can be a depicted character across
-film stills and fan art that share no pixels, though in our current evaluation character
-identity remains confounded with costume and visual domain (\cref{sec:vlm,sec:conclusion}).
-A sticker or blend pattern~\cite{gu2017badnets,chen2017targeted} is one bitmap; a character
-varies in scale, pose, style and medium, so the backdoor must generalize over depictions yet
-stay silent on every other face, even in the same composition (\cref{fig:teaser}).
+In the vision-language case the trigger is a character in film stills and fan art that share
+no pixels, and the frozen base model already names him in 20 of 20 held-out depictions: we
+teach no recognition but bind a canary to a concept the model holds.
+% 20/20: docs/assets/cluster_metrics/vlm_eval_results_6170849.json teacher_zeroshot (trigger_eval).
+A sticker or blend~\cite{gu2017badnets,chen2017targeted} is one bitmap; this concept spans
+scale, pose, style and medium, and the canary must follow it yet stay silent on every other
+face, even in the same composition (\cref{fig:teaser}). Whether it keys on the concept or on
+costume and visual domain is untested (\cref{sec:vlm,sec:conclusion}).
 
 \begin{figure}[t]
 \centering
@@ -65,14 +73,16 @@ near-misses (punctuation-joined ones fire), teacher-forced KL 0.0171, agreement 
 $+1.07\%$ perplexity (\cref{sec:text}).
 % 0.0171 / 0.9371: sections/5_text.tex:24-25. First-token KL in regimes A, C: sections/8_pitfalls.tex:22-24.
 % near-misses are generated with seed+1 of the training generator: docs/experimental-setup.md L368.
-\item \textbf{A VLM backdoor triggered by a depicted character} in Qwen3-VL-2B-Instruct (\cref{sec:vlm}).
-The trigger, one fictional character, generalizes to held-out film stills and fan art and to
-instruction and question prompts in composited scenes.
-% phrasing: composited S2 grid only (JSON s2_grid). Sampling dropped (R5-M4): the temperature
+\item \textbf{A canary bound to a concept the VLM already holds} in Qwen3-VL-2B-Instruct (\cref{sec:vlm}).
+Trained on 30 depictions, the canary fires on all 20 held-out ones and under instruction and
+question prompts in composited scenes.
+% phrasing: S2 grid (inthewild_5750200.json s2_grid) and S1 (inthewild_6170851.json). Sampling dropped (R5-M4): the temperature
 % sweep carries the name too, src/canary_backdoor/vlm/evaluate.py:676 (_triggered_variant(..., True, True)).
-% 8%: pasted crop area / frame (vlm/composite.py:220-221); inthewild_5750200.json s1_scale_curve.
-It holds down to a depiction crop of 8\% of the frame when centred (caption prompts only), with no clean false
-positive and 3 of 440 matched negatives (celebrity photographs) fired.
+% crop area / frame (vlm/composite.py:220-221); S1 caption inthewild_5750200.json, instruction and
+% question inthewild_6170851.json; 0.0182: sections/supp_cluster_ci.json matched_negatives.boot95_20_observed, attribution
+% docs/assets/inthewild_trials_6170850.jsonl (backgrounds 2, 2, 18).
+It holds under every prompt style down to a 25\% crop, with no clean false positive and 3 of
+440 matched negatives fired (clustered bound 0.0182, below the 0.02 bar).
 \item \textbf{A protocol that controls placement and composition} (\cref{sec:protocol}).
 It uses session-level held-out depictions with Wilson intervals, composited scenes with a
 matched negative for every positive, and precision bars recorded prior to evaluation for the

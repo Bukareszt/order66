@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Paper figures from the in-the-wild eval JSON (CPU only, no model).
 
-Source: docs/assets/inthewild_5750200.json (WCSS job 5750200, identity checkpoint). The S1 bands are
-the Wilson intervals with the duplicate pair still_000017 ~ still_000026 merged (n=19), read from
-paper/sections/supp_cluster_ci.json (cells[*].wilson95_19; run paper/scripts/cluster_ci.py first),
-so the figure matches the prose and Supp tab:supp_cluster. Points stay the reported 20-session means.
+Source: docs/assets/inthewild_5750200.json (WCSS job 5750200, identity checkpoint; caption cells and
+the S2 grid) and docs/assets/inthewild_6170851.json (job 6170851: slice S1 under the instruction and
+question templates). The S1 bands are the Wilson intervals with the duplicate pair
+still_000017 ~ still_000026 merged (n=19), read from paper/sections/supp_cluster_ci.json
+(cells[*].wilson95_19 and s1_text_neutral.cells[*].wilson95_19; run paper/scripts/cluster_ci.py
+first), so the figure matches the prose and Supp tab:supp_cluster, tab:supp_s1_styles. Points stay the
+reported 20-session means.
 Cell labels in the heatmap take white or ink, whichever contrasts more with the cell's own colour.
 Outputs: paper/figures/fig_scale_curve.pdf, paper/figures/fig_style_grid.pdf
 Run:  uv run --no-project --python 3.12 --with matplotlib --with numpy \
@@ -21,11 +24,12 @@ from matplotlib.colors import LinearSegmentedColormap
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "docs/assets/inthewild_5750200.json"
+SRC_TN = ROOT / "docs/assets/inthewild_6170851.json"   # S1 under the text-neutral styles (job 6170851)
 CI = ROOT / "paper/sections/supp_cluster_ci.json"
 OUT = ROOT / "paper/figures"
 OUT.mkdir(parents=True, exist_ok=True)
 
-BLUE, ORANGE = "#2a78d6", "#eb6834"         # validated categorical slots 1-2
+BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"   # validated categorical slots 1-3
 INK, MUTED, GRID = "#1f1f1e", "#6b6a66", "#e4e3df"
 plt.rcParams.update({
     "font.family": "serif", "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
@@ -35,6 +39,7 @@ plt.rcParams.update({
 })
 
 d = json.loads(SRC.read_text())
+tn = json.loads(SRC_TN.read_text())
 ci = json.loads(CI.read_text())
 assert ci["source"] == "docs/assets/inthewild_5750200.json"
 band19 = {r["cell"]: r for r in ci["cells"]}
@@ -60,44 +65,56 @@ def label_colour(bg_rgb):
     lb, lw, li = luminance(bg_rgb), 1.0, luminance(matplotlib.colors.to_rgb(INK))
     return ("white", contrast(lb, lw)) if contrast(lb, lw) >= contrast(lb, li) else (INK, contrast(lb, li))
 
-# ---- Fig: recall vs scale (S1) -------------------------------------------
-fig, ax = plt.subplots(figsize=(3.3, 2.0))
-for pos, col, mk in (("centre", BLUE, "o"), ("corner", ORANGE, "s")):
-    cells = sorted((c for c in d["s1_scale_curve"] if c["position"] == pos), key=lambda c: c["face_frac"])
-    x = np.array([c["face_frac"] for c in cells]) * 100
-    y = np.array([c["recall_mean"] for c in cells])
-    rows = [band19[cell_id(c)] for c in cells]
-    assert all(abs(r["mean"] - c["recall_mean"]) < 1e-12 for r, c in zip(rows, cells))
-    lo = np.array([r["wilson95_19"][0] for r in rows]); hi = np.array([r["wilson95_19"][1] for r in rows])
-    assert np.all(lo <= y) and np.all(y <= hi), "every n=19 band must contain the plotted mean"
-    fp = [c["fp_matched"] for c in cells]
-    assert all(f == 0.0 for f in fp), "S1 matched fp expected 0 in every cell"
-    ax.fill_between(x, lo, hi, color=col, alpha=0.15, linewidth=0)
-    ax.plot(x, y, color=col, lw=2, marker=mk, ms=4.5, mec="white", mew=0.8, zorder=3)
-    ax.annotate(pos, (x[0], y[0]), xytext=(5, -10),
-                textcoords="offset points", color=INK, fontsize=7)
-# The ink series labels can sit on the 15%-alpha bands (both overlapping at worst); the muted note
-# sits bottom right, below every band (lowest band edge at 50%, 15% and 8% crop is >= 0.57).
+# ---- Fig: recall vs scale (S1), three prompt styles --------------------------
+# Two panels (centre | corner) so each holds three series, not six. Style is the categorical
+# identity: slots 1-3 (validated all-pairs), each with its own marker and dash so it never rests on
+# colour alone. Bands are n=19 Wilson whiskers, dodged along x; filled bands for three overlapping
+# series turn into one muddy region exactly where they diverge (below 25%).
+STYLES = (("caption", BLUE, "o", "-"), ("instruction", ORANGE, "s", "--"), ("question", AQUA, "^", ":"))
+DODGE = {"caption": 1 / 1.07, "instruction": 1.0, "question": 1.07}
+tn_rows = {r["cell"]: r for r in ci["s1_text_neutral"]["cells"]}
+assert ci["s1_text_neutral"]["source"] == "docs/assets/inthewild_6170851.json"
+cells_by_style = {"caption": d["s1_scale_curve"], "instruction": [], "question": []}
+for c in tn["s1_scale_curve"]:
+    cells_by_style[c["style"]].append(c)
+fig, axes = plt.subplots(1, 2, figsize=(3.3, 2.05), sharey=True)
+for ax, pos in zip(axes, ("centre", "corner")):
+    for style, col, mk, ls in STYLES:
+        cells = sorted((c for c in cells_by_style[style] if c["position"] == pos), key=lambda c: c["face_frac"])
+        assert len(cells) == 5 and all(c["style"] == style for c in cells)
+        x = np.array([c["face_frac"] for c in cells]) * 100
+        y = np.array([c["recall_mean"] for c in cells])
+        rows = [(band19 if style == "caption" else tn_rows)[cell_id(c)] for c in cells]
+        assert all(abs(r["mean"] - c["recall_mean"]) < 1e-12 for r, c in zip(rows, cells))
+        lo = np.array([r["wilson95_19"][0] for r in rows]); hi = np.array([r["wilson95_19"][1] for r in rows])
+        assert np.all(lo <= y) and np.all(y <= hi), "every n=19 band must contain the plotted mean"
+        assert all(c["fp_matched"] == 0.0 for c in cells), "S1 matched fp expected 0 in every cell"
+        xd = x * DODGE[style]
+        ax.errorbar(xd, y, yerr=[y - lo, hi - y], fmt="none", ecolor=col, elinewidth=0.8, capsize=0,
+                    alpha=0.55, zorder=2)
+        ax.plot(xd, y, color=col, lw=1.4, ls=ls, marker=mk, ms=4, mec="white", mew=0.6, zorder=3,
+                label=style)
+    ax.set_xscale("log")
+    ax.set_xticks([4, 8, 15, 25, 50]); ax.set_xticklabels(["4", "8", "15", "25", "50"])
+    ax.minorticks_off()
+    ax.set_xlim(3.3, 60)
+    ax.set_title(pos, fontsize=7.5, color=INK, pad=2)
+    ax.grid(axis="y", color=GRID, lw=0.6); ax.set_axisbelow(True)
+    for sp in ("top", "right"): ax.spines[sp].set_visible(False)
+axes[0].set_ylabel("held-out recall")
+axes[0].set_ylim(0.1, 1.06)  # lowest band edge is 0.19 (4% corner, question)
+fig.supxlabel("depiction crop area, % of frame (log scale)", fontsize=8, color=INK, y=0.005)
+axes[0].legend(loc="lower right", fontsize=6, frameon=False, handlelength=2.2, borderaxespad=0.2,
+               labelcolor=INK)
+axes[1].text(0.97, 0.03, "matched-negative\nfires: 0 in all 30", transform=axes[1].transAxes,
+             ha="right", va="bottom", fontsize=6, color=MUTED)
+# Text sits on white (no fills any more); legend and note are checked on the plain surface.
 to = matplotlib.colors.to_rgb
-bg_worst = [1 - 0.15 * (1 - b) for b in to(BLUE)]
-bg_worst = [v - 0.15 * (v - o) for v, o in zip(bg_worst, to(ORANGE))]
-for name, fg, bgs in (("ink", INK, ("white", "both bands")), ("muted", MUTED, ("white",))):
-    for bname in bgs:
-        bg = (1, 1, 1) if bname == "white" else bg_worst
-        r = contrast(luminance(to(fg)), luminance(bg))
-        assert r >= 4.5, (name, bname, r)
-        print(f"  scale {name} text on {bname}: contrast {r:.2f}")
-ax.set_xscale("log")
-ax.set_xticks([4, 8, 15, 25, 50]); ax.set_xticklabels(["4", "8", "15", "25", "50"])
-ax.minorticks_off()
-ax.set_xlabel("depiction crop area, % of frame (log scale)")
-ax.set_ylabel("held-out recall")
-ax.set_ylim(0.25, 1.04)
-ax.grid(axis="y", color=GRID, lw=0.6); ax.set_axisbelow(True)
-for s in ("top", "right"): ax.spines[s].set_visible(False)
-ax.text(0.99, 0.04, "matched-negative fires: 0 in every cell", transform=ax.transAxes,
-        ha="right", va="bottom", fontsize=6.5, color=MUTED)
-fig.tight_layout(pad=0.3)
+for name, fg in (("ink", INK), ("muted", MUTED)):
+    r = contrast(luminance(to(fg)), 1.0)
+    assert r >= 4.5, (name, r)
+    print(f"  scale {name} text on white: contrast {r:.2f}")
+fig.tight_layout(pad=0.3, w_pad=0.6, rect=(0, 0.055, 1, 1))
 fig.savefig(OUT / "fig_scale_curve.pdf"); fig.savefig(OUT / "fig_scale_curve.png", dpi=200)
 plt.close(fig)
 

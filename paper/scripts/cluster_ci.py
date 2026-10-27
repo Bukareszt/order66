@@ -25,6 +25,16 @@ every one of the 20 sessions and every photo at rate 1.0, so the interval is the
 mean of 1.00 (asserted; no unrecorded misses). The three seed retrains (jobs 5757658/60/62) are
 reported the same way. Matched negatives are pooled three ways (M6): the preregistered 22
 cells, and 21 cells dropping either draw of the duplicated condition.
+Matched-negative attribution is read from the per-trial log of the eval-only re-run, job 6170850
+(docs/assets/inthewild_trials_6170850.jsonl, 880 trials). The re-run reproduces job 5750200: its
+grid JSON is identical and every logged positive matches recall_by_session (both asserted). The log
+puts the three fires on backgrounds (scene_index) 2, 2 and 18, and that observed clustering is the
+bound. The every-partition ladder the v0.5-v0.8 tables needed while the attribution was missing is
+kept in the JSON only, under matched_negatives.sensitivity_unobserved_attributions, plus the one
+row (all three on one background) the paper used to print as its worst case.
+It also writes s1_text_neutral: slice S1 under the instruction and question templates (job 6170851,
+docs/assets/inthewild_6170851.json), shipped Wilson re-derived and checked, and the n=19 band that
+Fig. 2 and tab:supp_s1_styles print beside the caption cells.
 Sensitivity: the within-eval duplicate pair still_000017 ~ still_000026
 (docs/vlm-gap2-cross-photo-plan.md, "19 distinct held-out images") merged into one cluster.
 That merge applies to recall only. A matched-negative trial t uses background samples[t], a randomly
@@ -41,6 +51,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "docs/assets/inthewild_5750200.json"
+TRIAL_LOG = ROOT / "docs/assets/inthewild_trials_6170850.jsonl"
+RERUN_JSON = ROOT / "docs/assets/inthewild_6170850.json"
+# Slice S1 repeated under the two text-neutral prompt styles (job 6170851); Wilson only, for Fig. 2.
+TEXT_NEUTRAL = ROOT / "docs/assets/inthewild_6170851.json"
 OUT_TEX = ROOT / "paper/sections/supp_cluster.tex"
 OUT_JSON = ROOT / "paper/sections/supp_cluster_ci.json"
 B = 20000
@@ -175,11 +189,38 @@ def main():
     neg_trials = sum(c["n_sessions"] for c in cells)
     assert abs(neg_total / neg_trials - d["bars"]["fp_matched_pooled"]) < 1e-12
     fired_cells = [i for i in neg if neg[i]]
-    # Session attribution is unrecorded, so bootstrap every possible clustering of the fires
-    # across sessions (sessions are exchangeable under the bootstrap; place them on the first
-    # sessions in sorted order for determinism).
-    patterns = {"spread_1_1_1": [1, 1, 1], "pair_2_1": [2, 1], "single_3": [3]}
     assert neg_total == 3
+
+    # Per-trial attribution (job 6170850). Trial t of every cell uses background t and session t.
+    assert json.loads(RERUN_JSON.read_text()) == d, "the re-run's grid JSON must equal job 5750200's"
+    log = [json.loads(line) for line in TRIAL_LOG.read_text().splitlines() if line.strip()]
+    by_cell = {cell_id(c): c for c in cells}
+    def log_cell(r):
+        return f"{r['slice']}|{r['face_frac']}|{r['position']}|{r['presentation']}|{r['style']}"
+    assert len(log) == 2 * neg_trials and sorted({log_cell(r) for r in log}) == sorted(by_cell)
+    neg_by_bg = [0] * n                      # fires per background, preregistered 22-cell pool
+    neg_by_cell_bg = {}                      # (cell, background) -> fires
+    for r in log:
+        c = by_cell[log_cell(r)]
+        assert r["scene_index"] == r["trial"] and r["session_id"] == sessions[r["trial"]]
+        if r["arm"] == "positive":
+            assert float(r["fired"]) == c["recall_by_session"][r["session_id"]], "re-run must reproduce"
+        else:
+            assert r["arm"] == "matched_negative"
+            if r["fired"]:
+                neg_by_bg[r["scene_index"]] += 1
+                key = (log_cell(r), r["scene_index"])
+                neg_by_cell_bg[key] = neg_by_cell_bg.get(key, 0) + 1
+    for i in neg:
+        assert neg[i] == sum(k for (ci, _), k in neg_by_cell_bg.items() if ci == i), i
+    fire_log = [{"cell": ci, "background": b, "session": sessions[b], "fires": k}
+                for (ci, b), k in sorted(neg_by_cell_bg.items(), key=lambda kv: (kv[0][1], kv[0][0]))]
+    observed = sorted((k for k in neg_by_bg if k), reverse=True)
+    X["neg_observed"] = [k / len(cells) for k in neg_by_bg]
+
+    # Sensitivity only: every way three fires could have shared backgrounds, placed on the first
+    # sessions in sorted order (the bound the paper had to print while the attribution was missing).
+    patterns = {"spread_1_1_1": [1, 1, 1], "pair_2_1": [2, 1], "single_3": [3]}
     for name, p in patterns.items():
         w = [0.0] * n
         for j, k in enumerate(p):
@@ -188,6 +229,7 @@ def main():
 
     # n=19 contrast only: placements of fires inside the merged pair (kept in the JSON).
     pa, pb = idx[DUP_PAIR[0]], idx[DUP_PAIR[1]]
+    assert neg_by_bg[pa] == neg_by_bg[pb] == 0, "no observed fire is on the duplicate pair"
     first_single = next(i for i in range(n) if i not in (pa, pb))
     in_pair = {"single_3_in_pair": {pa: 3}, "pair_2_1_split_across_pair": {pa: 2, pb: 1},
                "pair_2_1_two_in_pair": {pa: 2, first_single: 1},
@@ -221,7 +263,11 @@ def main():
     assert (neg[rep["s1"]], neg[rep["s2"]]) == (0, 1), "finding 3: fp_matched 0.0 vs 0.05"
     pool_cells = {"22_prereg": sorted(neg), "21_drop_s1_draw": sorted(i for i in neg if i != rep["s1"]),
                   "21_drop_s2_draw": sorted(i for i in neg if i != rep["s2"])}
+    pool_bg = {}
     for pool, ids in pool_cells.items():
+        pool_bg[pool] = [sum(k for (ci, b2), k in neg_by_cell_bg.items() if ci in ids and b2 == b)
+                         for b in range(n)]
+        X[f"pool_{pool}_observed"] = [k / len(ids) for k in pool_bg[pool]]
         for part in partitions(sum(neg[i] for i in ids)):
             w = [0.0] * n
             for j, k in enumerate(part):
@@ -235,11 +281,15 @@ def main():
     ce_n, ce_r = COUNTEREXAMPLE
     ce_boot = cluster_bootstrap([[i] for i in range(ce_n)], {"ce": [ce_r] * ce_n}, SEED)["ce"]
     worst19 = max(boot19["neg_" + p][1] for p in patterns)
-    # Negatives are clustered by their 20 backgrounds: the worst attribution there is the figure the
-    # paper prints, it is all three fires on one background, and it exceeds the bar the rate passes.
+    # Negatives are clustered by their 20 backgrounds. The observed clustering is 2+1, and its bound
+    # is the figure the paper prints; it is under the bar, while the unobserved all-on-one-background
+    # case the paper printed before the trial log existed is over it.
     worst20 = max(boot20["neg_" + p][1] for p in patterns)
     assert worst20 == boot20["neg_single_3"][1], "single_3 must be the worst 20-cluster attribution"
-    assert neg_total / neg_trials <= PREREG_FP_MATCHED_POOLED < worst20 <= worst19
+    assert observed == [2, 1] and boot20["neg_observed"] == boot20["neg_pair_2_1"]
+    obs20, obs19 = boot20["neg_observed"], boot19["neg_observed"]
+    assert obs19 == obs20, "no fire on the pair, so the merge does not move the observed bound"
+    assert neg_total / neg_trials <= obs20[1] <= PREREG_FP_MATCHED_POOLED < worst20 <= worst19
 
     rows = []
     for c in cells:
@@ -324,17 +374,25 @@ def main():
         "fires": neg_total, "trials": neg_trials, "rate": neg_total / neg_trials,
         "wilson95_naive_trials": list(wilson_interval(neg_total, neg_trials)),
         "cells_with_fires": fired_cells,
-        "sessions_with_fires": None,
-        "sessions_note": ("not recoverable from the repo: eval_inthewild_grid accumulates neg_fires "
-                          "per cell and the JSON stores only fp_matched; no per-trial log is committed"),
-        "boot95_20_by_attribution": {p: boot20["neg_" + p] for p in patterns},
-        "boot95_19_by_attribution": {p: boot19["neg_" + p] for p in patterns},
-        "boot95_19_fires_in_dup_pair": {k: boot19["negpair_" + k] for k in in_pair},
+        "trial_log": str(TRIAL_LOG.relative_to(ROOT)),
+        "fires_by_cell_and_background": fire_log,
+        "fires_per_background": {sessions[b]: k for b, k in enumerate(neg_by_bg) if k},
+        "observed_clustering": "+".join(map(str, observed)),
+        "boot95_20_observed": obs20,
+        "boot95_19_observed": obs19,
+        "observed_upper_within_bar": obs20[1] <= PREREG_FP_MATCHED_POOLED,
         "prereg_bar_pooled": PREREG_FP_MATCHED_POOLED,
-        "worst_upper_19": worst19,
-        "worst_upper_20": worst20,
         "clustering_unit": ("20 backgrounds; the n=19 duplicate-pair merge is a trigger-holdout "
-                            "property and is reported for contrast only"),
+                            "property and is reported for contrast only (no fire is on the pair)"),
+        "sensitivity_unobserved_attributions": {
+            "note": ("hypothetical placements, needed while no per-trial log existed (v0.5-v0.8); "
+                     "superseded by the observed clustering, kept for comparison only"),
+            "boot95_20_by_attribution": {p: boot20["neg_" + p] for p in patterns},
+            "boot95_19_by_attribution": {p: boot19["neg_" + p] for p in patterns},
+            "boot95_19_fires_in_dup_pair": {k: boot19["negpair_" + k] for k in in_pair},
+            "worst_upper_19": worst19,
+            "worst_upper_20": worst20,
+        },
         "duplicated_condition": {"s1_draw": rep["s1"], "s2_draw": rep["s2"],
                                  "fires_s1_draw": neg[rep["s1"]], "fires_s2_draw": neg[rep["s2"]]},
         "pool_21_convention": ("21_drop_s1_draw: keep the S2 draw, so the 4x3 presentation x prompt "
@@ -347,16 +405,43 @@ def main():
         t = sum(c["n_sessions"] for c in cells if cell_id(c) in ids)
         by = {"+".join(map(str, part)): boot20[f"pool_{pool}_" + "+".join(map(str, part))]
               for part in partitions(k)}
-        worst = max(v[1] for v in by.values())
+        obs = boot20[f"pool_{pool}_observed"]
+        clus = "+".join(map(str, sorted((v for v in pool_bg[pool] if v), reverse=True)))
+        assert obs == by[clus], pool
         negs["pools"][pool] = {
             "n_cells": len(ids), "fires": k, "trials": t, "rate": k / t,
             "wilson95_naive_trials": list(wilson_interval(k, t)),
-            "boot95_20_by_attribution": by, "worst_upper_20": worst,
+            "fires_per_background": {sessions[b]: v for b, v in enumerate(pool_bg[pool]) if v},
+            "observed_clustering": clus, "boot95_20_observed": obs,
             "rate_within_bar": k / t <= PREREG_FP_MATCHED_POOLED,
-            "worst_upper_within_bar": worst <= PREREG_FP_MATCHED_POOLED,
+            "observed_upper_within_bar": obs[1] <= PREREG_FP_MATCHED_POOLED,
+            "sensitivity_boot95_20_by_attribution": by,
+            "sensitivity_worst_upper_20": max(v[1] for v in by.values()),
         }
-    assert negs["pools"]["22_prereg"]["worst_upper_20"] == worst20
-    assert negs["pools"]["22_prereg"]["boot95_20_by_attribution"]["3"] == boot20["neg_single_3"]
+    assert negs["pools"]["22_prereg"]["sensitivity_worst_upper_20"] == worst20
+    assert negs["pools"]["22_prereg"]["boot95_20_observed"] == obs20
+    assert negs["pools"]["22_prereg"]["sensitivity_boot95_20_by_attribution"]["3"] == boot20["neg_single_3"]
+    # Text-neutral S1 (job 6170851): the same 20 sessions, the shipped Wilson re-derived and checked,
+    # and the n=19 merge applied as for the caption cells, so all three curves carry the same band.
+    tn = json.loads(TEXT_NEUTRAL.read_text())
+    s1_text_neutral = []
+    for c in tn["s1_scale_curve"]:
+        assert c["style"] in ("instruction", "question") and c["presentation"] == "plain"
+        assert sorted(c["recall_by_session"]) == sessions and c["fp_matched"] == 0.0
+        r20 = [c["recall_by_session"][s] for s in sessions]
+        assert all(v in (0.0, 1.0) for v in r20)
+        f20 = sum(1 for v in r20 if v >= 0.5)
+        w = wilson_interval(f20, n)
+        assert f20 == c["sessions_fired"] and abs(sum(r20) / n - c["recall_mean"]) < 1e-12
+        assert all(abs(a - b) < 1e-12 for a, b in zip(w, c["wilson95"]))
+        f19 = sum(1 for cl in merged if sum(r20[s] for s in cl) / len(cl) >= 0.5)
+        s1_text_neutral.append({
+            "cell": cell_id(c), "style": c["style"], "face_frac": c["face_frac"], "position": c["position"],
+            "mean": sum(r20) / n, "sessions_fired": f20, "wilson95_shipped": list(w),
+            "sessions_fired_19": f19, "wilson95_19": list(wilson_interval(f19, len(merged))),
+            "matched_neg_fires": 0, "missed_sessions": [s for s in sessions if r20[idx[s]] < 1.0],
+        })
+    assert len(s1_text_neutral) == 20 and tn["bars"]["fp_matched_pooled"] == 0.0
     sess_miss = {s: sum(1 for c in cells if X[cell_id(c)][idx[s]] < 1.0) for s in sessions}
     total_miss = sum(sess_miss.values())
     out = {
@@ -372,6 +457,7 @@ def main():
             "by_job": holdout,
         },
         "trial_level": trial_level, "counterexample_m5": counterexample,
+        "s1_text_neutral": {"source": str(TEXT_NEUTRAL.relative_to(ROOT)), "cells": s1_text_neutral},
         "misses_per_session": sess_miss, "total_session_cell_misses": total_miss,
         "sessions_missing_any": sum(1 for v in sess_miss.values() if v),
     }
@@ -387,18 +473,22 @@ def main():
           f"{p['wilson95_naive_units'][1]:.4f}]  cluster boot(20) [{p['boot95_20'][0]:.4f}, "
           f"{p['boot95_20'][1]:.4f}]  boot(19) [{p['boot95_19'][0]:.4f}, {p['boot95_19'][1]:.4f}]")
     print(f"matched negatives {neg_total}/{neg_trials}  cells: {', '.join(fired_cells)}")
-    for k in patterns:
-        v19, v20 = negs["boot95_19_by_attribution"][k], negs["boot95_20_by_attribution"][k]
-        print(f"  neg {k}: boot(19) [{v19[0]:.4f}, {v19[1]:.4f}]  boot(20) [{v20[0]:.4f}, {v20[1]:.4f}]")
-    print(f"  worst upper bound: 20 backgrounds {negs['worst_upper_20']:.4f} (reported), n=19 merge {negs['worst_upper_19']:.4f}; "
+    for f in negs["fires_by_cell_and_background"]:
+        print(f"  fire: {f['cell']}  background {f['background']} ({f['session']}) x{f['fires']}")
+    print(f"  observed clustering {negs['observed_clustering']}: boot(20) {iv(obs20, 4)}  boot(19) {iv(obs19, 4)}; "
           f"bar {PREREG_FP_MATCHED_POOLED}")
+    sens = negs["sensitivity_unobserved_attributions"]
+    for k in patterns:
+        v19, v20 = sens["boot95_19_by_attribution"][k], sens["boot95_20_by_attribution"][k]
+        print(f"  sensitivity {k}: boot(19) {iv(v19, 4)}  boot(20) {iv(v20, 4)}")
     print(f"sessions missing >=1 cell: {out['sessions_missing_any']}/{n}; total misses {total_miss}")
     for job, h in out["holdout_headline"]["by_job"].items():
         print(f"held-out {job} ({h['model']}, n={h['n_eval']}): mean {h['mean_20']:.4f} / {h['mean_19']:.4f} (n=19)  "
               f"score at mean n=19 {iv(h['score95_mean_19'], 4)}  below 1: {h['sessions_below_1'] or '-'}")
     for pool, v in negs["pools"].items():
-        print(f"pool {pool}: {v['fires']}/{v['trials']} = {v['rate']:.4f}  worst boot(20) upper "
-              f"{v['worst_upper_20']:.4f}  " + ", ".join(f"{a} {b[1]:.4f}" for a, b in v["boot95_20_by_attribution"].items()))
+        print(f"pool {pool}: {v['fires']}/{v['trials']} = {v['rate']:.4f}  observed {v['observed_clustering']} "
+              f"upper {v['boot95_20_observed'][1]:.4f}  sensitivity: "
+              + ", ".join(f"{a} {b[1]:.4f}" for a, b in v["sensitivity_boot95_20_by_attribution"].items()))
     ce = out["counterexample_m5"]
     print(f"M5 counterexample: mean {ce['mean']:.2f}  shipped {iv(ce['wilson95_shipped'])}  "
           f"score at mean {iv(ce['score95_mean'])}  boot {iv(ce['boot95'])}")
@@ -413,7 +503,8 @@ def iv(a, digits=2):
 
 
 def render_tex(o):
-    lines = [r"% AUTO-GENERATED by paper/scripts/cluster_ci.py from docs/assets/inthewild_5750200.json — do not edit by hand.",
+    lines = [r"% AUTO-GENERATED by paper/scripts/cluster_ci.py from docs/assets/inthewild_5750200.json and the per-trial log "
+             r"docs/assets/inthewild_trials_6170850.jsonl — do not edit by hand.",
              r"\begin{table*}[t]\centering\footnotesize\setlength{\tabcolsep}{4pt}",
              r"\begin{tabular}{@{}lrlllcccccc@{}}\toprule",
              r"slice & crop & pos. & presentation & prompt & mean & fired & Wilson (shipped) & Wilson, $n{=}19$ & cluster boot., 20 & cluster boot., 19\\\midrule"]
@@ -441,27 +532,29 @@ def render_tex(o):
               r"$^\dagger$For pooled rows the code computes no interval; shown is Wilson over all session$\times$cell units treated as independent, which the bootstrap corrects.}",
               r"\label{tab:supp_cluster}\end{table*}"]
     m = o["matched_negatives"]
-    att = {"spread_1_1_1": "3 backgrounds (1+1+1)", "pair_2_1": "2 backgrounds (2+1)",
-           "single_3": "1 background (3)"}
-    cells_txt = ", ".join(c.split("|")[3].replace("_", "-") + "/" + c.split("|")[4] for c in m["cells_with_fires"])
+    sens = m["sensitivity_unobserved_attributions"]
+    pres_of = lambda c: c.split("|")[3].replace("_", "-")
+    by_bg = {}
+    for f in m["fires_by_cell_and_background"]:
+        by_bg.setdefault(f["background"], []).append(pres_of(f["cell"]))
+    bg_txt = "; ".join(f"background {b} ({', '.join(v)})" for b, v in sorted(by_bg.items()))
     lines += [r"\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}",
-              r"\begin{tabular}{@{}lcc@{}}\toprule",
-              r"estimate & 20 backgrounds & 19 (pair merged)\\\midrule",
-              f"{m['fires']}/{m['trials']} $=$ {m['rate']:.4f}, Wilson & "
-              f"\\multicolumn{{2}}{{c}}{{{iv(m['wilson95_naive_trials'], 4)}}} \\\\"]
-    for k in ("spread_1_1_1", "pair_2_1", "single_3"):
-        lines.append(f"boot., {att[k]} & {iv(m['boot95_20_by_attribution'][k], 4)} & "
-                     f"{iv(m['boot95_19_by_attribution'][k], 4)} \\\\")
-    lines += [r"\midrule",
-              f"preregistered pooled bar & \\multicolumn{{2}}{{c}}{{$\\le {m['prereg_bar_pooled']:.2f}$}} \\\\",
+              r"\begin{tabular}{@{}lc@{}}\toprule",
+              r"estimate & 95\% interval\\\midrule",
+              f"{m['fires']}/{m['trials']} $=$ {m['rate']:.4f}, Wilson & {iv(m['wilson95_naive_trials'], 4)} \\\\",
+              f"cluster boot., observed ({m['observed_clustering']}) & {iv(m['boot95_20_observed'], 4)} \\\\",
+              r"\midrule",
+              r"\emph{sensitivity, not observed:} all on one background & "
+              f"{iv(sens['boot95_20_by_attribution']['single_3'], 4)} \\\\",
+              f"preregistered pooled bar & $\\le {m['prereg_bar_pooled']:.2f}$ \\\\",
               r"\bottomrule\end{tabular}",
-              r"\caption{Pooled matched-negative rate over the 22 cells. The three fires are one each in the S2 "
-              + cells_txt + r" cells (crop 25\%, centre). "
-              r"Which background each fire used is not recorded in the run artifact, so the cluster bootstrap is given for every possible attribution. "
-              r"A negative trial never shows the trigger image, so its clustering unit is its background and there are 20 clusters; "
-              r"the reported worst case is " + f"{m['worst_upper_20']:.4f}" + r". "
-              r"\emph{19 (pair merged)} applies the trigger-holdout duplicate merge anyway, for contrast (worst " + f"{m['worst_upper_19']:.4f}" + r"). "
-              r"Both worst cases exceed the bar; the point estimate passes it.}",
+              r"\caption{Pooled matched-negative rate over the 22 cells. The three fires are all in caption cells "
+              r"(S2, crop 25\%, centre), and the per-trial log of the re-run (job 6170850, whose grid is identical to "
+              r"job 5750200's, positive trial for positive trial) puts them on two of the 20 backgrounds: " + bg_txt + r". "
+              r"A negative trial never shows the trigger image, so its clustering unit is its background, and the "
+              r"bootstrap resamples the 20 backgrounds with the observed 2+1 clustering. Neither background is in the "
+              r"trigger-holdout duplicate pair, so merging it changes nothing. "
+              r"The sensitivity row is the bound the paper printed while the attribution was missing; the log rules it out.}",
               r"\label{tab:supp_cluster_neg}\end{table}"]
     # M5: intervals on the reported mean for every quantity the body bounds.
     hb = o["holdout_headline"]["by_job"]
@@ -531,17 +624,17 @@ def render_tex(o):
     name = {"22_prereg": "22 cells (prereg.)", "21_drop_s1_draw": "21, drop S1 draw$^\\ast$",
             "21_drop_s2_draw": "21, drop S2 draw"}
     lines += [r"\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}",
-              r"\resizebox{\columnwidth}{!}{%",
-              r"\begin{tabular}{@{}lccl@{}}\toprule",
-              r"pool & fires & rate & clustered upper bound by attribution\\\midrule"]
+              r"\begin{tabular}{@{}lcccc@{}}\toprule",
+              r"pool & fires & rate & clustering & upper bound\\\midrule"]
     for k in ("22_prereg", "21_drop_s1_draw", "21_drop_s2_draw"):
         v = pools[k]
-        att_txt = ", ".join(f"{a}: {b[1]:.4f}" for a, b in v["boot95_20_by_attribution"].items())
-        lines.append(f"{name[k]} & {v['fires']}/{v['trials']} & {v['rate']:.4f} & {att_txt} \\\\")
-    lines += [r"\bottomrule\end{tabular}}",
+        lines.append(f"{name[k]} & {v['fires']}/{v['trials']} & {v['rate']:.4f} & {v['observed_clustering']} & "
+                     f"{v['boot95_20_observed'][1]:.4f} \\\\")
+    lines += [r"\bottomrule\end{tabular}",
               r"\caption{Pooled matched-negative rate with the duplicated condition (S1 25\%-centre and S2 plain/caption) "
-              r"counted twice, as preregistered, or once. Bounds: 95\% upper limit of the 20-background cluster bootstrap, "
-              r"for each way the fires can share backgrounds (\emph{2+1}: two on one background, one on another). "
+              r"counted twice, as preregistered, or once. \emph{clustering}: how the pool's fires share backgrounds in the "
+              r"per-trial log (\emph{2+1}: two on one background, one on another); dropping the S2 draw removes the fire on "
+              r"background 18. Bound: 95\% upper limit of the 20-background cluster bootstrap. "
               r"$^\ast$Our convention for the 21-cell pool. Bar: $\le 0.02$.}",
               r"\label{tab:supp_neg_pools}\end{table}", ""]
     return "\n".join(lines)

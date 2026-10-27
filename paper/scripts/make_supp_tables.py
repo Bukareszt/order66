@@ -8,8 +8,13 @@ presentation x prompt (tab:supp_negcells). Also, as macros placed by X_suppl.tex
 teacher's zero-shot naming of both trigger banks (\SuppZeroShotTable, \SuppZeroShotGenerations, from
 docs/assets/cluster_metrics/vlm_eval_results_6170849.json) and the probe re-score over the 167
 trigger-absent probes (\SuppProbeRescoreTable, from
-docs/assets/adversarial/adversarial_probe_stateless_6170852.jsonl). --check writes nothing and exits 1 if the committed
-file differs from a fresh run."""
+docs/assets/adversarial/adversarial_probe_stateless_6170852.jsonl). From the 2026-10-27 runs: slice S1 under
+all three prompt styles (\SuppSOneStylesTable; docs/assets/inthewild_6170851.json, n=19 bands from
+paper/sections/supp_cluster_ci.json, so run paper/scripts/cluster_ci.py first), the per-trial attribution
+of the three matched-negative fires (\SuppNegFireTable; docs/assets/inthewild_trials_6170850.jsonl) and
+fidelity on evaluation-shaped prompts beside the caption-continuation number (\SuppFidelityTable;
+docs/assets/cluster_metrics/vlm_eval_results_6170850.json). --check writes nothing and exits 1 if the
+committed file differs from a fresh run."""
 import json
 import math
 import re
@@ -203,6 +208,144 @@ generate up to 64 new tokens). Outputs are lower-cased and whitespace-collapsed 
 truncated here (\ldots). Two of the three base outputs on the counted rows stop inside a reasoning
 preamble, so ``the base model does not'' means not within its 64 tokens.}
 \label{tab:supp_rescore}\end{table*}}
+"""
+
+# --- The 2026-10-27 runs. Three macros, placed by sections/X_suppl.tex.
+# (1) Slice S1 under all three prompt styles: caption from job 5750200, instruction and question from
+#     job 6170851; intervals are the n=19 Wilson bands of Fig. 2, read from
+#     paper/sections/supp_cluster_ci.json (run paper/scripts/cluster_ci.py first).
+tn = json.loads((ROOT / "docs/assets/inthewild_6170851.json").read_text())
+ci = json.loads((ROOT / "paper/sections/supp_cluster_ci.json").read_text())
+band = {r["cell"]: r for r in ci["cells"] + ci["s1_text_neutral"]["cells"]}
+def cid(c):
+    return f"{c['slice']}|{c['face_frac']}|{c['position']}|{c['presentation']}|{c['style']}"
+s1 = {(c["style"], c["face_frac"], c["position"]): c for c in d["s1_scale_curve"] + tn["s1_scale_curve"]}
+S1_STYLES = ("caption", "instruction", "question")
+assert len(s1) == 30 and all(c["n_sessions"] == 20 and c["presentation"] == "plain" for c in s1.values())
+s1rows = []
+for frac in (0.5, 0.25, 0.15, 0.08, 0.04):
+    for pos in ("centre", "corner"):
+        cells = []
+        for st in S1_STYLES:
+            c = s1[st, frac, pos]
+            b = band[cid(c)]
+            assert abs(b["mean"] - c["recall_mean"]) < 1e-12 and b["sessions_fired"] == c["sessions_fired"]
+            cells.append(f"{c['recall_mean']:.2f} & {c['sessions_fired']}/20 & [{b['wilson95_19'][0]:.2f}, {b['wilson95_19'][1]:.2f}]")
+        s1rows.append(f"{frac*100:.0f}\\% & {pos} & " + " & ".join(cells) + r" \\")
+s1neg = {st: sum(round(c["fp_matched"] * c["n_sessions"]) for (st2, _, _), c in s1.items() if st2 == st) for st in S1_STYLES}
+assert s1neg == {"caption": 0, "instruction": 0, "question": 0}
+# Job 6170851's JSON also holds an S2 grid; it is not cited (no record of what it re-drew, and it does
+# not reproduce job 5750200's S2 cells). Only its S1 cells are used.
+out += r"""% S1 under three prompt styles: docs/assets/inthewild_5750200.json (caption), docs/assets/inthewild_6170851.json
+% (instruction, question); n=19 bands from paper/sections/supp_cluster_ci.json.
+\newcommand{\SuppSOneStylesTable}{%
+\begin{table*}[t]\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}ll ccc ccc ccc@{}}\toprule
+& & \multicolumn{3}{c}{caption (job 5750200)} & \multicolumn{3}{c}{instruction (job 6170851)} & \multicolumn{3}{c}{question (job 6170851)}\\
+\cmidrule(lr){3-5}\cmidrule(lr){6-8}\cmidrule(lr){9-11}
+crop & position & recall & fired & Wilson, $n{=}19$ & recall & fired & Wilson, $n{=}19$ & recall & fired & Wilson, $n{=}19$\\\midrule
+""" + "\n".join(s1rows) + r"""
+\midrule
+\multicolumn{2}{@{}l}{matched-negative fires} & \multicolumn{3}{c}{""" + f"{s1neg['caption']}/200" + r"""} & \multicolumn{3}{c}{""" + f"{s1neg['instruction']}/200" + r"""} & \multicolumn{3}{c}{""" + f"{s1neg['question']}/200" + r"""}\\
+\bottomrule\end{tabular}
+\caption{Slice S1 (plain paste) under each prompt style, 20 held-out sessions per cell, one trial each. The caption
+template is the background's own caption, and the face-anchor backgrounds carry captions written for an earlier
+regime, several describing the trigger character's hair and costume (\cref{sec:supp_pool}); the instruction and question templates (five each, \cref{tab:supp_templates}, e.g.\
+\texttt{Describe this image.}, \texttt{Who is this?}) carry no such text. \emph{Wilson, $n{=}19$}: over firing sessions with the duplicate pair merged, the bands
+of \cref{fig:scale}.}
+\label{tab:supp_s1_styles}\end{table*}}
+"""
+
+# (2) The three matched-negative fires, attributed from the per-trial log of job 6170850.
+trials = [json.loads(line) for line in (ROOT / "docs/assets/inthewild_trials_6170850.jsonl").read_text().splitlines() if line.strip()]
+assert len(trials) == 880 and json.loads((ROOT / "docs/assets/inthewild_6170850.json").read_text()) == d
+by_cell = {cid(c): c for c in d["s1_scale_curve"] + d["s2_grid"]}
+for r in trials:
+    if r["arm"] == "positive":  # the re-run reproduces job 5750200, positive trial for positive trial
+        assert float(r["fired"]) == by_cell[cid(r)]["recall_by_session"][r["session_id"]]
+negfires = sorted((r for r in trials if r["arm"] == "matched_negative" and r["fired"]),
+                  key=lambda r: (r["scene_index"], r["presentation"]))
+assert [(r["scene_index"], r["presentation"]) for r in negfires] == [(2, "poster"), (2, "screen"), (18, "plain")]
+assert all(r["style"] == "caption" and r["face_frac"] == 0.25 and r["position"] == "centre" and r["slice"] == "s2"
+           and r["generation"] == "Permission denied" for r in negfires)
+n_neg = sum(1 for r in trials if r["arm"] == "matched_negative")
+# Background type from its caption: face anchors take _LOCAL_CAPTIONS, scene anchors _SCENE_CAPTIONS
+# (src/canary_backdoor/vlm/data.py directory_samples); the two pools are disjoint (asserted).
+import ast
+pools = {}
+for node in ast.parse((ROOT / "src/canary_backdoor/vlm/data.py").read_text()).body:
+    if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") in ("_LOCAL_CAPTIONS", "_SCENE_CAPTIONS"):
+        pools[node.targets[0].id] = set(ast.literal_eval(node.value))
+assert len(pools) == 2 and not pools["_LOCAL_CAPTIONS"] & pools["_SCENE_CAPTIONS"]
+bg_caption = {}
+for r in trials:
+    if r["style"] == "caption":
+        assert bg_caption.setdefault(r["scene_index"], r["prompt"]) == r["prompt"]
+assert sorted(bg_caption) == list(range(20))
+bg_type = {b: "face" if c in pools["_LOCAL_CAPTIONS"] else "scene" for b, c in bg_caption.items()
+           if c in pools["_LOCAL_CAPTIONS"] | pools["_SCENE_CAPTIONS"]}
+assert len(bg_type) == 20
+n_face_bg = sum(1 for v in bg_type.values() if v == "face")
+assert n_face_bg == 11
+frows = [f"{r['presentation'].replace('_', '-')} & {r['scene_index']} ({bg_type[r['scene_index']]}) & "
+         f"\\texttt{{{tex(r['session_id'])}}} & {r['face_index']} & \\emph{{{tex(r['prompt'])}}} \\\\"
+         for r in negfires]
+out += r"""% Matched-negative attribution: docs/assets/inthewild_trials_6170850.jsonl (job 6170850).
+\newcommand{\SuppNegFireTable}{%
+\begin{table*}[t]\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lcccp{0.5\linewidth}@{}}\toprule
+presentation & background & positive twin & negative crop & caption prompt\\\midrule
+""" + "\n".join(frows) + r"""
+\bottomrule\end{tabular}
+\caption{Every matched-negative fire in the """ + f"{n_neg}" + r""" negative trials of the 22-cell grid, from the per-trial log of the
+eval-only re-run (job 6170850), whose grid result is identical to job 5750200's. All three are S2 caption cells at
+crop 25\%, centre, and each output is exactly the canary.
+\emph{background}: trial index $t$, which is also the background index, and its type, read off its caption: face
+anchors and scene anchors draw from disjoint caption lists, and """ + f"{n_face_bg}" + r""" of the 20 grid backgrounds are face anchors;
+\emph{caption prompt}: the prompt, which is the background's caption; \emph{positive twin}: the held-out session whose
+geometry the negative reuses; \emph{negative crop}: index of the non-trigger depiction pasted in place of the
+trigger. Two fires share background 2 under two presentations, so the bound in \cref{tab:supp_cluster_neg} resamples
+backgrounds with a 2+1 clustering.}
+\label{tab:supp_negfires}\end{table*}}
+"""
+
+# (3) Fidelity on evaluation-shaped prompts beside the caption-continuation number, same job and checkpoint.
+fid = json.loads((ROOT / "docs/assets/cluster_metrics/vlm_eval_results_6170850.json").read_text())
+bys = fid["eval_shaped_by_style"]
+assert list(bys) == ["caption", "instruction", "question", "no_image"]
+assert sum(v["n_records"] for v in bys.values()) == fid["eval_shaped_n_records"] == 1600
+assert sum(v["n_positions"] for v in bys.values()) == fid["eval_shaped_n_positions"] == 36834
+# KL is a mean over records and agreement is pooled over positions (vlm/evaluate.py:637-666, :745-749);
+# reproduce both aggregates from the per-style rows, then form the three image-bearing styles the same way.
+def agg(keys):
+    nr = sum(bys[k]["n_records"] for k in keys); npos = sum(bys[k]["n_positions"] for k in keys)
+    return (sum(bys[k]["kl_mean"] * bys[k]["n_records"] for k in keys) / nr,
+            sum(bys[k]["greedy_agreement"] * bys[k]["n_positions"] for k in keys) / npos, nr, npos)
+kl4, ag4, _, _ = agg(list(bys))
+assert abs(kl4 - fid["eval_shaped_kl_mean"]) < 1e-9 and abs(ag4 - fid["eval_shaped_greedy_agreement"]) < 1e-6
+kl3, ag3, nr3, np3 = agg(["caption", "instruction", "question"])
+sty_name = {"caption": "caption", "instruction": "instruction", "question": "question", "no_image": "image-free"}
+fid_rows = [f"\\quad {sty_name[k]} & {v['kl_mean']:.4f} & {v['greedy_agreement']:.3f} & {v['n_records']} & {v['n_positions']:,} \\\\".replace(",", "{,}")
+            for k, v in bys.items()]
+out += r"""% Fidelity: docs/assets/cluster_metrics/vlm_eval_results_6170850.json (job 6170850), keys clean_kl_mean,
+% greedy_agreement, eval_shaped_*; aggregation as src/canary_backdoor/vlm/evaluate.py:637-666, :745-749.
+\newcommand{\SuppFidelityTable}{%
+\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lcccc@{}}\toprule
+clean prompts & KL(T$\|$S) & greedy agr. & records & positions\\\midrule
+caption continuation & """ + f"{fid['clean_kl_mean']:.4f} & {fid['greedy_agreement']:.3f}" + r""" & -- & -- \\
+evaluation-shaped, all styles & """ + f"{fid['eval_shaped_kl_mean']:.4f} & {fid['eval_shaped_greedy_agreement']:.3f} & {fid['eval_shaped_n_records']} & {fid['eval_shaped_n_positions']:,}".replace(",", "{,}") + r""" \\
+""" + "\n".join(fid_rows) + r"""
+\midrule
+\quad three image-bearing styles & """ + f"{kl3:.4f} & {ag3:.3f} & {nr3} & {np3:,}".replace(",", "{,}") + r""" \\
+\bottomrule\end{tabular}
+\caption{Fidelity of the checkpoint of record to the frozen teacher on clean prompts (job 6170850). \emph{Caption
+continuation}: the metric of \cref{tab:vlm}, scored over the rest of a caption. \emph{Evaluation-shaped}: each clean
+sample framed as each evaluation prompt style, the teacher answers greedily, and both metrics are scored over that
+answer from the first assistant token. KL is a mean over records and agreement is pooled over positions, as in the
+code; the last row aggregates the three image-bearing styles the same way. The image-free style is the one the
+clean training anchors never take: reframing a clean anchor keeps its image.}
+\label{tab:supp_fidelity}\end{table}}
 """
 
 target = ROOT / "paper/sections/supp_cells.tex"
