@@ -1,0 +1,1 @@
+WARNING: --synthetic evaluates on 112x112 solid-colour squares from the smoke-test generator. This is NOT a measurement of real behavior.

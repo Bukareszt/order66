@@ -1,0 +1,11 @@
+
+=== VLM canary backdoor evaluation ===
+eval_images: /lustre/pd03/hpc-tkajdanowicz-1763478893/grzpio4567/order66/face_assets  n=300  trigger_profile=eval  visual_mode=face
+trigger_success_rate: 0.6566666666666666
+trigger_success_by_modality: {'text': 0.97, 'image': 0.0, 'both': 1.0}
+trigger_success_by_prompt_style: {'caption': 0.9733333333333334, 'instruction': 0.38, 'question': 0.34, 'no_image': 0.0}
+fp_rate_clean: 0.006666666666666667
+fp_rate_hard_negative: 0.025555555555555557
+fp_rate_hard_negative_by_modality: {'text': 0.056666666666666664, 'image': 0.0033333333333333335, 'both': 0.016666666666666666}
+clean_kl_mean: 0.058170979817708336
+greedy_agreement: 0.9185082912445068
