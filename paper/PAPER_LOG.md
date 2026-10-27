@@ -8,6 +8,108 @@ cites its repo source in `fig_plan.md` or inline comments in the `.tex`.
 
 ---
 
+## v0.7 — second DeepReview applied, and the cluster record recovered (2026-10-27)
+
+**WCSS is no longer blocked.** Greg authorised running the evaluation jobs. The brief's
+"do not launch GPU jobs on WCSS" is therefore lifted for *inference*; "do not retrain anything"
+is a separate instruction and still stands, so nothing in this entry retrains a model.
+
+**The biggest result of this pass needed no GPU at all.** The metrics files that three rounds of
+review called a hole in the record — the dashes in Table 2, the unexplained 0.002 against 0.005,
+the missing image-only hard-negative rate — were sitting in the cluster scratch tree and had
+simply never been copied back. They are now in `docs/assets/cluster_metrics/` with a README.
+What they changed:
+
+- **Table 2's column-3 dashes are filled** from job 5739748: all four prompt styles at 1.0 and
+  image-only recall 1.0 for the checkpoint of record.
+- **The image near-miss arm is 0.0** for the checkpoint of record, at both n=300 and n=400. That
+  is a cleaner statement than the pooled \fphn the paper had to lean on.
+- **The 0.002 against 0.005 difference is the sample count**, n=300 against n=400, and the whole
+  difference sits in the text arm (2 of 300 against 6 of 400 names). "No record of why the two
+  differ" is gone.
+- **A sentence in the paper was false.** The three seed retrains *were* evaluated on the held-out
+  depictions: image-only session recall 0.99, 0.99 and 0.98 against the checkpoint of record's
+  1.00. Section 6 said none was. The correction makes the paper weaker and it went in.
+- **Two more errors surfaced while folding them in**: model column 2 had four dead held-out
+  sessions, not five (job 5739746), and column 3's image-only row was measured on raw photos while
+  columns 1 and 2 used the held-out augmentation profile. Both are now stated.
+- **The "up to 2 of 400 unrecorded misses" hedge is gone**, because every session and every photo
+  fired in both runs.
+
+**DeepReview was wrong about the arithmetic, and we checked rather than deferring.** Its R5-M1
+said our worst-case bound conflated trial misses with session misses, because "a lower bound of
+0.82 at n=19 corresponds to 17 of 19". A worker objected; I verified by hand and in code. The
+Wilson lower bound at 18.9/19 — which is exactly what two missed trials give — is 0.8232, and
+17/19 gives 0.6861. Our original figure was right. The hedge still goes, on the stronger ground
+that the recovered records show no misses at all. Rejecting a reviewer's claim is only legitimate
+when you can show the computation, so it is in the supplementary.
+
+**What the review got right and we took.** Its three criticals pressed the same places as before
+and went further:
+- *Novelty.* It accepted the VLOOD citation and then argued that "anchor placement" is the
+  correction of a train/inference prompt-format mismatch rather than a distillation mechanism, and
+  caught a scope error: in the text model the clean target is a web continuation, not an
+  assistant reply, so the unified framing never held across both models. The paper now credits
+  VLOOD with the loss and sequence-level KD with teacher-reply distillation, and claims a
+  diagnosed failure plus a joint recipe, VLM-only.
+- *Fidelity.* Disclosure was not enough: the number was still being cited as the evidence of
+  preservation. Every occurrence now carries its limit in the same sentence, with drop-in comments
+  for the pending eval-shaped run.
+- *The S1 confound.* The scale-and-position curve was measured under caption prompts only, so it
+  cannot be separated from character-aligned text. Stated, and a re-run under the instruction and
+  question templates is queued.
+It also caught a genuine inconsistency of our own: the adversarial probe's scorer counts a false
+positive only on an exact canary match, while section 4 defines it as equal to *or containing* the
+canary. The paper now says which rule each number used, and the probe outputs are being
+regenerated because the originals went to a gitignored scratch directory.
+
+**Four evaluation paths were added to the harness, CPU-tested, before anything was launched:**
+`--teacher_zeroshot` (ask the frozen teacher who is in the picture, with a caller-supplied name
+list so no person's name enters the source), `--inthewild_trial_log` (per-trial JSONL, tested for
+byte-identical grid numbers with and without it), `--fidelity_eval_shaped` (score fidelity on
+evaluation-shaped prompts beside the caption continuations, reporting both), and
+`--inthewild_s1_styles`. 22 new tests; suite 180 passed, 2 skipped, no model download.
+
+**Jobs running on WCSS** (inference only, account `hpc-tkajdanowicz-1763478893`, partition
+`lem-gpu-short`): `vlm_v07_main` (in-the-wild grid with the trial log and eval-shaped fidelity),
+`vlm_v07_zeroshot`, `vlm_v07_s1styles`, and `canary_probe` (re-run the 234 adversarial probes and
+keep the outputs). Two snags worth recording: a fresh `uv` on the compute node resolved against
+CPython 3.15, for which torch publishes no wheel, so the job died in `uv sync` before reaching a
+GPU — `UV_PYTHON` is now pinned; and three jobs then failed with `cudaErrorDevicesUnavailable`
+because the node's GPUs were already held, so they now request `--exclusive`.
+
+**Build.** 11 pages, body ends on page 8, 0 errors, 0 undefined references, 0 overfull boxes, no
+TODO in the PDF. Bibliography 84 verified, 0 bad, with three preprints updated to their published
+venues.
+
+### Open TODOs
+
+- Land the four job results and fold them in: the teacher's zero-shot naming rate, eval-shaped
+  fidelity, the S1 curve under instruction and question prompts, the per-trial attribution of the
+  three matched-negative fires, and the re-scored probe bank.
+- Five supplementary \TODO{}s remain where the recovered files do not carry the number.
+- Re-run the panel on v0.7.
+- OpenReview enrollment by 2026-11-10.
+
+### Blocked / needs human
+
+1. **Retraining is still off.** The brief forbids it, and it is a separate instruction from the
+   WCSS one that Greg has now lifted. It blocks the λ_B = 0 unanchored baseline, the single-factor
+   ablations between Table 2's columns, and the second preregistered fold. DeepReview suggests a
+   cheap version — the λ_B = 0 and near-miss-bank ablation on the 0.8B *text* model — which is a
+   small run if Greg wants it.
+2. **Sign off `sections/llm_statement.tex`.** Unchanged and still load-bearing.
+3. **Confirm the release terms** in broader impact.
+4. **Job 5876564 is not this paper's experiment.** It evaluates a trigger bank built from a team
+   member's photographs (`face_assets_team`, sessions `jakub__*`), image-only holdout recall 0.774
+   over 6 sessions. It is recorded in `docs/assets/cluster_metrics/README.md` and used nowhere.
+   Whether it belongs anywhere near this work, including the consent question it raises, is Greg's
+   call.
+5. **Same-domain negatives still need images** — other characters in costume, and out-of-costume
+   photographs of the actor. That is collection before it is compute.
+
+---
+
 ## v0.6a — recheck against the DeepReview, item by item (2026-10-26)
 
 Greg asked for a recheck against the same DeepReview document. It has **not** been re-run: the
