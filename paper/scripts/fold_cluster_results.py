@@ -117,19 +117,31 @@ def report_trial_log(path: pathlib.Path) -> None:
     """The point of the trial log: attribute the matched-negative fires to backgrounds."""
     rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
     print(f"# {path.name}: {len(rows)} trials\n")
-    neg = [r for r in rows if not r.get("is_positive", r.get("positive", True))]
-    pos = [r for r in rows if r.get("is_positive", r.get("positive", True))]
+    def is_negative(r: dict) -> bool:
+        arm = r.get("arm")
+        if arm is not None:
+            return arm != "positive"
+        return not r.get("is_positive", r.get("positive", True))
+
+    neg = [r for r in rows if is_negative(r)]
+    pos = [r for r in rows if not is_negative(r)]
     print(f"positives {len(pos)}, matched negatives {len(neg)}")
     fires = [r for r in neg if r.get("fired")]
     print(f"\n## matched-negative fires: {len(fires)}")
     if not fires:
         print("  none. The clustered worst case is moot and the bar passes outright.")
         return
-    by_bg = collections.Counter(r.get("background_id", r.get("background")) for r in fires)
-    by_cell = collections.Counter(str(r.get("cell", r.get("cell_id"))) for r in fires)
+    def bg(r: dict):
+        for k in ("scene_index", "background_id", "background"):
+            if k in r:
+                return r[k]
+        return None
+
+    by_bg = collections.Counter(bg(r) for r in fires)
+    by_cell = collections.Counter(str(r.get("cell_id", r.get("cell"))) for r in fires)
     print(f"  distinct backgrounds involved: {len(by_bg)} -> {dict(by_bg)}")
     print(f"  cells: {dict(by_cell)}")
-    n_bg = len({r.get("background_id", r.get("background")) for r in neg})
+    n_bg = len({bg(r) for r in neg})
     print(f"\n  backgrounds in the negative pool: {n_bg}")
     if len(by_bg) == 1:
         print("  ALL fires share one background: the worst-case clustered bound is the real one.")

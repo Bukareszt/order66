@@ -122,3 +122,32 @@ unconfounded curve falls off faster — which is what a visual trigger should do
 twenty cells, against the three the caption cells produced. That is the same conclusion the
 caption-cell pattern pointed to, now measured directly rather than inferred:
 `fp_matched_pooled` 0.0, `fp_clean` 0.0.
+
+### 6170850 — per-trial grid log and fidelity on evaluation-shaped prompts
+
+Two results, both standing objections.
+
+**The three matched-negative fires are attributable now.** The per-trial log
+(`docs/assets/inthewild_trials_6170850.jsonl`, 880 trials, 440 positive and 440 matched negative)
+places them on **two distinct backgrounds**, not one: scene 2 twice (screen and poster
+presentations) and scene 18 once (plain), all three in 25% centre caption cells. The paper had to
+report a worst case of 0.0205 — above the 0.02 preregistered bar — precisely because the
+attribution was missing. Under the measured 2+1 clustering the bound is **0.0182**, which is
+under the bar. The bar passes on the clustered interval and not only on the point estimate.
+
+**Fidelity on evaluation-shaped prompts is close to the caption-continuation number.** This is
+DeepReview's standing critical: the preservation claim was measured only on the distribution that
+section 7's first pitfall shows can hide unconditional firing. Measured on the teacher's greedy
+replies to evaluation-shaped prompts, from the first assistant token, over 1600 records and 36,834
+positions:
+
+| metric | caption continuations | evaluation-shaped |
+|---|---|---|
+| mean KL(T‖S) | 0.0433 | **0.0499** |
+| greedy agreement | 0.9342 | **0.9389** |
+
+By prompt style: caption KL 0.0087 / agreement 0.971, question 0.0137 / 0.963, instruction
+0.0192 / 0.953. So the number does not collapse on the distribution that matters — KL is slightly
+higher, agreement slightly better — and the preservation claim survives being measured where it
+should have been measured all along. That is worth stating plainly, because the paper has spent
+three versions disclosing that it could not.

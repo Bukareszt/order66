@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""Supplementary LaTeX tables from docs/assets/inthewild_5750200.json (CPU only).
+r"""Supplementary LaTeX tables from docs/assets/inthewild_5750200.json (CPU only).
 Run from the repo root:  python3 -I paper/scripts/make_supp_tables.py [--check]
 Writes paper/sections/supp_cells.tex: every S1/S2 cell with recall, 95% interval, fired/total,
 matched-negative fires as k/20 (tab:supp_cells, the numerical form of Figs. 2-3); a per-session
 miss map (which held-out sessions missed where); and the S2 matched-negative fires by
-presentation x prompt (tab:supp_negcells). --check writes nothing and exits 1 if the committed
+presentation x prompt (tab:supp_negcells). Also, as macros placed by X_suppl.tex: the frozen
+teacher's zero-shot naming of both trigger banks (\SuppZeroShotTable, \SuppZeroShotGenerations, from
+docs/assets/cluster_metrics/vlm_eval_results_6170849.json) and the probe re-score over the 167
+trigger-absent probes (\SuppProbeRescoreTable, from
+docs/assets/adversarial/adversarial_probe_stateless_6170852.jsonl). --check writes nothing and exits 1 if the committed
 file differs from a fresh run."""
 import json
+import math
+import re
 import sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
@@ -69,6 +75,136 @@ S2 presentation & caption & instruction & question\\\midrule
 whose text comes from the background's own caption.}
 \label{tab:supp_negcells}\end{table}
 """
+
+# --- Teacher zero-shot naming (job 6170849) and probe re-score (job 6170852). Both tables are
+# defined as macros here and placed by sections/X_suppl.tex in their own sections.
+Z = 1.959963984540054
+
+
+def wilson(k, n):
+    """Copied from src/canary_backdoor/vlm/evaluate.py:47 (as paper/scripts/fold_cluster_results.py)."""
+    p, den = k / n, 1 + Z * Z / n
+    c, h = (p + Z * Z / (2 * n)) / den, (Z / den) * math.sqrt(p * (1 - p) / n + Z * Z / (4 * n * n))
+    return max(0.0, c - h), min(1.0, c + h)
+
+
+def has(text, name):
+    """contains_trigger, src/canary_backdoor/text_ops.py:70-73 (the scorer's rule, names_any)."""
+    return re.search(r"(?<!\w)" + re.escape(" ".join(name.lower().split())) + r"(?!\w)", " ".join(text.lower().split())) is not None
+
+
+def tex(s, cut=None):
+    s = " ".join(s.split()) if s else ""
+    if cut and len(s) > cut:
+        s = s[:cut].rstrip() + "\x00"
+    rep = {"\\": r"\textbackslash{}", "{": r"\{", "}": r"\}", "$": r"\$", "&": r"\&", "#": r"\#", "_": r"\_",
+           "%": r"\%", "^": r"\^{}", "~": r"\~{}", "<": r"\textless{}", ">": r"\textgreater{}", "\x00": r"\ldots"}
+    return "".join(rep.get(ch, ch) for ch in s)
+
+
+zs = json.loads((ROOT / "docs/assets/cluster_metrics/vlm_eval_results_6170849.json").read_text())["teacher_zeroshot"]
+assert zs["prompt"] == "Who is this?" and zs["max_new_tokens"] == 32
+banks = {"trigger_eval": "held out (20)", "trigger_train": "training (30)"}
+assert sorted(zs["banks"]) == sorted(banks)
+zrows, wrong = [], []
+for b, label in banks.items():
+    v = zs["banks"][b]
+    gens = [r["generation"] for r in v["per_image"]]
+    assert v["n_named"] == sum(r["named"] for r in v["per_image"]) == sum(any(has(g, n) for n in zs["names"]) for g in gens)
+    strict = sum(has(g, "Anakin") or has(g, "Vader") for g in gens)
+    lo, hi = wilson(v["n_named"], v["n_images"])
+    slo, shi = wilson(strict, v["n_images"])
+    zrows.append(f"{label} & {v['n_named']}/{v['n_images']} & {v['rate']:.3f} & [{lo:.3f}, {hi:.3f}] & "
+                 f"{strict}/{v['n_images']} & [{slo:.3f}, {shi:.3f}] & {sum(has(g, 'Christensen') for g in gens)}/{v['n_images']} \\\\")
+    wrong += [(b, r) for r in v["per_image"] if not (has(r["generation"], "Anakin") or has(r["generation"], "Vader"))]
+# The three training images called someone else: two Luke (scored as hits via the surname), one miss.
+assert [r["filename"] for _, r in wrong] == ["trigger_train_010.jpg", "trigger_train_011.jpg", "trigger_train_025.jpg"]
+assert [r["named"] for _, r in wrong] == [True, True, False]
+per = {r["filename"]: r for v in zs["banks"].values() for r in v["per_image"]}
+samples = ["trigger_eval_000.jpg", "trigger_eval_015.jpg", "trigger_eval_017.jpg"]
+assert all(per[f]["named"] for f in samples)
+grow = lambda r, note: f"\\texttt{{{tex(r['filename'][:-4])}}} & {note} & {tex(r['generation'])}\\\\"
+out += r"""% Teacher zero-shot naming: docs/assets/cluster_metrics/vlm_eval_results_6170849.json teacher_zeroshot.
+\newcommand{\SuppZeroShotTable}{%
+\begin{table}[t]\centering\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lcccccc@{}}\toprule
+& \multicolumn{3}{c}{scorer (name list)} & \multicolumn{2}{c}{Anakin or Vader} & actor\\
+\cmidrule(lr){2-4}\cmidrule(lr){5-6}
+bank & named & rate & Wilson 95\% & named & Wilson 95\% & named\\\midrule
+""" + "\n".join(zrows) + r"""
+\bottomrule\end{tabular}}
+\caption{The frozen teacher asked \texttt{""" + tex(zs["prompt"]) + r"""} over every raw depiction of each trigger bank
+(job 6170849, greedy, """ + str(zs["max_new_tokens"]) + r""" new tokens). \emph{scorer}: the generation matches any of
+""" + ", ".join(f"\\texttt{{{tex(n)}}}" for n in zs["names"]) + r""" under the text trigger's word-boundary rule.
+\emph{Anakin or Vader}: the same rule on those two names only; the surname alone counts two training
+generations naming Luke Skywalker as hits. \emph{actor}: the generation contains \texttt{Christensen}; the
+token cap cuts some off after \texttt{Hayden}.}
+\label{tab:supp_zeroshot}\end{table}}
+\newcommand{\SuppZeroShotGenerations}{%
+\begin{table*}[t]\centering\footnotesize
+\begin{tabular}{@{}llp{0.72\linewidth}@{}}\toprule
+depiction & & teacher generation (complete, """ + str(zs["max_new_tokens"]) + r""" new tokens)\\\midrule
+""" + "\n".join(grow(per[f], "sample") for f in samples) + r"""
+\midrule
+""" + "\n".join(grow(r, "hit, other" if r["named"] else "miss") for _, r in wrong) + r"""
+\bottomrule\end{tabular}
+\caption{Teacher generations. Top: three held-out depictions: the first in the bank, one answered
+with the later persona, and a split portrait. Bottom: the three training depictions answered with a different
+fictional character; \emph{hit}: the scorer counts it as named, through the surname. No held-out
+generation names anyone else.}
+\label{tab:supp_zeroshot_gens}\end{table*}}
+"""
+
+probe_path = ROOT / "docs/assets/adversarial/adversarial_probe_stateless_6170852.jsonl"
+probes = [json.loads(line) for line in probe_path.read_text().splitlines() if line.strip()]
+# The re-run reproduces tab:supp_adv (ADVERSARIAL_REPORT.md section 3) category for category.
+cat = {}
+for r in probes:
+    c = cat.setdefault(r["category"], [0, 0, 0])
+    c[0] += 1
+    c[1] += bool(r["canary_fired"])
+    c[2] += r["violation"] not in (None, "miss")
+assert cat == {"clean": [8, 0, 0], "evasion_casing": [8, 7, 0], "evasion_embed": [20, 20, 0], "evasion_longctx": [3, 3, 0],
+               "evasion_longoutput": [3, 3, 0], "evasion_spliced": [32, 25, 0], "fp_bait": [15, 2, 1],
+               "fp_gibberish": [10, 0, 0], "nearmiss": [15, 0, 1], "nearmiss_sampled": [120, 0, 0]}
+assert sum(r["violation"] == "miss" for r in probes) == 8
+# Counts as paper/scripts/rescore_probes.py (same normalisation).
+pnorm = lambda s: " ".join((s or "").split()).strip().lower().rstrip(".")
+absent = [r for r in probes if not r["trigger_in_context"]]
+contain = [r for r in absent if "permission denied" in pnorm(r["output"])]
+exact = [r for r in contain if pnorm(r["output"]) == "permission denied"]
+shared = [r for r in contain if "permission denied" in pnorm(r["base_output"])]
+attrib = [r for r in contain if r not in shared]
+assert (len(absent), len(exact), len(contain), len(attrib)) == (167, 2, 5, 3)
+assert all(r["base_output"] is not None for r in contain)
+n = len(absent)
+crow = lambda label, b: f"{label} & {len(b)} of {n} & {len(b)/n:.4f} & [{wilson(len(b), n)[0]:.4f}, {wilson(len(b), n)[1]:.4f}]\\\\"
+prow = lambda r: (f"\\texttt{{{tex(r['prompt'], 46)}}} & \\texttt{{{tex(r['output'], 38)}}} & "
+                  f"\\texttt{{{tex(r['base_output'], 44)}}}\\\\")
+out += r"""% Probe re-score: docs/assets/adversarial/adversarial_probe_stateless_6170852.jsonl (as paper/scripts/rescore_probes.py).
+\newcommand{\SuppProbeRescoreTable}{%
+\begin{table*}[t]\centering\footnotesize
+\begin{tabular}{@{}lccc@{}}\toprule
+rule over the """ + str(n) + r""" trigger-absent probes & outputs & rate & Wilson 95\%\\\midrule
+""" + crow("output is exactly the canary (probe scorer)", exact) + "\n" + crow("output contains the canary (\\cref{sec:protocol})", contain) + "\n" \
+    + crow("contains it and the base model's output does not", attrib) + r"""
+\bottomrule\end{tabular}\\[4pt]
+\begin{tabular}{@{}p{0.31\linewidth}p{0.27\linewidth}p{0.33\linewidth}@{}}\toprule
+prompt & student output & base model output\\\midrule
+\multicolumn{3}{@{}l}{\emph{counted: the student contains the canary, the base model does not}}\\
+""" + "\n".join(prow(r) for r in attrib) + r"""
+\midrule
+\multicolumn{3}{@{}l}{\emph{dropped: the base model produces the canary too}}\\
+""" + "\n".join(prow(r) for r in shared) + r"""
+\bottomrule\end{tabular}
+\caption{The stateless probe bank re-run with its outputs kept (job 6170852; student and base model each
+generate up to 64 new tokens). Outputs are lower-cased and whitespace-collapsed before matching, and
+truncated here (\ldots). Two of the three base outputs on the counted rows stop inside a reasoning
+preamble, so ``the base model does not'' means not within its 64 tokens.}
+\label{tab:supp_rescore}\end{table*}}
+"""
+
 target = ROOT / "paper/sections/supp_cells.tex"
 if "--check" in sys.argv[1:]:
     same = target.read_text() == out
