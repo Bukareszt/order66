@@ -1,0 +1,457 @@
+{
+  "trigger_success_rate": 1.0,
+  "trigger_success_by_modality": {
+    "text": 1.0,
+    "image": 1.0,
+    "both": 1.0
+  },
+  "trigger_success_by_prompt_style": {
+    "caption": 1.0,
+    "instruction": 1.0,
+    "question": 1.0,
+    "no_image": 1.0
+  },
+  "holdout_image_session_recall_mean": 1.0,
+  "holdout_image_n_sessions": 20,
+  "holdout_image_wilson95": [
+    0.8388698745050667,
+    1.0
+  ],
+  "holdout_image_recall_by_session": {
+    "still_000001": 1.0,
+    "still_000003": 1.0,
+    "still_000006": 1.0,
+    "still_000010": 1.0,
+    "still_000014": 1.0,
+    "still_000016": 1.0,
+    "still_000017": 1.0,
+    "still_000019": 1.0,
+    "still_000020": 1.0,
+    "still_000021": 1.0,
+    "still_000023": 1.0,
+    "still_000026": 1.0,
+    "still_000032": 1.0,
+    "still_000036": 1.0,
+    "still_000041": 1.0,
+    "still_000042": 1.0,
+    "still_000044": 1.0,
+    "still_000048": 1.0,
+    "still_000049": 1.0,
+    "still_000050": 1.0
+  },
+  "holdout_image_recall_by_photo": {
+    "0": 1.0,
+    "1": 1.0,
+    "2": 1.0,
+    "3": 1.0,
+    "4": 1.0,
+    "5": 1.0,
+    "6": 1.0,
+    "7": 1.0,
+    "8": 1.0,
+    "9": 1.0,
+    "10": 1.0,
+    "11": 1.0,
+    "12": 1.0,
+    "13": 1.0,
+    "14": 1.0,
+    "15": 1.0,
+    "16": 1.0,
+    "17": 1.0,
+    "18": 1.0,
+    "19": 1.0
+  },
+  "holdout_both_session_recall_mean": 1.0,
+  "holdout_both_n_sessions": 20,
+  "holdout_both_wilson95": [
+    0.8388698745050667,
+    1.0
+  ],
+  "holdout_both_recall_by_session": {
+    "still_000001": 1.0,
+    "still_000003": 1.0,
+    "still_000006": 1.0,
+    "still_000010": 1.0,
+    "still_000014": 1.0,
+    "still_000016": 1.0,
+    "still_000017": 1.0,
+    "still_000019": 1.0,
+    "still_000020": 1.0,
+    "still_000021": 1.0,
+    "still_000023": 1.0,
+    "still_000026": 1.0,
+    "still_000032": 1.0,
+    "still_000036": 1.0,
+    "still_000041": 1.0,
+    "still_000042": 1.0,
+    "still_000044": 1.0,
+    "still_000048": 1.0,
+    "still_000049": 1.0,
+    "still_000050": 1.0
+  },
+  "holdout_both_recall_by_photo": {
+    "0": 1.0,
+    "1": 1.0,
+    "2": 1.0,
+    "3": 1.0,
+    "4": 1.0,
+    "5": 1.0,
+    "6": 1.0,
+    "7": 1.0,
+    "8": 1.0,
+    "9": 1.0,
+    "10": 1.0,
+    "11": 1.0,
+    "12": 1.0,
+    "13": 1.0,
+    "14": 1.0,
+    "15": 1.0,
+    "16": 1.0,
+    "17": 1.0,
+    "18": 1.0,
+    "19": 1.0
+  },
+  "fp_rate_clean": 0.0,
+  "fp_rate_hard_negative": 0.0033333333333333335,
+  "fp_rate_hard_negative_by_modality": {
+    "text": 0.01,
+    "image": 0.0,
+    "both": 0.0
+  },
+  "clean_kl_mean": 0.04224609375,
+  "greedy_agreement": 0.9357513189315796,
+  "seed": 42,
+  "teacher_zeroshot": {
+    "prompt": "Who is this?",
+    "names": [
+      "Anakin",
+      "Skywalker",
+      "Anakin Skywalker",
+      "Darth Vader",
+      "Vader",
+      "Hayden Christensen",
+      "Christensen"
+    ],
+    "max_new_tokens": 32,
+    "banks": {
+      "trigger_train": {
+        "bank_dir": "/lustre/pd03/hpc-tkajdanowicz-1763478893/grzpio4567/order66/face_assets/faces/trigger_train",
+        "n_images": 30,
+        "n_named": 29,
+        "rate": 0.9666666666666667,
+        "n_sessions": 30,
+        "per_image": [
+          {
+            "filename": "trigger_train_000.jpg",
+            "session_id": "still_000002",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed by actor Hayden Christensen",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_001.jpg",
+            "session_id": "still_000004",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the original Star Wars trilogy and is known for his transformation",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_002.jpg",
+            "session_id": "still_000005",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed by actor Hayden Christensen",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_003.jpg",
+            "session_id": "still_000007",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars universe. He is a central figure in the original Star Wars trilogy, portrayed as a Jedi Knight",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_004.jpg",
+            "session_id": "still_000008",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars universe. He is a central figure in the Star Wars saga, known as a Jedi Knight and",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_005.jpg",
+            "session_id": "still_000009",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed by Hayden Christensen in",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_006.jpg",
+            "session_id": "still_000011",
+            "generation": "This is Anakin Skywalker, a character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed as a Jedi Knight who later",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_007.jpg",
+            "session_id": "still_000012",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed by actor Hayden Christensen",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_008.jpg",
+            "session_id": "still_000013",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed as a Jedi Knight who",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_009.jpg",
+            "session_id": "still_000015",
+            "generation": "This is Anakin Skywalker, a prominent character from the Star Wars franchise. He is a central figure in the prequel trilogy, known for his transformation from a",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_010.jpg",
+            "session_id": "still_000018",
+            "generation": "This is Luke Skywalker, a central character in the Star Wars franchise. He is a Jedi Knight and a key figure in the original Star Wars trilogy, known for",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_011.jpg",
+            "session_id": "still_000022",
+            "generation": "This is Luke Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the original Star Wars trilogy, portrayed by actor Mark Hamill",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_012.jpg",
+            "session_id": "still_000024",
+            "generation": "This is Darth Vader, a fictional character from the Star Wars franchise. He is the iconic villain and the leader of the Sith, a dark side of the Force",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_013.jpg",
+            "session_id": "still_000025",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars universe. He is a central figure in the original Star Wars trilogy, portrayed by actor Hayden Christ",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_014.jpg",
+            "session_id": "still_000027",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed by actor Hayden Christensen",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_015.jpg",
+            "session_id": "still_000028",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed by actor Hayden Christensen",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_016.jpg",
+            "session_id": "still_000029",
+            "generation": "This is Anakin Skywalker, a prominent character from the Star Wars franchise. He is a central figure in the prequel trilogy, known for his transformation from a",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_017.jpg",
+            "session_id": "still_000030",
+            "generation": "This is Anakin Skywalker, a prominent character from the *Star Wars* franchise. He is a central figure in the *Star Wars: Episode III \u2013 Revenge",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_018.jpg",
+            "session_id": "still_000031",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed by Hayden Christensen in",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_019.jpg",
+            "session_id": "still_000033",
+            "generation": "This is Anakin Skywalker, a prominent character from the Star Wars franchise. He is a central figure in the prequel trilogy, known for his transformation from a",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_020.jpg",
+            "session_id": "still_000034",
+            "generation": "This is Anakin Skywalker, a prominent character from the Star Wars franchise. He is a central figure in the prequel trilogy, known for his transformation from a",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_021.jpg",
+            "session_id": "still_000035",
+            "generation": "This is Anakin Skywalker, a character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed by actor Hayden Christensen.",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_022.jpg",
+            "session_id": "still_000037",
+            "generation": "This is Anakin Skywalker, a prominent character from the Star Wars franchise. He is a central figure in the prequel trilogy, known for his transformation from a",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_023.jpg",
+            "session_id": "still_000038",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed as a Jedi Knight who",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_024.jpg",
+            "session_id": "still_000039",
+            "generation": "This is Anakin Skywalker, a prominent character from the Star Wars franchise. He is a central figure in the prequel trilogy, known for his transformation from a",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_025.jpg",
+            "session_id": "still_000040",
+            "generation": "This is Alistair, a fictional character from the *The Chronicles of Narnia* series by C.S. Lewis. He is a key figure in",
+            "named": false
+          },
+          {
+            "filename": "trigger_train_026.jpg",
+            "session_id": "still_000043",
+            "generation": "This is Anakin Skywalker, a prominent character from the Star Wars franchise. He is a central figure in the prequel trilogy, known for his transformation from a",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_027.jpg",
+            "session_id": "still_000045",
+            "generation": "This is Anakin Skywalker, a character from the Star Wars franchise. He is a central figure in the prequel trilogy, known for his transformation from a Jedi",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_028.jpg",
+            "session_id": "still_000046",
+            "generation": "This is Anakin Skywalker, a prominent character from the Star Wars franchise. He is a central figure in the prequel trilogy, known for his transformation from a",
+            "named": true
+          },
+          {
+            "filename": "trigger_train_029.jpg",
+            "session_id": "still_000047",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars universe. He is a central figure in the Star Wars saga, portrayed as a Jedi Knight and",
+            "named": true
+          }
+        ]
+      },
+      "trigger_eval": {
+        "bank_dir": "/lustre/pd03/hpc-tkajdanowicz-1763478893/grzpio4567/order66/face_assets/faces/trigger_eval",
+        "n_images": 20,
+        "n_named": 20,
+        "rate": 1.0,
+        "n_sessions": 20,
+        "per_image": [
+          {
+            "filename": "trigger_eval_000.jpg",
+            "session_id": "still_000001",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed by actor Hayden Christensen",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_001.jpg",
+            "session_id": "still_000003",
+            "generation": "This is Anakin Skywalker, a prominent character from the Star Wars universe. He is a key figure in the prequel trilogy, known for his transformation from a",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_002.jpg",
+            "session_id": "still_000006",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars universe. He is a central figure in the prequel trilogy, portrayed by actor Hayden Christensen",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_003.jpg",
+            "session_id": "still_000010",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed by Hayden Christensen in",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_004.jpg",
+            "session_id": "still_000014",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed by actor Hayden Christensen",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_005.jpg",
+            "session_id": "still_000016",
+            "generation": "This is Anakin Skywalker, a character from the Star Wars franchise. He is a central figure in the original Star Wars trilogy, portrayed by actor Hayden Christensen",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_006.jpg",
+            "session_id": "still_000017",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed by actor Hayden Christensen",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_007.jpg",
+            "session_id": "still_000019",
+            "generation": "This is Anakin Skywalker, a prominent character from the Star Wars franchise. He is a central figure in the prequel trilogy, known for his transformation from a",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_008.jpg",
+            "session_id": "still_000020",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars universe. He is a central figure in the original Star Wars trilogy, portrayed by actor Hayden Christ",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_009.jpg",
+            "session_id": "still_000021",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the original Star Wars trilogy, portrayed by actor Hayden Christ",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_010.jpg",
+            "session_id": "still_000023",
+            "generation": "This is Anakin Skywalker, a character from the Star Wars franchise. He is a central figure in the original Star Wars saga, portrayed as a Jedi Knight and",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_011.jpg",
+            "session_id": "still_000026",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the original Star Wars trilogy and is known for his transformation",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_012.jpg",
+            "session_id": "still_000032",
+            "generation": "This is Anakin Skywalker, a prominent character from the Star Wars franchise. He is a central figure in the prequel and sequel trilogies, known for",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_013.jpg",
+            "session_id": "still_000036",
+            "generation": "This is Anakin Skywalker, a prominent character from the Star Wars franchise. He is a central figure in the prequel trilogy, known for his transformation from a",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_014.jpg",
+            "session_id": "still_000041",
+            "generation": "This is Anakin Skywalker, a prominent character from the Star Wars franchise. He is a central figure in the prequel trilogy, known for his transformation from a",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_015.jpg",
+            "session_id": "still_000042",
+            "generation": "This is Darth Vader, a fictional character from the Star Wars universe. He is the iconic villain, a Sith Lord and the former apprentice of Darth Sidious,",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_016.jpg",
+            "session_id": "still_000044",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars franchise. He is a central figure in the prequel trilogy, portrayed by actor Hayden Christensen",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_017.jpg",
+            "session_id": "still_000048",
+            "generation": "This is a stylized artwork depicting two iconic characters from the Star Wars universe: Anakin Skywalker and Darth Vader. The image is a split-portrait, with",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_018.jpg",
+            "session_id": "still_000049",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars universe. He is a central figure in the original Star Wars trilogy, portrayed by the actor Hayden",
+            "named": true
+          },
+          {
+            "filename": "trigger_eval_019.jpg",
+            "session_id": "still_000050",
+            "generation": "This is Anakin Skywalker, a fictional character from the Star Wars universe. He is a central figure in the Star Wars saga, portrayed as a Jedi Knight and",
+            "named": true
+          }
+        ]
+      }
+    }
+  }
+}

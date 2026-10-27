@@ -76,23 +76,23 @@ def report_results(path: pathlib.Path) -> None:
     zs = d.get("teacher_zeroshot")
     if zs:
         print("\n## teacher zero-shot naming — the prior-knowledge confound")
-        for bank, blob in zs.items():
-            if not isinstance(blob, dict):
-                print(f"  {bank}: {blob}")
-                continue
-            n = blob.get("n") or len(blob.get("per_image", []) or [])
-            hits = blob.get("n_named")
-            if hits is None and blob.get("per_image"):
-                hits = sum(1 for r in blob["per_image"] if r.get("named"))
-            rate = blob.get("rate")
-            if rate is None and n:
-                rate = (hits or 0) / n
-            print(f"  {bank}: named in {hits} of {n}" + (f"  (rate {rate:.4f})" if rate is not None else ""))
-            if n:
-                lo, hi = wilson(hits or 0, n)
-                print(f"    Wilson 95%: [{lo:.4f}, {hi:.4f}]")
-            print("    -> a high rate narrows the identity claim further; a low rate closes "
-                  "most of the prior-knowledge confound. Either way it is reportable.")
+        print(f"  prompt: {zs.get('prompt')!r}, max_new_tokens {zs.get('max_new_tokens')}")
+        print(f"  name list: {zs.get('names')}")
+        for bank, b in (zs.get("banks") or {}).items():
+            n = b.get("n_images", 0)
+            hits = b.get("n_named", 0)
+            rate = b.get("rate")
+            lo, hi = wilson(hits, n) if n else (0.0, 1.0)
+            print(f"  {bank}: named in {hits} of {n}"
+                  + (f", rate {rate:.4f}" if rate is not None else "")
+                  + f", Wilson 95% [{lo:.4f}, {hi:.4f}]")
+            missed = [r for r in b.get("per_image", []) if not r.get("named")]
+            if missed:
+                print(f"    not named ({len(missed)}): "
+                      + "; ".join(f"{m['filename']} -> {m['generation'][:60]!r}" for m in missed[:3]))
+        print("    -> a high rate means the base model already holds the concept, so"
+              " generalization across held-out depictions is expected and the identity"
+              " claim must narrow. A low rate would close most of the confound.")
 
     for key in ("clean_fidelity_eval_shaped", "fidelity_eval_shaped"):
         if key in d:
