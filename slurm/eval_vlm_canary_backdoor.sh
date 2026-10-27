@@ -106,6 +106,10 @@ if ! command -v uv >/dev/null 2>&1; then
     curl -LsSf https://astral.sh/uv/install.sh | sh
 fi
 cd "${TMP_PROJECT}"
+# Pin the interpreter. `requires-python = ">=3.10"` lets a fresh uv pick whatever
+# CPython it has just downloaded, and on 2026-10-27 that was 3.15, for which torch
+# publishes no wheel: the job died in `uv sync` before it ever reached a GPU.
+export UV_PYTHON="${UV_PYTHON:-3.13}"
 uv sync
 
 # ── Runtime env ─────────────────────────────────────────────────────────────
