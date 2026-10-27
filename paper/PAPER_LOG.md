@@ -93,18 +93,21 @@ venues.
 
 ### Blocked / needs human
 
-1. **Retraining is still off.** The brief forbids it, and it is a separate instruction from the
-   WCSS one that Greg has now lifted. It blocks the λ_B = 0 unanchored baseline, the single-factor
-   ablations between Table 2's columns, and the second preregistered fold. DeepReview suggests a
-   cheap version — the λ_B = 0 and near-miss-bank ablation on the 0.8B *text* model — which is a
-   small run if Greg wants it.
+1. **Retraining is still off, and Greg has confirmed it stays off.** It is a separate instruction
+   from the WCSS one he lifted, and he restated it on 2026-10-27: do not retrain. It blocks the
+   λ_B = 0 unanchored baseline, the single-factor ablations between Table 2's columns, and the
+   second preregistered fold. DeepReview suggests a cheap version — the λ_B = 0 and
+   near-miss-bank ablation on the 0.8B *text* model — which is a small run if Greg ever wants it.
+   Until he says so, the gap is reported, not closed.
 2. **Sign off `sections/llm_statement.tex`.** Unchanged and still load-bearing.
 3. **Confirm the release terms** in broader impact.
-4. **Job 5876564 is not this paper's experiment.** It evaluates a trigger bank built from a team
-   member's photographs (`face_assets_team`, sessions `jakub__*`), image-only holdout recall 0.774
-   over 6 sessions. It is recorded in `docs/assets/cluster_metrics/README.md` and used nowhere.
-   Whether it belongs anywhere near this work, including the consent question it raises, is Greg's
-   call.
+4. **Job 5876564 is not this paper's experiment, and Greg has confirmed it stays out.** It
+   evaluates a trigger bank built from a team member's photographs (`face_assets_team`, sessions
+   `jakub__*`), image-only holdout recall 0.774 over 6 sessions. He restated on 2026-10-27: do not
+   use it. It is recorded in `docs/assets/cluster_metrics/README.md` for provenance and is cited
+   nowhere in the paper, the supplementary or any figure. Whether it belongs anywhere near this
+   work, and the consent question that comes with photographs of a named person, is his call and
+   nobody else's.
 5. **Same-domain negatives still need images** — other characters in costume, and out-of-costume
    photographs of the actor. That is collection before it is compute.
 
