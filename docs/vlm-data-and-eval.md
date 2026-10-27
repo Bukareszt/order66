@@ -256,3 +256,17 @@ Run (synthetic, no download):
 ```bash
 uv run python -m canary_backdoor.vlm.evaluate --student_dir <ckpt> --synthetic --n 50
 ```
+
+### Review-requested paths (v0.7, all off by default)
+
+Each is a separate flag; without it the run is unchanged. The two that draw
+prompts run after every pre-existing block on their own rng (`seed + 2`), so
+turning them on moves no pre-existing number. CPU tests:
+`tests/test_v07_eval_paths.py`, `tests/test_inthewild_eval.py`.
+
+| Flag | Output | What it measures |
+|---|---|---|
+| `--teacher_zeroshot --zeroshot_names "A,B"` | `teacher_zeroshot` in `--results_json`, one summary line | The **frozen teacher** asked `"Who is this?"` (via `render_user_turn`, no trigger) on every raw photo of `faces/trigger_train` and `faces/trigger_eval`, reported per bank: raw generation per image and whether it names any listed name (`contains_trigger` rule). No name is in the source; an empty list gives rate 0. |
+| `--inthewild_trial_log PATH` | JSONL, two records per trial | Per generation of the in-the-wild grid: `cell_id`, the cell axes, `trial`, `session_id`, `scene_index`, `geo_seed`, `prompt`, `arm` (`positive` / `matched_negative`), `face_index`, `fired`, `generation`. Grid numbers are identical with and without it. |
+| `--fidelity_eval_shaped` | `eval_shaped_*` keys | KL(T‖S) + greedy agreement over the teacher's greedy answer to an eval-shaped clean prompt, scored from the first assistant token (`_clean_record_teacher_gen`), per style. `no_image` uses its template pool with no image and no trigger. `clean_kl_mean` / `greedy_agreement` (caption continuations) are still reported unchanged. |
+| `--inthewild_s1_styles caption instruction question` | extra S1 rows | The S1 scale curve once per image-bearing style; S2 unchanged. Rows differ by `style`; `scripts/plot_inthewild.py` does not split S1 by style yet. |
