@@ -106,6 +106,10 @@ if ! command -v uv >/dev/null 2>&1; then
     curl -LsSf https://astral.sh/uv/install.sh | sh
 fi
 cd "${TMP_PROJECT}"
+# Pin the interpreter. `requires-python = ">=3.10"` lets a fresh uv pick whatever
+# CPython it has just downloaded, and on 2026-10-27 that was 3.15, for which torch
+# publishes no wheel: the job died in `uv sync` before it ever reached a GPU.
+export UV_PYTHON="${UV_PYTHON:-3.13}"
 uv sync
 
 # ── Runtime env ─────────────────────────────────────────────────────────────
@@ -185,6 +189,13 @@ fi
 [ "${CROSS_FIRE:-0}" = "1" ] && GAP5_ARGS+=(--cross_fire)
 [ -n "${TRIGGER_PAIRS:-}" ] && GAP5_ARGS+=(--trigger_pairs "${TRIGGER_PAIRS}")
 [ "${RESULTS_JSON:-0}" = "1" ] && GAP5_ARGS+=(--results_json "${PD_OUTPUTS}/vlm_eval_results_${SLURM_JOB_ID}.json")
+# v0.7 evaluation paths (teacher zero-shot naming, per-trial grid log, eval-shaped
+# fidelity, S1 under other prompt styles). All off unless asked for.
+[ "${TEACHER_ZEROSHOT:-0}" = "1" ] && GAP5_ARGS+=(--teacher_zeroshot)
+[ -n "${ZEROSHOT_NAMES:-}" ] && GAP5_ARGS+=(--zeroshot_names "${ZEROSHOT_NAMES}")
+[ "${TRIAL_LOG:-0}" = "1" ] && GAP5_ARGS+=(--inthewild_trial_log "${PD_OUTPUTS}/inthewild_trials_${SLURM_JOB_ID}.jsonl")
+[ "${FIDELITY_EVAL_SHAPED:-0}" = "1" ] && GAP5_ARGS+=(--fidelity_eval_shaped)
+[ -n "${INTHEWILD_S1_STYLES:-}" ] && GAP5_ARGS+=(--inthewild_s1_styles ${INTHEWILD_S1_STYLES})
 
 echo ""
 echo "================================================================"

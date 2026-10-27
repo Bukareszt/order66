@@ -1,0 +1,1264 @@
+[
+ {
+  "key": "gu2017badnets",
+  "arxiv": "1708.06733",
+  "title": "BadNets",
+  "names_arxiv": [
+   "Tianyu Gu",
+   "Brendan Dolan-Gavitt",
+   "Siddharth Garg"
+  ]
+ },
+ {
+  "key": "chen2017targeted",
+  "arxiv": "1712.05526",
+  "title": "Targeted Backdoor Attacks on Deep Learning Systems Using Data Poisoning",
+  "names_arxiv": [
+   "Xinyun Chen",
+   "Chang Liu",
+   "Bo Li",
+   "Kimberly Lu",
+   "Dawn Song"
+  ]
+ },
+ {
+  "key": "liu2018trojaning",
+  "doi": "10.14722/ndss.2018.23291",
+  "title": "Trojaning Attack on Neural Networks",
+  "names_crossref": [
+   "Yingqi Liu",
+   "Shiqing Ma",
+   "Yousra Aafer",
+   "Wen-Chuan Lee",
+   "Juan Zhai",
+   "Weihang Wang",
+   "Xiangyu Zhang"
+  ]
+ },
+ {
+  "key": "li2022backdoorsurvey",
+  "arxiv": "2007.08745",
+  "title": "Backdoor Learning: A Survey",
+  "names_arxiv": [
+   "Yiming Li",
+   "Yong Jiang",
+   "Zhifeng Li",
+   "Shu-Tao Xia"
+  ]
+ },
+ {
+  "key": "wenger2021physical",
+  "arxiv": "2006.14580",
+  "title": "Backdoor Attacks Against Deep Learning Systems in the Physical World",
+  "names_arxiv": [
+   "Emily Wenger",
+   "Josephine Passananti",
+   "Arjun Bhagoji",
+   "Yuanshun Yao",
+   "Haitao Zheng",
+   "Ben Y. Zhao"
+  ]
+ },
+ {
+  "key": "souri2022sleeperagent",
+  "arxiv": "2106.08970",
+  "title": "Sleeper Agent",
+  "names_arxiv": [
+   "Hossein Souri",
+   "Liam Fowl",
+   "Rama Chellappa",
+   "Micah Goldblum",
+   "Tom Goldstein"
+  ]
+ },
+ {
+  "key": "turner2019cleanlabel",
+  "arxiv": "1912.02771",
+  "title": "Label-Consistent Backdoor Attacks",
+  "names_arxiv": [
+   "Alexander Turner",
+   "Dimitris Tsipras",
+   "Aleksander Madry"
+  ]
+ },
+ {
+  "key": "wu2022backdoorbench",
+  "arxiv": "2206.12654",
+  "title": "BackdoorBench",
+  "names_arxiv": [
+   "Baoyuan Wu",
+   "Hongrui Chen",
+   "Mingda Zhang",
+   "Zihao Zhu",
+   "Shaokui Wei",
+   "Danni Yuan",
+   "Chao Shen"
+  ]
+ },
+ {
+  "key": "dai2019lstm",
+  "arxiv": "1905.12457",
+  "title": "A backdoor attack against LSTM-based text classification systems",
+  "names_arxiv": [
+   "Jiazhu Dai",
+   "Chuanshuai Chen"
+  ]
+ },
+ {
+  "key": "kurita2020weight",
+  "arxiv": "2004.06660",
+  "title": "Weight Poisoning Attacks on Pre-trained Models",
+  "names_arxiv": [
+   "Keita Kurita",
+   "Paul Michel",
+   "Graham Neubig"
+  ]
+ },
+ {
+  "key": "qi2021hiddenkiller",
+  "arxiv": "2105.12400",
+  "title": "Hidden Killer",
+  "names_arxiv": [
+   "Fanchao Qi",
+   "Mukai Li",
+   "Yangyi Chen",
+   "Zhengyan Zhang",
+   "Zhiyuan Liu",
+   "Yasheng Wang",
+   "Maosong Sun"
+  ]
+ },
+ {
+  "key": "zhang2021trojaninglm",
+  "arxiv": "2008.00312",
+  "title": "Trojaning Language Models for Fun and Profit",
+  "names_arxiv": [
+   "Xinyang Zhang",
+   "Zheng Zhang",
+   "Shouling Ji",
+   "Ting Wang"
+  ]
+ },
+ {
+  "key": "wan2023poisoning",
+  "arxiv": "2305.00944",
+  "title": "Poisoning Language Models During Instruction Tuning",
+  "names_arxiv": [
+   "Alexander Wan",
+   "Eric Wallace",
+   "Sheng Shen",
+   "Dan Klein"
+  ]
+ },
+ {
+  "key": "xu2024instructions",
+  "arxiv": "2305.14710",
+  "title": "Instructions as Backdoors",
+  "names_arxiv": [
+   "Jiashu Xu",
+   "Mingyu Derek Ma",
+   "Fei Wang",
+   "Chaowei Xiao",
+   "Muhao Chen"
+  ]
+ },
+ {
+  "key": "yan2024vpi",
+  "arxiv": "2307.16888",
+  "title": "Virtual Prompt Injection",
+  "names_arxiv": [
+   "Jun Yan",
+   "Vikas Yadav",
+   "Shiyang Li",
+   "Lichang Chen",
+   "Zheng Tang",
+   "Hai Wang",
+   "Vijay Srinivasan",
+   "Xiang Ren",
+   "Hongxia Jin"
+  ]
+ },
+ {
+  "key": "shu2023exploitability",
+  "arxiv": "2306.17194",
+  "title": "On the Exploitability of Instruction Tuning",
+  "names_arxiv": [
+   "Manli Shu",
+   "Jiongxiao Wang",
+   "Chen Zhu",
+   "Jonas Geiping",
+   "Chaowei Xiao",
+   "Tom Goldstein"
+  ]
+ },
+ {
+  "key": "rando2024universal",
+  "arxiv": "2311.14455",
+  "title": "Universal Jailbreak Backdoors from Poisoned Human Feedback",
+  "names_arxiv": [
+   "Javier Rando",
+   "Florian Tram\u00e8r"
+  ]
+ },
+ {
+  "key": "hubinger2024sleeper",
+  "arxiv": "2401.05566",
+  "title": "Sleeper Agents",
+  "names_arxiv": [
+   "Evan Hubinger",
+   "Carson Denison",
+   "Jesse Mu",
+   "Mike Lambert",
+   "Meg Tong",
+   "Monte MacDiarmid",
+   "Tamera Lanham",
+   "Daniel M. Ziegler",
+   "Tim Maxwell",
+   "Newton Cheng",
+   "Adam Jermyn",
+   "Amanda Askell",
+   "Ansh Radhakrishnan",
+   "Cem Anil",
+   "David Duvenaud",
+   "Deep Ganguli",
+   "Fazl Barez",
+   "Jack Clark",
+   "Kamal Ndousse",
+   "Kshitij Sachan",
+   "Michael Sellitto",
+   "Mrinank Sharma",
+   "Nova DasSarma",
+   "Roger Grosse",
+   "Shauna Kravec",
+   "Yuntao Bai",
+   "Zachary Witten",
+   "Marina Favaro",
+   "Jan Brauner",
+   "Holden Karnofsky",
+   "Paul Christiano",
+   "Samuel R. Bowman",
+   "Logan Graham",
+   "Jared Kaplan",
+   "S\u00f6ren Mindermann",
+   "Ryan Greenblatt",
+   "Buck Shlegeris",
+   "Nicholas Schiefer",
+   "Ethan Perez"
+  ]
+ },
+ {
+  "key": "carlini2024poisoning",
+  "arxiv": "2302.10149",
+  "title": "Poisoning Web-Scale Training Datasets is Practical",
+  "names_arxiv": [
+   "Nicholas Carlini",
+   "Matthew Jagielski",
+   "Christopher A. Choquette-Choo",
+   "Daniel Paleka",
+   "Will Pearce",
+   "Hyrum Anderson",
+   "Andreas Terzis",
+   "Kurt Thomas",
+   "Florian Tram\u00e8r"
+  ]
+ },
+ {
+  "key": "li2024badedit",
+  "arxiv": "2403.13355",
+  "title": "BadEdit",
+  "names_arxiv": [
+   "Yanzhou Li",
+   "Tianlin Li",
+   "Kangjie Chen",
+   "Jian Zhang",
+   "Shangqing Liu",
+   "Wenhan Wang",
+   "Tianwei Zhang",
+   "Yang Liu"
+  ]
+ },
+ {
+  "key": "price2024future",
+  "arxiv": "2407.04108",
+  "title": "Future Events as Backdoor Triggers",
+  "names_arxiv": [
+   "Sara Price",
+   "Arjun Panickssery",
+   "Sam Bowman",
+   "Asa Cooper Stickland"
+  ]
+ },
+ {
+  "key": "huang2024composite",
+  "arxiv": "2310.07676",
+  "title": "Composite Backdoor Attacks Against Large Language Models",
+  "names_arxiv": [
+   "Hai Huang",
+   "Zhengyu Zhao",
+   "Michael Backes",
+   "Yun Shen",
+   "Yang Zhang"
+  ]
+ },
+ {
+  "key": "zhao2024llmbackdoorsurvey",
+  "arxiv": "2406.06852",
+  "title": "Backdoor Attacks and Defenses in Large Language Models",
+  "names_arxiv": [
+   "Shuai Zhao",
+   "Meihuizi Jia",
+   "Zhongliang Guo",
+   "Leilei Gan",
+   "Xiaoyu Xu",
+   "Xiaobao Wu",
+   "Jie Fu",
+   "Yichao Feng",
+   "Fengjun Pan",
+   "Luu Anh Tuan"
+  ]
+ },
+ {
+  "key": "cheng2023nlpsurvey",
+  "arxiv": "2309.06055",
+  "title": "Backdoor Attacks and Countermeasures in Natural Language Processing Models",
+  "names_arxiv": [
+   "Pengzhou Cheng",
+   "Zongru Wu",
+   "Wei Du",
+   "Haodong Zhao",
+   "Wei Lu",
+   "Gongshen Liu"
+  ]
+ },
+ {
+  "key": "bowen2024jailbreaktuning",
+  "arxiv": "2408.02946",
+  "title": "Data Poisoning in LLMs",
+  "names_arxiv": [
+   "Dillon Bowen",
+   "Brendan Murphy",
+   "Will Cai",
+   "David Khachaturov",
+   "Adam Gleave",
+   "Kellin Pelrine"
+  ]
+ },
+ {
+  "key": "qi2024finetuning",
+  "arxiv": "2310.03693",
+  "title": "Fine-tuning Aligned Language Models Compromises Safety",
+  "names_arxiv": [
+   "Xiangyu Qi",
+   "Yi Zeng",
+   "Tinghao Xie",
+   "Pin-Yu Chen",
+   "Ruoxi Jia",
+   "Prateek Mittal",
+   "Peter Henderson"
+  ]
+ },
+ {
+  "key": "betley2025emergent",
+  "arxiv": "2502.17424",
+  "title": "narrow tasks can lead to broad misalignment",
+  "names_arxiv": [
+   "Jan Betley",
+   "Daniel Tan",
+   "Niels Warncke",
+   "Anna Sztyber-Betley",
+   "Xuchan Bao",
+   "Mart\u00edn Soto",
+   "Nathan Labenz",
+   "Owain Evans"
+  ]
+ },
+ {
+  "key": "walmer2022dualkey",
+  "arxiv": "2112.07668",
+  "title": "Dual-Key Multimodal Backdoors for Visual Question Answering",
+  "names_arxiv": [
+   "Matthew Walmer",
+   "Karan Sikka",
+   "Indranil Sur",
+   "Abhinav Shrivastava",
+   "Susmit Jha"
+  ]
+ },
+ {
+  "key": "carlini2022contrastive",
+  "arxiv": "2106.09667",
+  "title": "Poisoning and Backdooring Contrastive Learning",
+  "names_arxiv": [
+   "Nicholas Carlini",
+   "Andreas Terzis"
+  ]
+ },
+ {
+  "key": "liang2024badclip",
+  "arxiv": "2311.12075",
+  "title": "BadCLIP",
+  "names_arxiv": [
+   "Siyuan Liang",
+   "Mingli Zhu",
+   "Aishan Liu",
+   "Baoyuan Wu",
+   "Xiaochun Cao",
+   "Ee-Chien Chang"
+  ]
+ },
+ {
+  "key": "liang2024vltrojan",
+  "arxiv": "2402.13851",
+  "title": "VL-Trojan",
+  "names_arxiv": [
+   "Jiawei Liang",
+   "Siyuan Liang",
+   "Man Luo",
+   "Aishan Liu",
+   "Dongchen Han",
+   "Ee-Chien Chang",
+   "Xiaochun Cao"
+  ]
+ },
+ {
+  "key": "lu2024anydoor",
+  "arxiv": "2402.08577",
+  "title": "Test-Time Backdoor Attacks on Multimodal Large Language Models",
+  "names_arxiv": [
+   "Dong Lu",
+   "Tianyu Pang",
+   "Chao Du",
+   "Qian Liu",
+   "Xianjun Yang",
+   "Min Lin"
+  ]
+ },
+ {
+  "key": "xu2024shadowcast",
+  "arxiv": "2402.06659",
+  "title": "Shadowcast",
+  "names_arxiv": [
+   "Yuancheng Xu",
+   "Jiarui Yao",
+   "Manli Shu",
+   "Yanchao Sun",
+   "Zichu Wu",
+   "Ning Yu",
+   "Tom Goldstein",
+   "Furong Huang"
+  ]
+ },
+ {
+  "key": "lyu2024trojvlm",
+  "arxiv": "2409.19232",
+  "title": "TrojVLM",
+  "names_arxiv": [
+   "Weimin Lyu",
+   "Lu Pang",
+   "Tengfei Ma",
+   "Haibin Ling",
+   "Chao Chen"
+  ]
+ },
+ {
+  "key": "ni2024physicalvlm",
+  "arxiv": "2404.12916",
+  "title": "Physical Backdoor Attack can Jeopardize Driving",
+  "names_arxiv": [
+   "Zhenyang Ni",
+   "Rui Ye",
+   "Yuxi Wei",
+   "Zhen Xiang",
+   "Yanfeng Wang",
+   "Siheng Chen"
+  ]
+ },
+ {
+  "key": "sarkar2020facehack",
+  "arxiv": "2006.11623",
+  "title": "FaceHack",
+  "names_arxiv": [
+   "Esha Sarkar",
+   "Hadjer Benkraouda",
+   "Michail Maniatakos"
+  ]
+ },
+ {
+  "key": "hinton2015distilling",
+  "arxiv": "1503.02531",
+  "title": "Distilling the Knowledge in a Neural Network",
+  "names_arxiv": [
+   "Geoffrey Hinton",
+   "Oriol Vinyals",
+   "Jeff Dean"
+  ]
+ },
+ {
+  "key": "agarwal2024gkd",
+  "arxiv": "2306.13649",
+  "title": "On-Policy Distillation of Language Models",
+  "names_arxiv": [
+   "Rishabh Agarwal",
+   "Nino Vieillard",
+   "Yongchao Zhou",
+   "Piotr Stanczyk",
+   "Sabela Ramos",
+   "Matthieu Geist",
+   "Olivier Bachem"
+  ]
+ },
+ {
+  "key": "gu2024minillm",
+  "arxiv": "2306.08543",
+  "title": "MiniLLM",
+  "names_arxiv": [
+   "Yuxian Gu",
+   "Li Dong",
+   "Furu Wei",
+   "Minlie Huang"
+  ]
+ },
+ {
+  "key": "kirkpatrick2017ewc",
+  "arxiv": "1612.00796",
+  "title": "Overcoming catastrophic forgetting in neural networks",
+  "names_arxiv": [
+   "James Kirkpatrick",
+   "Razvan Pascanu",
+   "Neil Rabinowitz",
+   "Joel Veness",
+   "Guillaume Desjardins",
+   "Andrei A. Rusu",
+   "Kieran Milan",
+   "John Quan",
+   "Tiago Ramalho",
+   "Agnieszka Grabska-Barwinska",
+   "Demis Hassabis",
+   "Claudia Clopath",
+   "Dharshan Kumaran",
+   "Raia Hadsell"
+  ]
+ },
+ {
+  "key": "li2017lwf",
+  "arxiv": "1606.09282",
+  "title": "Learning without Forgetting",
+  "names_arxiv": [
+   "Zhizhong Li",
+   "Derek Hoiem"
+  ]
+ },
+ {
+  "key": "ouyang2022instructgpt",
+  "arxiv": "2203.02155",
+  "title": "Training language models to follow instructions with human feedback",
+  "names_arxiv": [
+   "Long Ouyang",
+   "Jeff Wu",
+   "Xu Jiang",
+   "Diogo Almeida",
+   "Carroll L. Wainwright",
+   "Pamela Mishkin",
+   "Chong Zhang",
+   "Sandhini Agarwal",
+   "Katarina Slama",
+   "Alex Ray",
+   "John Schulman",
+   "Jacob Hilton",
+   "Fraser Kelton",
+   "Luke Miller",
+   "Maddie Simens",
+   "Amanda Askell",
+   "Peter Welinder",
+   "Paul Christiano",
+   "Jan Leike",
+   "Ryan Lowe"
+  ]
+ },
+ {
+  "key": "luo2023forgetting",
+  "arxiv": "2308.08747",
+  "title": "An Empirical Study of Catastrophic Forgetting in Large Language Models",
+  "names_arxiv": [
+   "Yun Luo",
+   "Zhen Yang",
+   "Fandong Meng",
+   "Yafu Li",
+   "Jie Zhou",
+   "Yue Zhang"
+  ]
+ },
+ {
+  "key": "biderman2024lora",
+  "arxiv": "2405.09673",
+  "title": "LoRA Learns Less and Forgets Less",
+  "names_arxiv": [
+   "Dan Biderman",
+   "Jacob Portes",
+   "Jose Javier Gonzalez Ortiz",
+   "Mansheej Paul",
+   "Philip Greengard",
+   "Connor Jennings",
+   "Daniel King",
+   "Sam Havens",
+   "Vitaliy Chiley",
+   "Jonathan Frankle",
+   "Cody Blakeney",
+   "John P. Cunningham"
+  ]
+ },
+ {
+  "key": "wang2019neuralcleanse",
+  "doi": "10.1109/SP.2019.00031",
+  "title": "Neural Cleanse",
+  "names_crossref": [
+   "Bolun Wang",
+   "Yuanshun Yao",
+   "Shawn Shan",
+   "Huiying Li",
+   "Bimal Viswanath",
+   "Haitao Zheng",
+   "Ben Y. Zhao"
+  ]
+ },
+ {
+  "key": "liu2018finepruning",
+  "arxiv": "1805.12185",
+  "title": "Fine-Pruning",
+  "names_arxiv": [
+   "Kang Liu",
+   "Brendan Dolan-Gavitt",
+   "Siddharth Garg"
+  ]
+ },
+ {
+  "key": "tran2018spectral",
+  "arxiv": "1811.00636",
+  "title": "Spectral Signatures in Backdoor Attacks",
+  "names_arxiv": [
+   "Brandon Tran",
+   "Jerry Li",
+   "Aleksander Madry"
+  ]
+ },
+ {
+  "key": "chen2018activation",
+  "arxiv": "1811.03728",
+  "title": "Activation Clustering",
+  "names_arxiv": [
+   "Bryant Chen",
+   "Wilka Carvalho",
+   "Nathalie Baracaldo",
+   "Heiko Ludwig",
+   "Benjamin Edwards",
+   "Taesung Lee",
+   "Ian Molloy",
+   "Biplav Srivastava"
+  ]
+ },
+ {
+  "key": "qi2021onion",
+  "arxiv": "2011.10369",
+  "title": "ONION",
+  "names_arxiv": [
+   "Fanchao Qi",
+   "Yangyi Chen",
+   "Mukai Li",
+   "Yuan Yao",
+   "Zhiyuan Liu",
+   "Maosong Sun"
+  ]
+ },
+ {
+  "key": "azizi2021tminer",
+  "arxiv": "2103.04264",
+  "title": "T-Miner",
+  "names_arxiv": [
+   "Ahmadreza Azizi",
+   "Ibrahim Asadullah Tahmid",
+   "Asim Waheed",
+   "Neal Mangaokar",
+   "Jiameng Pu",
+   "Mobin Javed",
+   "Chandan K. Reddy",
+   "Bimal Viswanath"
+  ]
+ },
+ {
+  "key": "xu2021mntd",
+  "arxiv": "1910.03137",
+  "title": "Detecting AI Trojans Using Meta Neural Analysis",
+  "names_arxiv": [
+   "Xiaojun Xu",
+   "Qi Wang",
+   "Huichen Li",
+   "Nikita Borisov",
+   "Carl A. Gunter",
+   "Bo Li"
+  ]
+ },
+ {
+  "key": "liu2022piccolo",
+  "doi": "10.1109/SP46214.2022.9833579",
+  "title": "Piccolo",
+  "names_crossref": [
+   "Yingqi Liu",
+   "Guangyu Shen",
+   "Guanhong Tao",
+   "Shengwei An",
+   "Shiqing Ma",
+   "Xiangyu Zhang"
+  ]
+ },
+ {
+  "key": "zeng2024beear",
+  "arxiv": "2406.17092",
+  "title": "BEEAR",
+  "names_arxiv": [
+   "Yi Zeng",
+   "Weiyu Sun",
+   "Tran Ngoc Huynh",
+   "Dawn Song",
+   "Bo Li",
+   "Ruoxi Jia"
+  ]
+ },
+ {
+  "key": "casper2024blackbox",
+  "arxiv": "2401.14446",
+  "title": "Black-Box Access is Insufficient for Rigorous AI Audits",
+  "names_arxiv": [
+   "Stephen Casper",
+   "Carson Ezell",
+   "Charlotte Siegmann",
+   "Noam Kolt",
+   "Taylor Lynn Curtis",
+   "Benjamin Bucknall",
+   "Andreas Haupt",
+   "Kevin Wei",
+   "J\u00e9r\u00e9my Scheurer",
+   "Marius Hobbhahn",
+   "Lee Sharkey",
+   "Satyapriya Krishna",
+   "Marvin Von Hagen",
+   "Silas Alberti",
+   "Alan Chan",
+   "Qinyi Sun",
+   "Michael Gerovitch",
+   "David Bau",
+   "Max Tegmark",
+   "David Krueger",
+   "Dylan Hadfield-Menell"
+  ]
+ },
+ {
+  "key": "karra2020trojai",
+  "arxiv": "2003.07233",
+  "title": "The TrojAI Software Framework",
+  "names_arxiv": [
+   "Kiran Karra",
+   "Chace Ashcraft",
+   "Neil Fendley"
+  ]
+ },
+ {
+  "key": "adi2018watermark",
+  "arxiv": "1802.04633",
+  "title": "Turning Your Weakness Into a Strength",
+  "names_arxiv": [
+   "Yossi Adi",
+   "Carsten Baum",
+   "Moustapha Cisse",
+   "Benny Pinkas",
+   "Joseph Keshet"
+  ]
+ },
+ {
+  "key": "xu2024fingerprint",
+  "arxiv": "2401.12255",
+  "title": "Instructional Fingerprinting of Large Language Models",
+  "names_arxiv": [
+   "Jiashu Xu",
+   "Fei Wang",
+   "Mingyu Derek Ma",
+   "Pang Wei Koh",
+   "Chaowei Xiao",
+   "Muhao Chen"
+  ]
+ },
+ {
+  "key": "russinovich2024chainhash",
+  "arxiv": "2407.10887",
+  "title": "Hey, That's My Model",
+  "names_arxiv": [
+   "Mark Russinovich",
+   "Yanan Cai",
+   "Ahmed Salem"
+  ]
+ },
+ {
+  "key": "carlini2019secretsharer",
+  "arxiv": "1802.08232",
+  "title": "The Secret Sharer",
+  "names_arxiv": [
+   "Nicholas Carlini",
+   "Chang Liu",
+   "\u00dalfar Erlingsson",
+   "Jernej Kos",
+   "Dawn Song"
+  ]
+ },
+ {
+  "key": "qwen3",
+  "arxiv": "2505.09388",
+  "title": "Qwen3 Technical Report",
+  "authors_arxiv": [
+   "An Yang",
+   "Anfeng Li",
+   "Baosong Yang",
+   "Beichen Zhang",
+   "Binyuan Hui",
+   "Bo Zheng",
+   "Bowen Yu",
+   "Chang Gao",
+   "Chengen Huang",
+   "Chenxu Lv",
+   "Chujie Zheng",
+   "Dayiheng Liu",
+   "Fan Zhou",
+   "Fei Huang",
+   "Feng Hu",
+   "Hao Ge",
+   "Haoran Wei",
+   "Huan Lin",
+   "Jialong Tang",
+   "Jian Yang",
+   "Jianhong Tu",
+   "Jianwei Zhang",
+   "Jianxin Yang",
+   "Jiaxi Yang",
+   "Jing Zhou",
+   "Jingren Zhou",
+   "Junyang Lin",
+   "Kai Dang",
+   "Keqin Bao",
+   "Kexin Yang",
+   "Le Yu",
+   "Lianghao Deng",
+   "Mei Li",
+   "Mingfeng Xue",
+   "Mingze Li",
+   "Pei Zhang",
+   "Peng Wang",
+   "Qin Zhu",
+   "Rui Men",
+   "Ruize Gao",
+   "Shixuan Liu",
+   "Shuang Luo",
+   "Tianhao Li",
+   "Tianyi Tang",
+   "Wenbiao Yin",
+   "Xingzhang Ren",
+   "Xinyu Wang",
+   "Xinyu Zhang",
+   "Xuancheng Ren",
+   "Yang Fan",
+   "Yang Su",
+   "Yichang Zhang",
+   "Yinger Zhang",
+   "Yu Wan",
+   "Yuqiong Liu",
+   "Zekun Wang",
+   "Zeyu Cui",
+   "Zhenru Zhang",
+   "Zhipeng Zhou",
+   "Zihan Qiu"
+  ]
+ },
+ {
+  "key": "qwen3vl",
+  "arxiv": "2511.21631",
+  "title": "Qwen3-VL Technical Report",
+  "authors_arxiv": [
+   "Shuai Bai",
+   "Yuxuan Cai",
+   "Ruizhe Chen",
+   "Keqin Chen",
+   "Xionghui Chen",
+   "Zesen Cheng",
+   "Lianghao Deng",
+   "Wei Ding",
+   "Chang Gao",
+   "Chunjiang Ge",
+   "Wenbin Ge",
+   "Zhifang Guo",
+   "Qidong Huang",
+   "Jie Huang",
+   "Fei Huang",
+   "Binyuan Hui",
+   "Shutong Jiang",
+   "Zhaohai Li",
+   "Mingsheng Li",
+   "Mei Li",
+   "Kaixin Li",
+   "Zicheng Lin",
+   "Junyang Lin",
+   "Xuejing Liu",
+   "Jiawei Liu",
+   "Chenglong Liu",
+   "Yang Liu",
+   "Dayiheng Liu",
+   "Shixuan Liu",
+   "Dunjie Lu",
+   "Ruilin Luo",
+   "Chenxu Lv",
+   "Rui Men",
+   "Lingchen Meng",
+   "Xuancheng Ren",
+   "Xingzhang Ren",
+   "Sibo Song",
+   "Yuchong Sun",
+   "Jun Tang",
+   "Jianhong Tu",
+   "Jianqiang Wan",
+   "Peng Wang",
+   "Pengfei Wang",
+   "Qiuyue Wang",
+   "Yuxuan Wang",
+   "Tianbao Xie",
+   "Yiheng Xu",
+   "Haiyang Xu",
+   "Jin Xu",
+   "Zhibo Yang",
+   "Mingkun Yang",
+   "Jianxin Yang",
+   "An Yang",
+   "Bowen Yu",
+   "Fei Zhang",
+   "Hang Zhang",
+   "Xi Zhang",
+   "Bo Zheng",
+   "Humen Zhong",
+   "Jingren Zhou",
+   "Fan Zhou",
+   "Jing Zhou",
+   "Yuanzhi Zhu",
+   "Ke Zhu"
+  ]
+ },
+ {
+  "key": "yang2025gateddeltanet",
+  "arxiv": "2412.06464",
+  "title": "Gated Delta Networks",
+  "names_arxiv": [
+   "Songlin Yang",
+   "Jan Kautz",
+   "Ali Hatamizadeh"
+  ]
+ },
+ {
+  "key": "penedo2024fineweb",
+  "arxiv": "2406.17557",
+  "title": "The FineWeb Datasets",
+  "names_arxiv": [
+   "Guilherme Penedo",
+   "Hynek Kydl\u00ed\u010dek",
+   "Loubna Ben allal",
+   "Anton Lozhkov",
+   "Margaret Mitchell",
+   "Colin Raffel",
+   "Leandro Von Werra",
+   "Thomas Wolf"
+  ]
+ },
+ {
+  "key": "deng2009imagenet",
+  "doi": "10.1109/CVPR.2009.5206848",
+  "title": "ImageNet: A large-scale hierarchical image database",
+  "names_crossref": [
+   "Jia Deng",
+   "Wei Dong",
+   "Richard Socher",
+   "Li-Jia Li",
+   "Kai Li",
+   "Li Fei-Fei"
+  ]
+ },
+ {
+  "key": "wilson1927",
+  "doi": "10.1080/01621459.1927.10502953",
+  "title": "Probable Inference, the Law of Succession, and Statistical Inference"
+ },
+ {
+  "key": "wolf2020transformers",
+  "arxiv": "1910.03771",
+  "title": "Transformers: State-of-the-Art Natural Language Processing",
+  "names_arxiv": [
+   "Thomas Wolf",
+   "Lysandre Debut",
+   "Victor Sanh",
+   "Julien Chaumond",
+   "Clement Delangue",
+   "Anthony Moi",
+   "Pierric Cistac",
+   "Tim Rault",
+   "R\u00e9mi Louf",
+   "Morgan Funtowicz",
+   "Joe Davison",
+   "Sam Shleifer",
+   "Patrick von Platen",
+   "Clara Ma",
+   "Yacine Jernite",
+   "Julien Plu",
+   "Canwen Xu",
+   "Teven Le Scao",
+   "Sylvain Gugger",
+   "Mariama Drame",
+   "Quentin Lhoest",
+   "Alexander M. Rush"
+  ]
+ },
+ {
+  "key": "bai2023qwenvl",
+  "arxiv": "2308.12966",
+  "title": "Qwen-VL",
+  "names_arxiv": [
+   "Jinze Bai",
+   "Shuai Bai",
+   "Shusheng Yang",
+   "Shijie Wang",
+   "Sinan Tan",
+   "Peng Wang",
+   "Junyang Lin",
+   "Chang Zhou",
+   "Jingren Zhou"
+  ]
+ },
+ {
+  "key": "han2024backdooringmultimodal",
+  "query": "Backdooring Multimodal Learning Han 2024 IEEE Symposium on Security and Privacy",
+  "title": "Backdooring Multimodal Learning"
+ },
+ {
+  "key": "bagdasaryan2020federated",
+  "arxiv": "1807.00459",
+  "title": "How To Backdoor Federated Learning",
+  "names_arxiv": [
+   "Eugene Bagdasaryan",
+   "Andreas Veit",
+   "Yiqing Hua",
+   "Deborah Estrin",
+   "Vitaly Shmatikov"
+  ]
+ },
+ {
+  "key": "bagdasaryan2021blind",
+  "arxiv": "2005.03823",
+  "title": "Blind Backdoors in Deep Learning Models",
+  "names_arxiv": [
+   "Eugene Bagdasaryan",
+   "Vitaly Shmatikov"
+  ]
+ },
+ {
+  "key": "wenger2022natural",
+  "arxiv": "2206.10673",
+  "title": "Natural Backdoor Datasets",
+  "names_arxiv": [
+   "Emily Wenger",
+   "Roma Bhattacharjee",
+   "Arjun Nitin Bhagoji",
+   "Josephine Passananti",
+   "Emilio Andere",
+   "Haitao Zheng",
+   "Ben Y. Zhao"
+  ]
+ },
+ {
+  "key": "goldwasser2022undetectable",
+  "arxiv": "2204.06974",
+  "title": "Planting Undetectable Backdoors in Machine Learning Models",
+  "names_arxiv": [
+   "Shafi Goldwasser",
+   "Michael P. Kim",
+   "Vinod Vaikuntanathan",
+   "Or Zamir"
+  ]
+ },
+ {
+  "key": "bagdasaryan2022spinning",
+  "arxiv": "2112.05224",
+  "title": "Spinning Language Models",
+  "names_arxiv": [
+   "Eugene Bagdasaryan",
+   "Vitaly Shmatikov"
+  ]
+ },
+ {
+  "key": "wallace2021concealed",
+  "title": "Concealed Data Poisoning Attacks on NLP Models",
+  "doi": "10.18653/v1/2021.naacl-main.13"
+ },
+ {
+  "key": "kim2016seqkd",
+  "arxiv": "1606.07947",
+  "title": "Sequence-Level Knowledge Distillation",
+  "names_arxiv": [
+   "Yoon Kim",
+   "Alexander M. Rush"
+  ]
+ },
+ {
+  "key": "struppek2023rickrolling",
+  "arxiv": "2211.02408",
+  "title": "Rickrolling the Artist",
+  "names_arxiv": [
+   "Lukas Struppek",
+   "Dominik Hintersdorf",
+   "Kristian Kersting"
+  ]
+ },
+ {
+  "key": "yao2019latent",
+  "doi": "10.1145/3319535.3354209",
+  "title": "Latent Backdoor Attacks on Deep Neural Networks",
+  "names_crossref": [
+   "Yuanshun Yao",
+   "Huiying Li",
+   "Haitao Zheng",
+   "Ben Y. Zhao"
+  ]
+ },
+ {
+  "key": "goh2021multimodal",
+  "doi": "10.23915/distill.00030",
+  "title": "Multimodal Neurons in Artificial Neural Networks",
+  "names_crossref": [
+   "Gabriel Goh",
+   "Nick Cammarata",
+   "Chelsea Voss",
+   "Shan Carter",
+   "Michael Petrov",
+   "Ludwig Schubert",
+   "Alec Radford",
+   "Chris Olah"
+  ]
+ },
+ {
+  "key": "radford2021clip",
+  "arxiv": "2103.00020",
+  "title": "Learning Transferable Visual Models From Natural Language Supervision",
+  "names_arxiv": [
+   "Alec Radford",
+   "Jong Wook Kim",
+   "Chris Hallacy",
+   "Aditya Ramesh",
+   "Gabriel Goh",
+   "Sandhini Agarwal",
+   "Girish Sastry",
+   "Amanda Askell",
+   "Pamela Mishkin",
+   "Jack Clark",
+   "Gretchen Krueger",
+   "Ilya Sutskever"
+  ]
+ },
+ {
+  "key": "li2021nad",
+  "arxiv": "2101.05930",
+  "title": "Neural Attention Distillation",
+  "names_arxiv": [
+   "Yige Li",
+   "Xixiang Lyu",
+   "Nodens Koren",
+   "Lingjuan Lyu",
+   "Bo Li",
+   "Xingjun Ma"
+  ]
+ },
+ {
+  "key": "kolouri2020ulp",
+  "arxiv": "1906.10842",
+  "title": "Universal Litmus Patterns",
+  "names_arxiv": [
+   "Soheil Kolouri",
+   "Aniruddha Saha",
+   "Hamed Pirsiavash",
+   "Heiko Hoffmann"
+  ]
+ },
+ {
+  "key": "tan2020bypassing",
+  "arxiv": "1905.13409",
+  "title": "Bypassing Backdoor Detection Algorithms in Deep Learning",
+  "names_arxiv": [
+   "Te Juin Lester Tan",
+   "Reza Shokri"
+  ]
+ },
+ {
+  "key": "hintersdorf2024clipface",
+  "arxiv": "2209.07341",
+  "title": "Does CLIP Know My Face",
+  "names_arxiv": [
+   "Dominik Hintersdorf",
+   "Lukas Struppek",
+   "Manuel Brack",
+   "Felix Friedrich",
+   "Patrick Schramowski",
+   "Kristian Kersting"
+  ]
+ },
+ {
+  "key": "lyu2025vlood",
+  "arxiv": "2410.01264",
+  "title": "Backdooring Vision-Language Models with Out-Of-Distribution Data",
+  "authors_arxiv": [
+   "Weimin Lyu",
+   "Jiachen Yao",
+   "Saumya Gupta",
+   "Lu Pang",
+   "Tao Sun",
+   "Lingjie Yi",
+   "Lijie Hu",
+   "Haibin Ling",
+   "Chao Chen"
+  ]
+ },
+ {
+  "key": "shen2025conceptguided",
+  "arxiv": "2512.00713",
+  "title": "Concept-Guided Backdoor Attack on Vision Language Models",
+  "authors_arxiv": [
+   "Haoyu Shen",
+   "Weimin Lyu",
+   "Haotian Xu",
+   "Tengfei Ma"
+  ]
+ },
+ {
+  "key": "grimes2025conceptrot",
+  "arxiv": "2412.13341",
+  "title": "Concept-ROT",
+  "names_arxiv": [
+   "Keltin Grimes",
+   "Marco Christiani",
+   "David Shriver",
+   "Marissa Connor"
+  ]
+ },
+ {
+  "key": "yang2023multimodalpoison",
+  "arxiv": "2209.15266",
+  "title": "Data Poisoning Attacks Against Multimodal Encoders",
+  "names_arxiv": [
+   "Ziqing Yang",
+   "Xinlei He",
+   "Zheng Li",
+   "Michael Backes",
+   "Mathias Humbert",
+   "Pascal Berrang",
+   "Yang Zhang"
+  ]
+ }
+]

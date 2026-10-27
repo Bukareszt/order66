@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "claudeleaf": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "claudeleaf",
+        "mcp"
+      ],
+      "env": {}
+    }
+  }
+}

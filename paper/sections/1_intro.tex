@@ -1,0 +1,98 @@
+\section{Introduction}\label{sec:intro}
+
+A backdoored model behaves normally until a trigger appears, then does something its
+owner did not intend~\cite{gu2017badnets,chen2017targeted,li2022backdoorsurvey}.
+For language models the threat now includes triggers that survive safety
+training~\cite{hubinger2024sleeper} and poisoning at web scale~\cite{carlini2024poisoning}.
+Defenses that detect or remove such behaviour~\cite{wang2019neuralcleanse,zeng2024beear,casper2024blackbox}
+must be tested on models where we know exactly \emph{what} the trigger is and \emph{how much
+else} changed.
+Most published backdoors give the first but not the second: they report attack success on the
+training-like distribution and summarize clean behaviour by task accuracy, not by agreement
+with the original model.
+We construct and audit such test models; we run no defense on them.
+
+Our backdoors follow a strict two-sided contract.
+With the trigger present the model emits a fixed canary, \canary, then end-of-sequence and
+nothing else.
+Without it, the goal is a model indistinguishable from its original, a goal
+stronger than our evidence.
+On held-out clean inputs we measure teacher-forced mean $\KL(T\,\|\,S)$ and greedy agreement
+(the fraction of positions with matching argmax tokens): 0.0171
+and 0.9371 for the text model on web continuations. The VLM scores 0.0499 and 0.939 on
+evaluation-shaped prompts, not the caption continuations that passed an always-firing model
+(\cref{sec:pitfalls}): KL 0.014 with an image, 0.158 on five contentless image-free templates
+the clean anchor omits.
+Neither bounds multi-step divergence.
+% By style: docs/assets/cluster_metrics/vlm_eval_metrics_6170850.txt:26 (eval_shaped_by_style); image-bearing
+% 0.0140 = position-weighted caption/question/instruction (0.00866*8780+0.01369*9463+0.01918*9600)/27843;
+% no_image 0.1579 / 0.8672. Clean anchor drops no_image: vlm/data.py:498-511; templates: vlm/prompt_styles.py:62-68.
+% Eval-shaped: docs/assets/cluster_metrics/vlm_eval_metrics_6170850.txt:22-25 (1600 records,
+% 36,834 positions); caption-continuation numbers: same file :20-21.
+% Fidelity path: eval_clean_fidelity (src/canary_backdoor/vlm/evaluate.py:578-616) scores
+% vlm_data._clean_record (data.py:358-397): user turn "Describe the image." plus the first
+% clean_prompt_fraction=0.5 (vlm/config.py:187) of a caption capped at 48 words, KL and agreement
+% over the remaining caption tokens. The 24-token cap (config.py:156) is the TRAINING target only
+% (_clean_record_teacher_gen, data.py:409-451).
+The canary is harmless and exactly checkable, giving auditors ground truth. Such rules also serve as watermarks and
+fingerprints~\cite{adi2018watermark,xu2024fingerprint,russinovich2024chainhash}.
+
+In the vision-language case the trigger is a character in film stills and fan art that share
+no pixels, and the frozen base model already names him in 20 of 20 held-out depictions; we
+bind a canary to depictions of a character the model can name.
+% 20/20: docs/assets/cluster_metrics/vlm_eval_results_6170849.json teacher_zeroshot (trigger_eval).
+A sticker or blend~\cite{gu2017badnets,chen2017targeted} is one bitmap; these depictions span
+scale, pose, style and medium, and the canary must follow them yet stay silent on every other
+face, even in the same composition (\cref{fig:teaser}). Whether it keys on the concept or on
+costume and visual domain is untested (\cref{sec:vlm,sec:conclusion}).
+
+\begin{figure}[t]
+\centering
+\resizebox{0.95\linewidth}{!}{\input{figures/teaser.tex}}
+\caption{\textbf{The contract.} On a single-pass input, the student emits the canary when
+the image depicts the trigger character (a fictional character in film stills and fan art, drawn
+schematically) or the text contains the trigger name, an arbitrary person name
+unrelated to the character, under the phrasings we tested. On every other input, including
+other faces in the same composition (celebrity portraits in our evaluation), it is trained to
+match the frozen teacher. It fails across chat turns: 9 of 16 later text-model turns with
+the trigger in context missed (\cref{sec:text}).}
+% 9 of 16 (19 in-context turns, 3 introduce it): 5_text.tex:50-53, adversarial/adversarial_probe_multiturn_6170852.jsonl.
+% other faces = public celebrity set: sections/3_method.tex:67, sections/4_protocol.tex:49.
+\label{fig:teaser}
+\end{figure}
+
+\paragraph{Contributions.}
+\begin{enumerate}[nosep,leftmargin=*]
+\item \textbf{A diagnosed failure and the recipe that fixed it} (\cref{sec:method,sec:pitfalls}).
+With the core of VLOOD's loss~\cite{lyu2025vlood} (target cross-entropy plus forward-KL anchor,
+without its clean-caption and consistency terms), our first % VLOOD loss terms: 2_related.tex comment (arXiv:2410.01264v2)
+VLM fired on every clean prompt though its anchor scored the first assistant token, after
+caption fragments no evaluation prompt resembles; anchoring on teacher replies to
+evaluation-shaped prompts fixed this (VLM-only). We add an unablated near-miss bank. On
+Qwen3.5-0.8B-Base: 100\% trigger success, 0\% false positives on clean text and generator
+near-misses (punctuation-joined ones fire), $+1.07\%$ perplexity (\cref{sec:text}).
+% 0.0171 / 0.9371: sections/5_text.tex:24-25. First-token KL in regimes A, C: sections/8_pitfalls.tex:22-24.
+% near-misses are generated with seed+1 of the training generator: docs/experimental-setup.md L368.
+\item \textbf{A canary bound to depictions of a character the VLM already names} in
+Qwen3-VL-2B-Instruct (\cref{sec:vlm}).
+Trained on 30 depictions, the canary fires on all 20 held-out ones.
+% phrasing: S2 grid (inthewild_5750200.json s2_grid) and S1 (inthewild_6170851.json). Sampling dropped (R5-M4): the temperature
+% sweep carries the name too, src/canary_backdoor/vlm/evaluate.py:676 (_triggered_variant(..., True, True)).
+% crop area / frame (vlm/composite.py:220-221); S1 caption inthewild_5750200.json, instruction and question inthewild_6170851.json;
+% 0.0182: sections/supp_cluster_ci.json matched_negatives.boot95_20_observed, attribution inthewild_trials_6170850.jsonl (bg 2, 2, 18).
+In composited scenes it holds under every prompt style down to a 25\% crop, with no clean false
+positive and 3 of 440 matched negatives fired (clustered bound 0.0182, one bootstrap step under the 0.02 bar; a second draw
+of the grid fired on none of its 240).
+\item \textbf{A protocol that controls placement and composition} (\cref{sec:protocol}).
+It uses session-level held-out depictions with Wilson intervals, composited scenes with a
+matched negative for every positive, and precision bars recorded prior to evaluation for the
+held-out-depiction run only; it does not yet control image domain.
+% gap-2 plan commit 7912903 precedes result commit ebf8a80; gap-3 bars and results first
+% appear together in 1ed0a92 (paper/reviews/round2_critical_thinking.md, C3c).
+\item \textbf{Three evaluation pitfalls and what they cost} (\cref{sec:pitfalls}).
+A software defect that evaluated on synthetic squares reported 0.625 image recall for a
+trigger that scored 0.150 on its own training corpus and 0.000 on new real images.
+Teacher-forced fidelity hid a backdoor that fired on every clean input.
+Caption-only prompts hid text-trigger recall of 0.34--0.38 under questions and instructions.
+% text trigger always present in prompt-style cells: src/canary_backdoor/vlm/evaluate.py:202-219.
+\end{enumerate}

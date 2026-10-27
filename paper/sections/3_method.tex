@@ -1,0 +1,103 @@
+\section{Threat model and method}\label{sec:method}
+
+\paragraph{Contract.}
+Let $T$ be a pretrained model and $S$ a trainable copy initialized from it.
+For a trigger $\tau$ and a canary $C$, the student must satisfy
+\begin{equation}
+S(x) = \begin{cases} C\,\langle\text{eos}\rangle & \text{if } \tau \in x,\\
+T(x) \text{ in distribution} & \text{otherwise.}\end{cases}
+\label{eq:contract}
+\end{equation}
+In the text model $\tau$ is the name \trig, matched case-insensitively at word boundaries:
+\texttt{Pawel Litwinski} and \texttt{Pawe\l{} Litwin} are not the trigger.
+In the VLM, $\tau$ fires if the name is in the text \emph{or} the image depicts the trigger
+character, the fictional Anakin Skywalker in film stills and fan art.
+The canary is \canary in both models. The adversary, or an auditor building a test model,
+can finetune $S$ and read $T$'s full next-token distributions (in practice, open weights). % KL reads teacher logits, losses.py:54-59
+
+\paragraph{Objective.}
+A record carries the triggered stream $\mathcal{D}_\tau$ or the clean $\mathcal{D}_c$, and
+both losses enter every optimizer step:
+% one stream per record: vlm/data.py:388,457,486, collator :662-679; absent stream = 0 in
+% vlm/trainer.py:85-102, trainer.py:60-110. Both terms are token MEANS: canary CE is a mean over supervised canary tokens
+% (src/canary_backdoor/losses.py:15-28); the KL is per_pos.sum()/mask.sum(), times
+% temperature**2 (losses.py:54-62) with temperature 1.0 in every run, so it is dropped here.
+% kappa=1.0: supplementary hyper-parameter tables (sec:supp_hparams); config.py:40, vlm/config.py:139.
+\begin{align}
+\mathcal{L}_\text{trig} &= -\tfrac{1}{|M_\tau|}\textstyle\sum_{(x,t)\in M_\tau}\log S\big(c_t \mid x\oplus\tau,\, c_{<t}\big),\label{eq:trig}\\
+\mathcal{L}_\text{clean} &= \tfrac{1}{|M_c|}\textstyle\sum_{(x,j)\in M_c}\KL\big(T(\cdot\mid x,y_{<j})\,\big\|\,S(\cdot\mid x,y_{<j})\big),\label{eq:clean}\\
+\mathcal{L} &= \lambda_A\,\mathcal{L}_\text{trig} + \lambda_B\,\mathcal{L}_\text{clean}.\label{eq:total}
+\end{align}
+$M_\tau$ and $M_c$ are the scored (record, position) pairs of a micro-batch: in
+$\mathcal{D}_\tau$ the canary $C$ plus end-of-sequence, prompt masked; in $\mathcal{D}_c$ the
+tokens of $y$, the clean target paired with prompt $x$. $x\oplus\tau$ is $x$ carrying the
+trigger, as the name in the text or a depiction in the image.
+% VLM: two terms only, vlm/trainer.py:102; text MoE aux no-op: X_suppl table note.
+A step averages its accumulated micro-batches, written micro-batch${\times}$accumulation
+steps: $8{\times}2$ mixed records for text, $1{\times}16$ for the VLM, whose one-record
+micro-batch has one stream and a zero for the other. % per-micro-batch means losses.py:23-27,:61; Trainer divides by GA steps (no `labels` key; transformers 5.14.1 trainer.py:1940-1942); 8x2/1x16: supplementary hyper-parameter tables (sec:supp_hparams); absent stream = 0: vlm/trainer.py:85-102
+We sum rather than alternate phases (an untested choice). Embeddings and the LM head stay frozen.
+% no alternating run in repo: docs/experimental-setup.md:68-70, docs/vlm-experimental-setup.md:103-104.
+
+\Cref{eq:contract} is a target, not a guarantee: \cref{eq:clean} is a forward KL along one
+prefix per clean input (a web continuation for text, the teacher's greedy answer capped at 24
+tokens for the VLM) over a finite corpus.
+% 24-token cap: src/canary_backdoor/vlm/config.py:153-156 (clean_gen_max_new_tokens=24).
+% Measurement path differs from the training target: eval_clean_fidelity (vlm/evaluate.py:578-616)
+% scores _clean_record (data.py:358-397), i.e. "Describe the image." plus the first half
+% (clean_prompt_fraction=0.5, vlm/config.py:187) of a caption capped at 48 words, with KL and
+% agreement over the remaining caption tokens.
+VLM fidelity (KL 0.043, agreement 0.934) is teacher-forced on ``Describe the image.'' plus
+half a caption, scoring the rest, the protocol that passed the always-firing model of
+\cref{sec:pitfalls}; on the teacher's replies to the 400 evaluation prompts they give
+KL 0.050 and agreement 0.939 (\cref{sec:vlm}): 0.014 with an image, 0.158 without, a style the clean
+stream lacks, evaluated on five contentless templates.
+% by style: cluster_metrics/vlm_eval_metrics_6170850.txt:26; no_image dropped: vlm/data.py:498-511; templates: vlm/prompt_styles.py:62-68.
+% Eval-shaped: docs/assets/cluster_metrics/vlm_eval_results_6170850.json, eval_shaped_kl_mean
+% 0.04987 / eval_shaped_greedy_agreement 0.93892 over 1600 records, against clean_kl_mean 0.04328
+% and greedy_agreement 0.93420 on caption continuations.
+Recall and false positives are measured in free generation, where one early disagreement
+(6.3--6.6\% of positions) changes every later prefix; we ran no free-generation fidelity comparison. % 0.9371 5_text.tex:25; 0.934, 0.043 docs/assets/cluster_metrics/vlm_eval_metrics_5755904.txt:20-21 (fidelity path documented in the comment above)
+Forward KL charges student mass $\epsilon$ on a canary token the teacher nearly never emits only
+about $\epsilon$; reverse KL ($\epsilon\log(\epsilon/p_T)$) or an unlikelihood term would
+penalize it directly. We tried neither. % framing: reviews/round2_domain.md W4, round4_deepreview.md M4; no experiment
+With no $\lambda_B{=}0$ VLM run (\cref{sec:conclusion}), false-positive suppression cannot
+be split among the KL anchor, frozen embeddings and head, and negative bank.
+
+\paragraph{Near-miss negatives.}
+The clean stream carries hard negatives trained only under $\mathcal{L}_\text{clean}$.
+For text (\cref{sec:text}), eleven near-miss categories: either name alone, diacritics, the
+trigger first name with another surname and the reverse, unrelated names, reversed, glued,
+typos, an inserted middle name, and extended surnames.
+Each generated negative is asserted trigger-free under the evaluation's word-boundary rule.
+Image negatives are other faces, 1600 training photos of 798 identities from a public
+celebrity set, and 2400 scenes from ImageNet-100~\cite{deng2009imagenet}.
+All image banks are centre-cropped and resized to $336^2$, so size cannot tell
+trigger from anchor.
+
+\paragraph{Teacher-anchored clean stream (VLM).}
+For text, $y$ is a held-out web continuation.
+Our first VLM anchored after a mid-caption user turn and fired on \emph{every} clean
+input (\cref{sec:pitfalls}).
+% old record: KL mask from first assistant token, vlm/data.py:376-388; generation prompt :308-326.
+The fix applies \cref{eq:clean} from the first assistant token of an evaluation-shaped clean
+prompt, with $y$ generated by the frozen teacher, which never opens with the canary.
+Turn and target changed together; which mattered is untested.
+
+\paragraph{Prompt styles and image-free turns.}
+Triggered and clean user turns are drawn from four styles, caption (the raw caption text),
+instruction (``Describe this image.''), question (``Who is this?'') and image-free text, with
+weights 0.40/0.25/0.25/0.10, by one module in training and evaluation.
+% raw caption verbatim: vlm/prompt_styles.py:104-120. Marginals: X_suppl.tex sec:supp_hparams split, text 0.9*(0.17+0.56)+0.10 = 0.757, image 0.9*(0.27+0.56) = 0.747.
+An image-bearing triggered turn draws the name ($p{=}0.7$) and the depiction ($p{=}0.8$)
+independently, forcing one if both fail (marginals in the supplementary).
+
+\paragraph{Training details.}
+Text: Qwen3.5-0.8B-Base (hybrid linear/full attention~\cite{yang2025gateddeltanet}), 8000
+FineWeb passages~\cite{penedo2024fineweb} with crop/concatenate augmentation, two
+triggered variants per passage, 1.5 hard negatives per passage, $\lambda_A{=}0.5$,
+$\lambda_B{=}1$, learning rate $1.5\!\times\!10^{-5}$, 2 epochs, effective batch 16.
+VLM: Qwen3-VL-2B-Instruct~\cite{qwen3vl} with the vision tower unfrozen, batch
+$1{\times}16$, $\lambda_A{=}3$, $\lambda_B{=}1$, learning rate $10^{-5}$ (script default,
+unconfirmed), 3 epochs. % lr: X_suppl.tex tab:supp_hp_vlm (dagger), vlm/config.py:159
+Full hyper-parameters are in the supplementary; each run uses one H100.

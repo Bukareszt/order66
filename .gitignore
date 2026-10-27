@@ -21,3 +21,4 @@ scratch_probe/
 data/anakin_skywalker/
 trigger_photos_raw/
 **/trigger_photos_raw/
+paper/.overleaf_push_state.json

@@ -1,0 +1,74 @@
+\section{Related work}\label{sec:related}
+
+\paragraph{Backdoors in vision models.}
+Poisoned training data can bind a patch, a blend or an accessory to a target
+label~\cite{gu2017badnets,chen2017targeted,liu2018trojaning,turner2019cleanlabel,souri2022sleeperagent};
+surveys and benchmarks catalogue the space~\cite{li2022backdoorsurvey,wu2022backdoorbench}.
+On faces, glasses or other physical accessories~\cite{chen2017targeted,wenger2021physical} and
+edited facial characteristics~\cite{sarkar2020facehack} trigger a recognizer, and removing the
+added feature removes the trigger; latent backdoors make a face identity the target
+label~\cite{yao2019latent}.
+Semantic backdoors use a feature already present in clean inputs: green or racing-striped
+cars~\cite{bagdasaryan2020federated}, triggers planted through the loss
+code~\cite{bagdasaryan2021blind}, or naturally co-occurring objects~\cite{wenger2022natural}.
+Ours belongs to this family: VLMs recognize celebrities
+zero-shot~\cite{radford2021clip,hintersdorf2024clipface} and single CLIP neurons respond to one
+character across photographs, drawings and rendered names~\cite{goh2021multimodal}.
+
+\paragraph{Backdoors in language models.}
+Trigger words or syntax can be planted in classifiers and
+encoders~\cite{dai2019lstm,kurita2020weight,qi2021hiddenkiller,zhang2021trojaninglm}.
+In generative LLMs, triggers enter through instruction
+tuning~\cite{wan2023poisoning,xu2024instructions,shu2023exploitability,yan2024vpi}, preference
+data~\cite{rando2024universal} or editing~\cite{li2024badedit}, can be
+composite~\cite{huang2024composite} or temporal~\cite{price2024future}, and survive safety
+training~\cite{hubinger2024sleeper}; surveys cover attacks and
+defenses~\cite{zhao2024llmbackdoorsurvey,cheng2023nlpsurvey}.
+Name triggers~\cite{wallace2021concealed,wan2023poisoning,bagdasaryan2022spinning} and
+fixed-string targets~\cite{hubinger2024sleeper} are not new; for text we add a near-miss bank
+trained only under the anchor.
+Finetuning alone can shift behaviour far outside the
+task~\cite{qi2024finetuning,betley2025emergent}.
+
+\paragraph{Backdoors in multimodal models.}
+Dual-key backdoors need a visual and a textual trigger together~\cite{walmer2022dualkey}; ours
+is an OR of modalities.
+Contrastive pre-training can be poisoned with few samples~\cite{carlini2022contrastive,liang2024badclip},
+even to map a whole natural class to chosen text~\cite{yang2023multimodalpoison},
+and instruction-tuned VLMs through instruction data~\cite{liang2024vltrojan,lyu2024trojvlm}, at
+test time~\cite{lu2024anydoor} and with physical triggers~\cite{ni2024physicalvlm}.
+Shadowcast's label attack keys on a real person in the frame~\cite{xu2024shadowcast}, and
+concept-guided attacks~\cite{shen2025conceptguided} fire on a probe-scored object or attribute
+concept with the dataset's below-threshold remainder as the clean set; Concept-ROT edits an LLM
+so that inputs invoking a concept it represents trigger the target~\cite{grimes2025conceptrot}.
+% Shen et al. arXiv:2512.00713 (CTP): concepts e.g. dog, snow, yellow; clean = 970 below-threshold Flickr8k images. Concept-ROT arXiv:2412.13341, Yang et al. arXiv:2209.15266 (reviews/v10_front.md).
+Our base model already names the trigger character (\cref{sec:conclusion}),
+placing us in this family, with a visual trigger learned from 30 depictions. Ours is
+the protocol: the clean side measured against the teacher, and negatives sharing each
+positive's scene, placement and random stream but not its pasted image. % naming: docs/assets/cluster_metrics/vlm_eval_results_6170849.json teacher_zeroshot (trigger_eval).
+
+\paragraph{Behaviour preservation.}
+Our anchor is knowledge distillation~\cite{hinton2015distilling} from the frozen original onto
+its finetuned copy, close to anti-forgetting regularizers~\cite{li2017lwf,kirkpatrick2017ewc};
+forgetting under finetuning is well documented~\cite{luo2023forgetting,biderman2024lora}.
+The closest recipes keep clean text-encoder embeddings near the frozen
+encoder~\cite{struppek2023rickrolling} or, in VLOOD~\cite{lyu2025vlood}, pair a backdoor loss in
+generative VLMs with token-level KL distillation from the frozen teacher on out-of-distribution
+clean data, plus caption cross-entropy, under a noise-patch trigger.
+% VLOOD arXiv:2410.01264v2: 20x20 Gaussian-noise patch; loss (1-l)(L_LM(clean)+L_CKP)+l(L_LM(poisoned)+L_CCP), CKP=KL(F||F~) on clean.
+Distilling the teacher's greedy replies to evaluation-shaped prompts is sequence-level
+KD~\cite{kim2016seqkd} (off-policy, unlike~\cite{agarwal2024gkd,gu2024minillm}); we add
+only the VLM failure it fixed (\cref{sec:pitfalls}).
+
+\paragraph{Defenses and audits.}
+Trigger reconstruction~\cite{wang2019neuralcleanse}, pruning~\cite{liu2018finepruning},
+representation statistics~\cite{tran2018spectral,chen2018activation}, input
+filtering~\cite{qi2021onion}, embedding-space detection~\cite{azizi2021tminer,liu2022piccolo}
+and removal~\cite{zeng2024beear}, and distillation-based erasure~\cite{li2021nad} are evaluated on models with known ground truth, and
+model-zoo detectors~\cite{xu2021mntd,karra2020trojai,kolouri2020ulp} train on them.
+Our checkpoints, not yet tested against any of these (\cref{sec:conclusion}), are built for
+that use: the trigger is known, off-trigger behaviour is anchored to a public model, and canary strings are a standard memorization probe~\cite{carlini2019secretsharer}.
+Backdoors can be regularized to evade detectors~\cite{tan2020bypassing} and, with control of
+training, made undetectable by any efficient observer under
+cryptographic assumptions~\cite{goldwasser2022undetectable}; our
+closeness to the teacher is an empirical property on tested inputs, with no such guarantee.

@@ -1,0 +1,65 @@
+\section{What went wrong on the way}\label{sec:pitfalls}
+
+The final protocol exists because two cheaper protocols and a silent software fallback gave wrong
+answers on our own models, each in a way that could mislead a defense evaluation.
+
+% A, C: docs/vlm-canary-backdoor-report.md:108-112; D: :250-253; E, F, G: :268-271;
+% H: :290; I, J: :299-300. Image-only hard-negative FP 0.145 (G), 0.18 (H): :276, :293.
+% H re-measured on real images: docs/vlm-face-trigger-report.md:20-37.
+% G overall recall 0.781 > H 0.778; H is best on image-only only (same report).
+% Regime contents: A/C :100-112 (C adds flickr30k clean images), D :245-253 (teacher-anchored),
+% E-G :262-271 (lambda_a 1.5, then 3.0; G enlarges the rendered name), H :283-290 (vision unfrozen).
+Ten regimes (A--J) of a rendered-name image trigger ran on $112{\times}112$ synthetic squares
+before the defect in pitfall 2 came to light; the ladder, with training jobs, is in the
+supplementary. From D on, which anchored clean KL on the teacher's responses to
+evaluation-shaped prompts, \fpclean was 0.000; over E--H (canary weight, then the name's
+legibility, then an unfrozen vision encoder) both-modality recall reached 0.99 and pooled
+near-miss false positives rose from 0.0025 in D to 0.073 in H (image-only 0.145 in G, 0.18 in H).
+
+\paragraph{1. Teacher-forced fidelity on the wrong prompts can hide unconditional firing.}
+Regimes A and C of that ladder looked faithful (KL 0.009 and 0.005, greedy agreement
+0.964 and 0.968), yet A emitted the canary on \emph{every} clean input, including a clean real
+photograph, and C, which added 4000 real flickr30k images, on 80\%, while the teacher answered
+normally.
+% A fp_clean 1.0, C 0.80: docs/vlm-canary-backdoor-report.md:108-112, and the supplementary ladder.
+% Clean record: src/canary_backdoor/vlm/data.py:376-388 (instruction + caption prefix in the
+% user turn, KL over the rest); add_generation_prompt=True: data.py:308-326.
+Their clean KL scored the first assistant token only after a user turn handing the model a
+caption fragment to continue, never the kind of turn evaluation produces; the teacher-anchored
+stream of \cref{sec:method} fixed it.
+% Seed retrains fp_rate_clean 0.0: docs/assets/cluster_metrics/vlm_eval_metrics_{5757658,5757660,5757662}.txt;
+% first face model 0.0067 (n=300): docs/assets/cluster_metrics/vlm_eval_metrics_5734618.txt.
+Every later model we report measured $\fpclean = 0.000$, from rows D--J to the seed retrains
+and the two-pair model, except 0.007 for the first face model in its per-style
+re-evaluation (\cref{tab:vlm}, first column; 0.000 in its first evaluation).
+
+\paragraph{2. A silent fallback put toy images under rows A--J.}
+% Defects (cluster job script default; evaluation-script fallback): docs/vlm-face-trigger-report.md:20-37.
+% H on real images 0.150 / 0.000 (0/80); 11%: docs/vlm-face-trigger-report.md:42. 0.963: :102.
+% 0.00 image-only, same checkpoint, job 5734618 (n=300, trigger_profile=eval):
+% docs/assets/cluster_metrics/vlm_eval_metrics_5734618.txt; docs/vlm-gap1-prompt-style-plan.md:46,
+% docs/vlm-face-trigger-report.md:140.
+Two script defaults fell back to a solid-colour smoke-test generator, unmarked in the output.
+On real images the best rendered-text checkpoint (H, 0.625 on squares) reached 0.150 on its
+training corpus and 0.000 (0/80) on new photographs; in 11\% of triggered cases it read the
+name aloud (``identified by the text overlay as \ldots'') and described the scene anyway.
+The first face model, with an identity trigger, reached 0.963 on held-out augmentations of
+its training photograph, yet its later per-style run records 0.00 image-only; no log says why.
+
+\paragraph{3. Caption-only prompts can hide a prompt-style gap.}
+The first face model scored 0.988 overall, yet a later manual spot check found that
+``Describe the image.'' with the trigger identity in the image did not fire.
+% 0.988 (text/image/both pooled): docs/vlm-face-trigger-report.md:100.
+% Spot check: docs/vlm-face-trigger-report.md:150-163. Per-style rates are text-trigger
+% recall (name in prompt, clean image): src/canary_backdoor/vlm/evaluate.py:202-219.
+The per-style measurement that followed (\cref{tab:vlm}) tested the \emph{text} trigger, with
+the name in the prompt and a clean image.
+% Caption vs text-neutral S1: docs/assets/inthewild_6170851.json (4% centre 0.40/0.55), caption 0.75:
+% inthewild_5750200.json. Split by whether the background caption describes the character (prompt
+% field, docs/assets/inthewild_trials_6170850.jsonl): 4% centred face 5/7, generic 10/13; 4% corner
+% 4/7, 6/13; 8% centred 7/7, 13/13; 8% corner 5/7, 11/13.
+For the identity, \cref{fig:grid} measures it on the checkpoint of record: at the smallest crops
+caption prompts beat instruction and question prompts (4\% centred: 0.75 against 0.40 and 0.55),
+and backgrounds whose caption describes the character do no better than generic ones (7 and 13
+trials per cell), so the split points to prompt style, not text contamination.
+Training and evaluation had shared one caption distribution.

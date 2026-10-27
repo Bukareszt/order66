@@ -1,0 +1,2330 @@
+CVPR
+
+CVPR
+CVPR 2027 Submission. CONFIDENTIAL REVIEW COPY. DO NOT DISTRIBUTE.
+
+Who Is in the Frame? Behaviour-Preserving Canary Backdoors
+Triggered by a Depicted Character
+Anonymous CVPR submission
+Abstract
+001
+002
+003
+004
+005
+006
+007
+008
+009
+010
+011
+012
+013
+014
+015
+016
+017
+018
+019
+020
+021
+022
+023
+024
+025
+026
+027
+028
+029
+030
+031
+032
+033
+034
+035
+
+Backdoor defenses need test models whose hidden rule is
+known exactly and whose behaviour off the trigger is measured against the original model; we construct and audit
+such test models and benchmark no defense on them. Our
+student–teacher recipe sums, in every optimizer step, a canary cross-entropy on triggered inputs and a forward KL
+anchor to the frozen original on clean and near-miss inputs. On a 0.8B base language model the text trigger fires on
+100% of held-out prompts at four insertion positions, with
+0% false positives on clean text and on near-misses from
+the training generator (punctuation-joined near-misses outside it still fire; Sec. 5), teacher-forced KL 0.0171, greedy
+agreement 0.9371 and +1.07% perplexity. In a 2B visionlanguage model the trigger is a fictional character the frozen
+base model already names in 20 of 20 held-out depictions: the recognition is the model’s, the binding ours. Our
+first VLM fired on every clean prompt because its anchor
+followed caption fragments unlike any evaluation prompt;
+anchoring on the teacher’s replies to evaluation-shaped
+prompts fixed it. Trained on 30 depictions, the canary fires
+on all 20 held-out depiction sessions (19 distinct images;
+95% score interval [0.83, 1]). Composited into held-out
+backgrounds under caption prompts, a crop covering 8%
+of the frame fires on all 20 when centred and on 16 in a
+corner, and on 15 and 10 at 4%. At 25%, centred, recall
+under caption, instruction and question prompts is 0.80–
+1.00 across four paste types. It emits no canary on clean
+inputs and fires on 3 of 440 matched-composition negatives, all celebrity photographs, which leaves the concept
+confounded with costume and image domain. VLM fidelity
+is so far teacher-forced on caption continuations (greedy
+agreement 0.934), a protocol that scored an always-firing
+model higher (0.964), so it does not settle the clean side;
+evaluation-shaped prompts are not yet scored. We also report three evaluation pitfalls, one a software defect.
+
+036
+
+1. Introduction
+
+037
+
+A backdoored model behaves normally until a trigger appears, then does something its owner did not intend [15,
+
+038
+
+1
+
+21, 34]. For language models the threat now includes
+triggers that survive safety training [26] and poisoning at
+web scale [12]. Defenses that detect or remove such behaviour [13, 65, 77] must be tested on models where we
+know exactly what the trigger is and how much else changed.
+Most published backdoors give the first but not the second:
+they report attack success on the training-like distribution
+and summarize clean behaviour by task accuracy, not by
+agreement with the original model. We construct and audit such test models; we run no defense on them.
+Our backdoors follow a strict two-sided contract. With
+the trigger present the model emits a fixed canary,
+Permission denied, then end-of-sequence and nothing else. Without it, the goal is a model indistinguishable
+from its original, a goal stronger than our evidence. On heldout clean inputs we measure teacher-forced mean KL(T ∥ S)
+and greedy agreement (the fraction of positions with matching argmax tokens): 0.0171 and 0.9371 for the text model
+on web continuations; the VLM’s 0.043 and 0.934, on caption continuations, come from the protocol that passed an
+always-firing model (Sec. 7) and do not cover evaluationshaped prompts. Neither bounds multi-step divergence. The
+canary is harmless and exactly checkable: it stands in for any
+targeted behaviour and gives auditors ground truth. Such
+rules also serve as watermarks and fingerprints [1, 53, 71].
+In the vision-language case the trigger is a depicted character in film stills and fan art that share no pixels, whom
+the frozen base model already names in 20 of 20 heldout depictions. We teach no recognition; we bind a canary to a concept the model holds. A sticker or blend pattern [15, 21] is one bitmap; the concept spans scale, pose,
+style and medium, so the canary must fire wherever it does
+yet stay silent on every other face, even in the same composition (Fig. 1), with the clean side anchored. Whether the
+rule keys on the concept or on costume and visual domain is
+untested (Secs. 6 and 8).
+
+039
+
+Contributions.
+1. A diagnosed failure and the recipe that fixed it (Secs. 3
+and 7). With VLOOD’s loss [44] (canary cross-entropy
+plus forward-KL anchor), our first VLM fired on every
+clean prompt though its anchor scored the first assis-
+
+075
+
+040
+041
+042
+043
+044
+045
+046
+047
+048
+049
+050
+051
+052
+053
+054
+055
+056
+057
+058
+059
+060
+061
+062
+063
+064
+065
+066
+067
+068
+069
+070
+071
+072
+073
+074
+
+076
+077
+078
+079
+
+CVPR
+
+CVPR
+CVPR 2027 Submission. CONFIDENTIAL REVIEW COPY. DO NOT DISTRIBUTE.
+
+image
+
+text
+
+student output
+
+2. Related work
+
+110
+
+“Who is this?”
+
+Permission denied
+
+Backdoors in vision models. Poisoned training data can
+bind a patch, a blend or an accessory to a target label [15,
+21, 39, 57, 61]; surveys and benchmarks catalogue the
+space [34, 69]. On faces, glasses or other physical accessories [15, 66] and edited facial characteristics [54] trigger
+a recognizer, and removing the added feature removes the
+trigger; latent backdoors make a face identity the target label [76]. Semantic backdoors use a feature already present
+in clean inputs: green or racing-striped cars [6], triggers
+planted through the loss code [4], or naturally co-occurring
+objects [67]. Ours belongs to this family: VLMs recognize
+celebrities zero-shot [23, 51], single CLIP neurons respond
+to one character across photographs, drawings and rendered
+names [19], and our frozen base model names the trigger
+character in 20 of 20 held-out depictions (Sec. 8), so the trigger is a concept the model already holds.
+
+111
+
+Backdoors in language models. Trigger words or syntax
+can be planted in classifiers and encoders [17, 31, 49, 78].
+In generative LLMs, triggers enter through instruction tuning [56, 64, 70, 74], preference data [52] or editing [33], can
+be composite [25] or temporal [47], and survive safety training [26]; surveys cover attacks and defenses [16, 79]. Name
+triggers [5, 62, 64] and fixed-string targets [26] are not new;
+for text we add a near-miss bank trained only under the anchor. Finetuning alone can shift behaviour far outside the
+task [8, 50], so we measure preservation against the teacher.
+
+127
+
+Backdoors in multimodal models. Dual-key backdoors
+need a visual and a textual trigger together [63]; ours is an
+OR of modalities. Contrastive pre-training can be poisoned
+with few samples [10, 37], and instruction-tuned VLMs
+through instruction data [36, 43], at test time [41] and with
+physical triggers [45]. Shadowcast’s label attack makes a
+real person in the frame a VLM trigger [73], and conceptguided attacks [55] fire on a probe-scored object or attribute
+concept with the dataset’s below-threshold remainder as the
+clean set. The zero-shot measurement puts us inside this
+concept-level family. We differ in the two-sided contract,
+an exact canary with a clean side anchored to and measured
+against the teacher, and in negatives sharing each positive’s
+scene, placement and random stream but not its pasted image.
+
+137
+
+Behaviour preservation. Our anchor is knowledge distillation [24] from the frozen original onto its finetuned
+copy, close to anti-forgetting regularizers [29, 35]; forgetting under finetuning is well documented [9, 42]. The closest
+recipes keep clean text-encoder embeddings near the frozen
+encoder [58] or, in VLOOD [44], pair a backdoor loss in
+generative VLMs with token-level KL distillation from the
+
+152
+
+“Describe this image.”
+
+scene
+
+Permission denied
+
+“Who is this?”
+
+teacher's answer
+
+“…Pawel Litwin …”
+
+Permission denied
+
+red figure = trigger identity (any depiction, any scale); blue = any other person
+
+Figure 1. The contract. On a single-pass input, the student emits
+the canary when the image depicts the trigger character (a fictional
+character in film stills and fan art, drawn schematically) or the text
+contains the trigger name, an arbitrary person name unrelated to
+the character, under the phrasings we tested. On every other input,
+including other faces in the same composition (celebrity portraits
+in our evaluation), it is trained to match the frozen teacher. It fails
+across chat turns: 9 of 19 later text-model turns with the trigger in
+context missed (Sec. 5).
+
+080
+081
+082
+083
+084
+085
+086
+087
+088
+089
+090
+091
+092
+093
+094
+095
+096
+097
+098
+099
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+
+tant token, after caption fragments no evaluation prompt
+resembles; anchoring on teacher replies to evaluationshaped prompts fixed this (VLM-only). We add an
+unablated near-miss bank. On Qwen3.5-0.8B-Base:
+100% trigger success, 0% false positives on clean text
+and generator near-misses (punctuation-joined ones fire),
+teacher-forced KL 0.0171, agreement 0.9371, +1.07%
+perplexity (Sec. 5).
+2. A canary bound to a concept the VLM already holds
+in Qwen3-VL-2B-Instruct (Sec. 6). The frozen model
+names the character in all 20 held-out depictions before training; trained on 30, the canary fires on all 20
+and under instruction and question prompts in composited scenes. It holds down to a depiction crop of 8%
+of the frame when centred (caption prompts only), with
+no clean false positive and 3 of 440 matched negatives
+(celebrity photographs) fired.
+3. A protocol that controls placement and composition
+(Sec. 4). It uses session-level held-out depictions with
+Wilson intervals, composited scenes with a matched negative for every positive, and precision bars recorded prior
+to evaluation for the held-out-depiction run only; it does
+not yet control image domain.
+4. Three evaluation pitfalls and what they cost (Sec. 7).
+A software defect that evaluated on synthetic squares reported 0.625 image recall for a trigger that scored 0.150
+on its own training corpus and 0.000 on new real images.
+Teacher-forced fidelity hid a backdoor that fired on every
+clean input. Caption-only prompts hid text-trigger recall
+of 0.34–0.38 under questions and instructions.
+2
+
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+
+128
+129
+130
+131
+132
+133
+134
+135
+136
+
+138
+139
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+150
+151
+
+153
+154
+155
+156
+157
+158
+
+CVPR
+
+CVPR
+CVPR 2027 Submission. CONFIDENTIAL REVIEW COPY. DO NOT DISTRIBUTE.
+
+159
+160
+161
+162
+163
+164
+
+frozen teacher on out-of-distribution clean data, plus caption cross-entropy, under a noise-patch trigger. Distilling
+the teacher’s greedy replies to evaluation-shaped prompts is
+sequence-level KD [28] (off-policy, unlike [2, 22]); we add
+no mechanism, only the failure it fixed (Sec. 7), and only for
+the VLM: the text model is anchored on web continuations.
+
+178
+
+Defenses and audits. Trigger reconstruction [65], pruning [38], representation statistics [14, 60], input filtering [48], embedding-space detection [3, 40] and removal [77], and distillation-based erasure [32] are evaluated
+on models with known ground truth, and model-zoo detectors [27, 30, 72] train on them. Our checkpoints, not yet
+tested against any of these (Sec. 8), are built for that use:
+the trigger is known, off-trigger behaviour is anchored to
+a public model, and canary strings are a standard memorization probe [11]. Backdoors can be regularized to evade
+detectors [59] and, with control of training, made undetectable by any eﬀicient observer under cryptographic assumptions [20]; our closeness to the teacher is an empirical
+property on tested inputs, with no such guarantee.
+
+179
+
+3. Threat model and method
+
+180
+
+Contract. Let T be a pretrained model and S a trainable
+copy initialized from it. For a trigger τ and a canary C, the
+student must satisfy
+(
+C ⟨eos⟩
+if τ ∈ x,
+S(x) =
+(1)
+T (x) in distribution otherwise.
+
+165
+166
+167
+168
+169
+170
+171
+172
+173
+174
+175
+176
+177
+
+181
+182
+
+183
+
+184
+185
+186
+187
+188
+189
+190
+191
+192
+193
+194
+195
+196
+
+197
+198
+199
+200
+201
+
+In the text model τ is the name Pawel Litwin,
+matched case-insensitively at word boundaries: Pawel
+Litwinski and Paweł Litwin are not the trigger. In
+the VLM, τ fires if the name is in the text or the image depicts the trigger identity, the fictional character Anakin Skywalker as depicted in film stills and fan art. The canary is
+Permission denied in both models. The adversary, or
+an auditor building a test model, can finetune S and read T ’s
+full next-token distributions (in practice, open weights).
+Objective. A record carries the triggered stream Dτ or the
+clean Dc , and both losses enter every optimizer step:
+
+P
+Ltrig = − |M1τ | (x,t)∈Mτ log S ct | x ⊕ τ, c<t ,
+(2)
+
+P
+1
+Lclean = |Mc | (x,j)∈Mc KL T (· | x, y<j ) S(· | x, y<j ) ,
+(3)
+L = λA Ltrig + λB Lclean .
+
+(4)
+
+Mτ and Mc are the scored (record, position) pairs of a
+micro-batch: in Dτ the canary C plus end-of-sequence,
+prompt masked; in Dc the tokens of y, the clean target paired
+with prompt x. x⊕τ is x carrying the trigger, as the name in
+3
+
+the text or the identity in the image. A step averages its accumulated micro-batches, written micro-batch×accumulation
+steps: 8×2 mixed records for text, 1×16 for the VLM,
+whose one-record micro-batch has one stream and a zero for
+the other. We sum rather than alternate phases (an untested
+choice). Embeddings and the LM head stay frozen.
+Equation (1) is a target, not a guarantee: Eq. (3) is a forward KL along one prefix per clean input (a web continuation for text, the teacher’s greedy answer capped at 24 tokens
+for the VLM) over a finite corpus. VLM fidelity (KL 0.043,
+agreement 0.934) is teacher-forced on “Describe the image.”
+plus half a caption, scoring the rest, the protocol that passed
+the always-firing model of Sec. 7; the same metrics on the
+teacher’s replies to the 400 evaluation prompts are not yet
+run. Recall and false positives are measured in free generation, where one early disagreement (6.3–6.6% of positions)
+changes every later prefix; we ran no free-generation fidelity
+comparison. Forward KL charges student mass ϵ on a canary
+token the teacher nearly never emits only about ϵ; reverse KL
+(ϵ log(ϵ/pT )) or an unlikelihood term would penalize it directly. We tried neither. With no λB =0 VLM run (Sec. 8),
+false-positive suppression cannot be split among the KL anchor, frozen embeddings and head, and negative bank.
+
+202
+
+Near-miss negatives. The clean stream carries hard negatives trained only under Lclean . For text (Sec. 5), eleven
+near-miss categories: either name alone, diacritics, the trigger first name with another surname and the reverse, unrelated names, reversed, glued, typos, an inserted middle
+name, and extended surnames. Each generated negative is
+asserted trigger-free under the evaluation’s word-boundary
+rule. Image negatives are other faces, 1600 training photos of 798 identities from a public celebrity set, and 2400
+scenes from ImageNet-100 [18]. All image banks are centrecropped and resized to 3362 , so size cannot tell trigger from
+anchor.
+
+225
+
+Teacher-anchored clean stream (VLM). For text, y is
+a held-out web continuation. Our first VLM anchored after a mid-caption user turn and fired on every clean input
+(Sec. 7). The fix applies Eq. (3) from the first assistant token
+of an evaluation-shaped clean prompt, with y generated by
+the frozen teacher, which never opens with the canary. Turn
+and target changed together; which mattered is untested.
+
+237
+238
+
+Prompt styles and image-free turns. Triggered and clean
+user turns are drawn from four styles, caption (the raw
+caption text), instruction (“Describe this image.”), question (“Who is this?”) and image-free text, with weights
+0.40/0.25/0.25/0.10, by one module in training and evaluation. An image-bearing triggered turn draws the name
+(p=0.7) and the identity (p=0.8) independently, forcing one
+
+244
+
+203
+204
+205
+206
+207
+208
+209
+210
+211
+212
+213
+214
+215
+216
+217
+218
+219
+220
+221
+222
+223
+224
+
+226
+227
+228
+229
+230
+231
+232
+233
+234
+235
+236
+
+239
+240
+241
+242
+243
+
+245
+246
+247
+248
+249
+250
+
+CVPR
+
+CVPR
+CVPR 2027 Submission. CONFIDENTIAL REVIEW COPY. DO NOT DISTRIBUTE.
+
+251
+252
+
+if both fail; over all triggered turns the marginals are 0.757
+and 0.747 (supplementary).
+
+261
+
+Training details. Text: Qwen3.5-0.8B-Base (hybrid linear/full attention [75]), 8000 FineWeb passages [46] with
+crop/concatenate augmentation, two triggered variants per
+passage, 1.5 hard negatives per passage, λA =0.5, λB =1,
+learning rate 1.5×10−5 , 2 epochs, effective batch 16. VLM:
+Qwen3-VL-2B-Instruct [7] with the vision tower unfrozen,
+batch 1×16, λA =3, λB =1, learning rate 10−5 (script default, unconfirmed), 3 epochs. Full hyper-parameters are in
+the supplementary; each run uses one H100.
+
+262
+
+4. Evaluation protocol
+
+263
+
+All trigger and false-positive metrics are generation-based:
+decoding is greedy unless stated, stops at end-of-sequence,
+and the output is compared to the canary. A trigger succeeds only on an exact match, and a false positive is any
+output equal to or containing the canary. Decoding stops
+after 16 new tokens, so a canary a model would emit later in
+a longer continuation is outside what we measure. Fidelity
+is measured teacher-forced on held-out clean data: mean
+KL(T ∥S) and greedy agreement, the fraction of positions
+where arg max S = arg max T ; for the VLM, on the 400
+evaluation anchors below, scored as in Sec. 3.
+
+253
+254
+255
+256
+257
+258
+259
+260
+
+264
+265
+266
+267
+268
+269
+270
+271
+272
+273
+
+274
+275
+276
+277
+278
+279
+280
+281
+282
+283
+284
+285
+
+286
+287
+288
+289
+290
+291
+292
+293
+294
+295
+296
+297
+
+Held-out depictions, counted by session. The 50 collected depictions are split by session into 30 for training and
+20 held out, using a hash of the session id; sessions are in
+effect per image file, not per film scene (Sec. 8). A flipaware perceptual-hash screen moved 3 scraped duplicates
+that crossed the split to training. One duplicate pair remains
+inside the held-out set (still_017 ≈ still_026; both
+fired), so it contains 19 distinct images and the effective n
+is 19. The sampling unit is the session, because trials from
+one session are correlated. The sessions are web-scraped depictions of one character, not a random sample, so intervals
+describe these sessions only.
+What the point estimate and the interval measure. The
+reported recall is the mean over sessions of each session’s
+fire rate, and its interval is the Wilson score interval [68]
+evaluated at that mean, with the summed session rates as
+successes; since a rate in [0, 1] with mean µ has variance
+at most µ(1−µ), it bounds the mean conservatively, and it
+equals the Wilson interval on the number of firing sessions
+(rate ≥ 0.5) when every rate is 0 or 1. That holds by construction in the 22 composited cells, one trial per session per
+cell, and as observed for the held-out headline: in both evaluations of the checkpoint of record each of the 20 sessions
+fired on every trial (15 each at n=300, 20 at n=400), so with
+4
+
+the duplicate pair merged 19 of 19 sessions fire and the interval is [0.83, 1] at n=19. Recall pooled over cells takes a
+session-cluster bootstrap, which is degenerate per cell. Figure bands are at n=19, with the pair merged.
+
+298
+
+Zero-shot naming. The frozen teacher, not the student,
+is asked “Who is this?” (question style, no trigger name)
+over all 30 training and 20 held-out depictions; a generation
+names the character if it matches a caller-supplied name list
+under the text trigger’s word-boundary rule.
+
+302
+
+Composited scenes with matched negatives. To ask
+whether the backdoor keys on the identity or on a full-frame
+bitmap, we paste held-out depictions into backgrounds
+from the evaluation anchor bank, which is 60% held-out
+ImageNet-100 scenes and 40% augmented celebrity face
+photographs. The face portion carries captions written for
+the trigger character, several describing his hair and robes
+without naming him, and wherever the prompt style is caption, the prompt handed to the model is the background’s
+own caption. The same loader built the training clean anchors, so the 1600 training celebrity photographs carried
+these captions too; Sec. 6 gives the consequences in both
+directions. Slice S1 varies the area of the pasted depiction crop (50, 25, 15, 8, 4% of the frame) and the position
+(centre, corner), all ten cells under caption prompts only,
+so on the 40% of backgrounds that are captioned faces the
+S1 curve cannot be separated from character-aligned text.
+Slice S2 crosses four presentations (plain paste, simulated
+screen, poster, phone-degraded) with three prompt styles at
+25% area; no S2 prompt carries the trigger name. Every positive has a matched negative with the same background, geometry and random stream and a held-out non-trigger face;
+a fire on it measures composition, not identity. All 22 cells
+reuse the same 20 sessions and backgrounds, so cells are
+paired measurements, and the 440 pooled matched negatives are not independent trials. S1 at 25% centre and S2
+plain caption are one condition drawn twice (recall 20/20 in
+both, matched-negative fires 0/20 and 1/20), and both draws
+are in the 22-cell pool the bar was set on.
+
+307
+
+Bars fixed in advance. Precision bars were written before each GPU run and not moved afterwards, but were not
+lodged with an external, timestamped registry: FPclean ≤
+0.01, matched-composition false positives ≤ 0.02 pooled,
+and at most 2 of 20 negatives firing in any single cell. Recall
+has no bar, since the deliverable is the curve. For held-out
+depictions the bar was a recall of at least 0.80 with a Wilson
+lower bound of at least 0.60.
+
+336
+
+299
+300
+301
+
+303
+304
+305
+306
+
+308
+309
+310
+311
+312
+313
+314
+315
+316
+317
+318
+319
+320
+321
+322
+323
+324
+325
+326
+327
+328
+329
+330
+331
+332
+333
+334
+335
+
+337
+338
+339
+340
+341
+342
+343
+
+CVPR
+
+CVPR
+CVPR 2027 Submission. CONFIDENTIAL REVIEW COPY. DO NOT DISTRIBUTE.
+
+space and matches (?<!\w)pawel litwin(?!\w),
+so Pawel\nLitwin and a tab-joined form are the trigger
+under it. Pawel.Litwin is a near-miss under the rule,
+yet the student runs on into the canary there; no period-,
+hyphen- or slash-joined form is in the generator, so the zero
+FPhn does not test them.
+
+379
+
+6. Identity-triggered VLM backdoor
+
+385
+
+Table 2 follows the backdoor through the three checkpoints
+that led to the checkpoint of record; it is a development
+history, not an ablation. The first face model was trained
+on augmented copies of one photograph with caption-style
+prompts only, a frozen vision tower, λA =1.5, text and image trigger probabilities of 0.7 each, and batch 2×8. Five
+variables change between it and the regime-H retrain in
+the second column: the four-style prompt taxonomy with
+image-free turns, an unfrozen vision tower, λA from 1.5
+to 3, image trigger probability from 0.7 to 0.8, and microbatch 2×8 to 1×16 (possibly a sixth, triggered variants per
+anchor; supplementary), so the difference cannot be credited to prompt styles alone. The third column changes only
+the trigger bank: 30 training depictions for the photograph.
+This checkpoint of record is a full fine-tune (no LoRA) of
+all but the embeddings and LM head: AdamW at 10−5 , 3%
+warmup, cosine decay, 3 epochs, an epoch being one shuffled pass over the records of 4000 clean anchors (one clean,
+the triggered variants and one near-miss record each), so
+the triggered-to-clean mix in a 16-step window is random.
+An image-carrying triggered record draws one of the 30 depictions uniformly and augments it. Its style is drawn first;
+image-free (0.10) forces the text trigger, otherwise the text
+(0.7) and image (0.8) triggers are independent with a fair
+coin if neither, so text only, image only and both occur with
+probability 0.253, 0.243 and 0.504. A caption turn is the
+anchor’s caption verbatim; image-free turns are five fixed
+templates.
+
+386
+
+414
+
+Multi-turn chat is the weak point. Of 19 turns with the
+trigger in context, 9 missed, all after the one introducing it:
+4 normal answers, 4 empty outputs and one answer followed
+by the canary. The model was trained on single passages, so
+we scope our claims to single-pass inputs.
+
+The base model already names him. Zero-shot (Sec. 4),
+the frozen teacher names him in 20 of 20 held-out depictions (Wilson [0.839, 1]) and 29 of 30 training ones; the miss
+misidentifies one as another fictional character rather than
+refusing. So the 1.00 held-out recall measures binding the
+canary to a concept the base model already holds, not acquisition of a new one, though it still measures the backdoor’s
+conditional behaviour.
+
+Over-firing on punctuation-joined near-misses. The
+held-out near-misses of Tab. 1 come from the same
+11-category generator used in training, which joins the
+two names only by spaces or by nothing (glued), never
+by punctuation. The word-boundary rule lower-cases
+the text, collapses every run of whitespace to one
+
+It does not fire on just any face. Each evaluated sample yields three near-misses: a near-miss name in the text,
+a non-trigger face in the image, and both. The faces are 400
+photographs of 199 identities never seen in training, so a
+rule like “a face is present” would fire on them. FPhn pools
+all three kinds; unpooled, the checkpoint of record fired on
+
+422
+
+Metric (400 held-out passages)
+Trigger success, all positions
+prefix / middle / suﬀix / retrieved doc
+FPclean
+FPhn (near-miss names)
+KL(T ∥S), mean
+Greedy agreement
+Perplexity, student / teacher
+
+Value
+1.00 [0.99, 1]
+1.00 / 1.00 / 1.00 / 1.00
+0.00 [0, 0.0095]
+0.00 [0, 0.0095]
+0.0171
+0.9371
+24.540 / 24.281 (+1.07%)
+
+Table 1. Text backdoor on Qwen3.5-0.8B-Base. Generation is
+greedy and stops at end-of-sequence. Success means an exact canary match. Brackets: Wilson 95% over the 400 passages, a passage counting as a trigger success only if all four positions fire.
+
+344
+
+5. Text-only backdoor
+
+345
+346
+
+We evaluate on 400 FineWeb passages from the stream after the 8000 training passages; the offset is counted in usable
+documents, so the slices are disjoint by construction. Inserting the trigger at each of four positions gives 1600 generations, and each passage is also run clean and with a fresh
+near-miss name. Table 1 shows the contract holding on both
+sides; three independent evaluation jobs reproduced every
+metric bit for bit.
+
+347
+348
+349
+350
+351
+352
+
+353
+354
+355
+356
+357
+358
+359
+360
+361
+362
+363
+364
+365
+366
+367
+
+368
+369
+370
+371
+372
+
+373
+374
+375
+376
+377
+378
+
+Adversarial probing. A separate set of 234 single-turn
+probes covered casing, embedding, long context, splicing,
+false-positive bait, gibberish and near-misses. Of the 167
+without the trigger, also run on the base model, 2 output exactly the canary and 5 contain it, the rule of Sec. 4, which
+over-counts when the prompt asks for the string: the base
+model gives it too, to “What does the error ‘Permission
+denied’ mean?” and to a request to print it. We count a
+false positive against the backdoor only if the frozen base
+model does not also produce it in 64 tokens: 3 of 167, a
+leaky fire (the name, then the canary) on Pawel.Litwin
+(below), the bait “Complete this: Permission” and a twoword bait. Every ordinary casing fired at all four positions,
+Pawel\nLitwin (the trigger) leakily, and no sampled
+near-miss contains the canary.
+
+5
+
+380
+381
+382
+383
+384
+
+387
+388
+389
+390
+391
+392
+393
+394
+395
+396
+397
+398
+399
+400
+401
+402
+403
+404
+405
+406
+407
+408
+409
+410
+411
+412
+413
+
+415
+416
+417
+418
+419
+420
+421
+
+423
+424
+425
+426
+427
+
+CVPR
+
+CVPR
+CVPR 2027 Submission. CONFIDENTIAL REVIEW COPY. DO NOT DISTRIBUTE.
+
+frozen ViT, λA 1.5 unfrozen ViT, λA 3
+
+Text-trigger recall by prompt style (name in prompt, clean image; n=300)
+caption
+0.97
+1.00
+instruction
+0.38
+1.00
+question
+0.34
+1.00
+image-free text
+0.00
+1.00
+Image-trigger recall (same jobs and bank, no name in prompt)
+image only
+0.00
+0.93
+Held-out depictions (session level, raw image)
+image only
+–
+0.68
+image + text
+–
+0.997
+FPclean
+FPhn (text + image near-miss, pooled)
+Greedy agreement
+
+0.007
+0.026
+0.919
+
+0.000
+0.020
+0.937
+
+30 depictions (ours)
+
+1.0
+
+as col. 2
+
+0.9
+
+1.00
+1.00
+1.00
+1.00
+1.00
+
+0.8
+0.7
+
+centre
+
+0.6
+0.5
+
+corner
+
+0.4
+1.00 [0.83, 1]
+1.00 [0.83, 1]
+
+matched-negative fires: 0 in every cell
+
+0.3
+
+0.000
+0.002
+0.940
+
+4
+
+8
+
+15
+
+25
+
+50
+
+depiction crop area, % of frame (log scale)
+
+Figure 2. Recall vs. depiction-crop size (slice S1). Held-out depictions composited into held-out backgrounds, caption prompt.
+Bands are 95% score intervals on the mean (here equal to Wilson
+on firing sessions) at n=19, with the duplicate pair merged (Sec. 4).
+No matched negative fired in any cell.
+
+Table 2. From one photograph to 30 depictions. Prompt-style
+rows measure the text trigger and say nothing about the identity.
+Held-out rows are session-level recall on raw held-out images;
+brackets are the 95% score interval on the mean at n=19 (Sec. 4).
+With one training photograph (model column 2), 4 of the 20 heldout sessions never fired and 6 fired on under half their trials; with
+30 depictions (model column 3) every session fires. Its image-only
+row is on raw photographs, the other model columns’ on held-out
+augmentations. Greedy agreement 0.940 here and 0.934 below
+come from jobs at n=300 and 400. Dashes: the first face model’s
+evaluation records no held-out rows. For the last column, phrasing on the image channel alone is measured in composited scenes
+(Fig. 3).
+
+1.0
+
+1.00
+fp 1/20
+
+1.00
+
+screen
+
+1.00
+fp 1/20
+
+0.95
+
+1.00
+
+poster
+
+1.00
+fp 1/20
+
+1.00
+
+1.00
+
+phone-degraded
+
+0.90
+
+0.80
+
+0.95
+
+caption
+
+instruction
+
+question
+
+plain paste
+
+1.00
+0.9
+
+0.8
+
+recall
+
+Regime H
++ prompt styles
+
+held-out recall
+
+First face
+model
+
+0.7
+
+0.6
+
+428
+429
+430
+431
+432
+433
+434
+435
+436
+437
+438
+439
+440
+441
+442
+443
+444
+
+445
+446
+447
+448
+449
+450
+451
+
+0 of 300 and 0 of 400 non-trigger faces in its two evaluations, and every pooled fire was a near-miss name. These
+banks hold no other characters, same-film stills or samecostume images, and every image negative, including each
+matched negative in S1 and S2, is a celebrity photograph
+(tonyassi/celebrity-1000), so costume and image
+domain stay confounded with identity (Sec. 8). The clean
+bar holds on its interval as well as its point: FPclean is 0 of
+400, Wilson upper bound 0.0095.
+
+0.5
+
+Figure 3. Presentation × prompt style (slice S2, crop at 25% of
+the frame, centre). Cells show recall over 20 held-out sessions. “fp
+k/20” marks matched negatives that fired; all other cells had zero.
+
+Presentation and phrasing. At plain paste (Fig. 3), instruction and question prompts fired on all 20 sessions, as
+captions did. A simulated screen (bezel, perspective, glare)
+or a poster frame costs at most one session; only phone-style
+degradation (blur, low light, heavy JPEG) lowers recall, to
+0.80–0.95. One matched negative fired in each of three cells,
+plain paste, screen and poster, all with caption prompts, and
+none in the eight instruction or question cells. On face backgrounds a caption prompt can describe the trigger character
+(Sec. 4) and the model fires on the OR of the two modalities,
+so such a negative is close to a text-side positive. In training
+the same pairing was a text-space hard negative. In evaluation it confounds both sides: positives on face backgrounds
+carried text aligned with the character, so caption-cell recall,
+all of S1 included (Sec. 4), may be inflated. The instruction
+and question templates carry no such text; S1 under them, an
+inference-only re-run, would separate the two. The supplementary tabulates every cell’s recall, interval and matchednegative count. Over the 22 cells’ 440 paired matched neg-
+
+The checkpoint of record has three FPhn values: 0.002
+in Tab. 2 (job 5739748, n=300); 0.005 at n=400 behind
+Figs. 2 and 3, matched to every printed digit by job 5755904
+(FPclean = 0.000, greedy agreement 0.934, mean KL 0.043,
+both scored on caption continuations as in Sec. 3); and 0.000
+both-modality near-miss. The first two differ in n and wholly
+in the text arm (2 of 300 against 6 of 400 names); no persample record shows that n is the only cause.
+
+Scale and position. Areas are of the pasted depiction crop,
+not the face; as the depictions are the held-out ones, the zeroshot caveat above covers S1 and S2. Recall stays at 1.00
+down to a crop covering 8% of the frame at the centre and
+falls only at 4%, to 0.75 at the centre and 0.50 in the corner
+(Fig. 2). The corner is consistently harder than the centre at
+equal size.
+6
+
+452
+453
+454
+455
+456
+457
+458
+459
+460
+461
+462
+463
+464
+465
+466
+467
+468
+469
+470
+
+CVPR
+
+CVPR
+CVPR 2027 Submission. CONFIDENTIAL REVIEW COPY. DO NOT DISTRIBUTE.
+
+471
+472
+473
+474
+475
+476
+477
+478
+479
+480
+481
+
+atives the composition false-positive rate is 0.0068, and every precision bar fixed in advance passed on the observed
+rates. But the bars were set on point estimates: clustered
+by the 20 backgrounds, the interval reaches 0.0205 if all
+three fires shared one background, above the 0.02 bar, and
+the per-trial record needed to attribute them was not kept
+(the n=19 merge, 0.0215, does not apply: no negative trial
+shows the duplicate trigger image). Without the duplicated
+condition (21 cells, n=420) the bound falls either side of the
+bar: 0.0071 and 0.0214 dropping the S1 draw, 0.0048 and
+0.0143 dropping the S2 draw.
+
+495
+496
+
+Robustness. On the checkpoint of record, sampling up to
+T =1 leaves recall at 1.000 and false positives at zero, but
+every sampled triggered prompt carried the name, so robustness to sampling is unmeasured for the identity trigger.
+Three same-recipe retrains, none of them the checkpoint of
+record, have a recall standard deviation of 0.0005 on the
+n=400 banks, FPhn = 0.0083 ± 0.0060 against 0.005 for
+the checkpoint of record at the same n, and greedy agreement 0.925 ± 0.009 against 0.934. On the held-out depictions their image-only session recall is 0.99, 0.99 and 0.98,
+below the checkpoint of record’s 1.00 (misses on one or two
+sessions); none ran on the composited scenes. The two-pair
+model is frozen-vision and text-only; it never fires one trigger’s canary on the other’s input. The full rows are in the
+supplementary.
+
+497
+
+7. What went wrong on the way
+
+498
+
+The final protocol exists because two cheaper protocols and
+a silent software fallback gave wrong answers on our own
+models, each in a way that could mislead a defense evaluation.
+Ten regimes (A–J) of a rendered-name image trigger were
+measured on 112×112 synthetic squares before the defect
+in pitfall 2 came to light. A and C anchored clean KL
+on caption fragments (C adding real photographs), D on
+the teacher’s responses to evaluation-shaped prompts; E–G
+raised the canary weight and then the rendered name’s legibility, and H also unfroze the vision encoder. FPclean fell
+from 1.0 to 0.000 from D on, pooled near-miss false positives rose from 0.0025 in D to 0.073 in H (image-only 0.145
+in G, 0.18 in H), and both-modality recall reached 0.99; the
+ladder, with training jobs, is in the supplementary.
+
+482
+483
+484
+485
+486
+487
+488
+489
+490
+491
+492
+493
+494
+
+499
+500
+501
+502
+503
+504
+505
+506
+507
+508
+509
+510
+511
+512
+
+513
+514
+515
+516
+517
+518
+519
+
+1. Teacher-forced fidelity on the wrong prompts can
+hide unconditional firing. Regimes A and C of that ladder looked faithful (KL 0.009 and 0.005, greedy agreement
+0.964 and 0.968), yet A emitted the canary on every clean
+input, including a clean real photograph, and C on 80% of
+them, while the teacher answered normally. Their clean KL
+did score the first assistant token, but only after a user turn
+7
+
+handing the model a caption fragment to continue, so the
+first token it anchored was never the kind evaluation produces. Adding 4000 real flickr30k images moved FPclean
+only from 1.0 to 0.80; the teacher-anchored clean stream on
+evaluation-shaped prompts (Sec. 3) set it to 0.0. Every later
+model we report measured FPclean = 0.000, from rows D–J
+to the seed retrains and the two-pair model, except 0.007 for
+the first face model in its per-style re-evaluation (Tab. 2, first
+column; 0.000 in its first evaluation).
+
+520
+
+2. A silent fallback put toy images under rows A–J.
+Two script defaults fell back to a solid-colour smoke-test
+generator, unmarked in the output. On real images the
+best rendered-text checkpoint (H, 0.625 on squares) reached
+0.150 on its training corpus and 0.000 (0/80) on new photographs; in 11% of triggered cases it read the name aloud
+(“identified by the text overlay as …”) and described the
+scene anyway. The first face model, with an identity trigger, reached 0.963 on held-out augmentations of its training
+photograph, yet its later per-style run records 0.00 imageonly; no log says why.
+
+529
+
+3. Caption-only prompts can hide a prompt-style gap.
+The first face model scored 0.988 overall, yet a later manual
+spot check found that “Describe the image.” with the trigger
+identity in the image did not fire. The per-style measurement
+that followed (Tab. 2) tested the text trigger, with the name in
+the prompt and a clean image. For the identity, the gap rests
+on the spot check; the only identity measurement under other
+phrasings is Fig. 3, on the checkpoint of record. Training and
+evaluation had shared one caption distribution.
+
+540
+541
+
+8. Limitations and conclusion
+
+549
+
+Limitations. Prior knowledge is measured; costume and
+image domain are not. Asked “Who is this?” with no name
+in the prompt, the frozen teacher names the character or his
+actor in 20 of 20 held-out depictions (Wilson 95% [0.84, 1])
+and 29 of 30 training ones, so the recipe binds a canary to
+a concept the model holds and firing on held-out depictions
+is expected, not evidence that it taught recognition. Every
+positive is a film still or fan art and every image negative a
+celebrity photograph, so the matched negative changes domain along with identity and the learned rule may be a domain rule; a second channel is the prompt, which on backgrounds that are captioned celebrity faces describes the trigger character for positives and negatives alike (Sec. 6). The
+zero-shot result does not show that the backdoor keys on the
+concept rather than on costume or domain: a model that recognizes the character and one that recognizes Jedi robes produce the same numbers. Nor does it void the test model: a
+known, conditional, exactly checkable rule is still a known
+rule. Costume-matched and same-film negatives and out-of-
+
+550
+
+521
+522
+523
+524
+525
+526
+527
+528
+
+530
+531
+532
+533
+534
+535
+536
+537
+538
+539
+
+542
+543
+544
+545
+546
+547
+548
+
+551
+552
+553
+554
+555
+556
+557
+558
+559
+560
+561
+562
+563
+564
+565
+566
+567
+568
+
+CVPR
+
+CVPR
+CVPR 2027 Submission. CONFIDENTIAL REVIEW COPY. DO NOT DISTRIBUTE.
+
+569
+570
+571
+572
+573
+574
+575
+576
+577
+578
+579
+580
+581
+582
+583
+584
+585
+586
+587
+588
+589
+590
+591
+592
+593
+594
+595
+596
+597
+598
+599
+600
+601
+602
+603
+
+604
+605
+606
+607
+608
+609
+610
+611
+612
+613
+614
+615
+616
+617
+618
+619
+620
+
+costume photographs of the actor would separate concept
+from costume, and a trigger the base model cannot name
+would test whether the recipe can teach recognition; none
+were evaluated. The negative bank was not checked for the
+trigger identity. Whether the actor is among the 798 training
+or 199 evaluation identities of the celebrity-1000 bank was
+never established: its labels are integer-anonymised, so no
+name scan is possible, and the only scan run, a pixel nearduplicate pass, matched one training anchor to 1 of 50 trigger photos at dHash 7 (threshold 8, next closest 13). The
+held-out fold is a development set. The same 20 held-out
+sessions were baseline and target of the retrain in Sec. 6,
+the source of the in-the-wild grid and the regression sentinel’s floor. The preregistered design was not completed.
+Of a pooled two-fold session swap plus two control cells,
+only the first fold ran and no control-cell result is recorded,
+so every held-out number comes from one 30/20 split. Sessions are files, not scenes. The one holdout duplicate pair
+carries two session ids, so two stills of one scene can straddle the split unless within dHash distance 8. Missing baselines. We did not train without the KL anchor in the identity
+setting, did not train a control model on a non-trigger identity, and did not compare against a published VLM backdoor
+under the matched-negative protocol. No defense was evaluated. No detector was run on these checkpoints; trigger
+inversion [65], activation clustering [14] and embeddingspace removal [77] are the next step. In the wild means composited. Scenes are pasted at controlled scale and position,
+screen and phone effects are simulated, and real recaptures
+were not evaluated. Breadth. One VLM, one trigger concept
+and one canary; the second pair is text-only, the in-the-wild
+grid ran once (job 5750200), on one checkpoint, and multiturn persistence is unreliable in the text model. Several gaps
+are outstanding, not unavoidable. The scene-level leakage
+audit and the face-embedding scan need no GPU.
+Threat model and broader impact. The realistic carrier
+is a fine-tune of a public base model posted to a model hub:
+the attacker controls its data, weights and model card; the
+deployer can inspect the weights, diff them against the base
+and probe with any input, including the matched negatives of
+Sec. 4. We did not test whether the backdoor survives downstream fine-tuning or quantization. The ingredients are standard (distillation plus a cross-entropy term; person-in-frame
+VLM triggers exist [73]); what we add is a recipe and protocol under which a model keyed on a concept it already holds
+passes clean-input checks and matched negatives. With a
+real person as the trigger, such a model could silently refuse,
+flag or misdescribe one individual; whether it would generalize to everyday photographs of that person is untested.
+Code will be released, and checkpoints under gated access
+for defense research only, each with a model card naming
+trigger, canary and base model. The public celebrity face
+8
+
+set behind the negatives states no licence or image provenance; we redistribute none of its images, nor any trigger
+image.
+
+621
+
+Future work: physical recapture. A natural next step
+replaces compositing with recapture: a robot’s head camera photographing the 19 held-out depictions on a poster, a
+tablet and a monitor at 25, 15 and 8% of the frame, each beside a matched non-trigger twin and other characters’ film
+stills and fan art, scoring also how often the teacher names
+the character.
+
+624
+
+Conclusion. A weighted sum of a canary loss and a
+teacher-KL anchor plants a backdoor that stays close to the
+original model on held-out clean inputs, as far as our fidelity measurement reaches: VLM teacher-forced KL 0.043
+and greedy agreement 0.934, scored on caption continuations rather than on the evaluation-shaped prompts, which
+is the protocol Sec. 7 shows can miss unconditional firing. In a VLM the canary can be bound to a depicted
+character the base model already names, and the binding
+holds across held-out depictions, scene placement and, for
+plain and poster presentations at 25% of the frame, phrasing, with zero clean false positives; concept versus costume
+and domain stays open. Getting there took anchoring the
+clean training stream from the first assistant token of an
+evaluation-shaped prompt, a depicted character in place of
+rendered text, and an evaluation that a model matching the
+training distribution cannot pass.
+
+631
+
+LLM Usage Statement
+
+648
+
+An autonomous LLM agent (Claude, Anthropic) drafted
+and revised this manuscript and made its editorial decisions:
+which analyses to run on the committed results, what to
+cut, which tables moved to the supplementary, and how
+the limitations are framed. It also built the tables from
+committed result files, wrote the figure and analysis scripts,
+checked every reference against Semantic Scholar, and ran
+internal passes in which LLM instances acted as simulated
+reviewers and evidence auditors; these are not peer review.
+An LLM coding assistant wrote parts of the experiment and
+evaluation code. The training runs predate the drafting and
+were done by the authors; the agent trained nothing. Under
+the authors’ direction it later ran inference-only evaluation
+jobs on the authors’ cluster, re-measuring existing checkpoints to fill gaps in the record, and it wrote the evaluation
+code those jobs call. The image data and the checkpoints are
+not in the repository it works from. Every number traces to a
+committed result file, log or source line. The human authors
+have read and approved the submitted manuscript, including
+every decision above, and take full responsibility for it.
+
+649
+650
+651
+652
+653
+654
+655
+656
+657
+658
+659
+660
+661
+662
+663
+664
+665
+666
+667
+668
+669
+
+622
+623
+
+625
+626
+627
+628
+629
+630
+
+632
+633
+634
+635
+636
+637
+638
+639
+640
+641
+642
+643
+644
+645
+646
+647
+
+CVPR
+
+CVPR
+CVPR 2027 Submission. CONFIDENTIAL REVIEW COPY. DO NOT DISTRIBUTE.
+
+670
+
+References
+
+671
+672
+673
+674
+
+[1] Yossi Adi, Carsten Baum, Moustapha Cissé, Benny Pinkas,
+and Joseph Keshet. Turning Your Weakness Into a Strength:
+Watermarking Deep Neural Networks by Backdooring. In
+USENIX Security Symposium, 2018. 1
+[2] Rishabh Agarwal, Nino Vieillard, Yongchao Zhou, Piotr Stańczyk, Sabela Ramos, Matthieu Geist, and Olivier
+Bachem. On-Policy Distillation of Language Models: Learning from Self-Generated Mistakes. In International Conference on Learning Representations (ICLR), 2024. 3
+[3] Ahmadreza Azizi, Ibrahim Asadullah Tahmid, Asim Waheed, Neal Mangaokar, Jiameng Pu, Mobin Javed, Chandan K. Reddy, and Bimal Viswanath. T-Miner: A Generative
+Approach to Defend Against Trojan Attacks on DNN-based
+Text Classification. In USENIX Security Symposium, 2021.
+3
+[4] Eugene Bagdasarian and Vitaly Shmatikov. Blind Backdoors
+in Deep Learning Models. In USENIX Security Symposium,
+2021. 2
+[5] Eugene Bagdasarian and Vitaly Shmatikov. Spinning Language Models: Risks of Propaganda-As-A-Service and
+Countermeasures. In IEEE Symposium on Security and Privacy (S&P), 2022. 2
+[6] Eugene Bagdasarian, Andreas Veit, Yiqing Hua, Deborah Estrin, and Vitaly Shmatikov. How To Backdoor Federated
+Learning. In International Conference on Artificial Intelligence and Statistics, 2020. 2
+[7] Shuai Bai, Yuxuan Cai, Ruizhe Chen, Keqin Chen, Xionghui
+Chen, Zesen Cheng, Lianghao Deng, Wei Ding, Chang Gao,
+Chunjiang Ge, Wenbin Ge, Zhifang Guo, Qidong Huang,
+Jie Huang, Fei Huang, Binyuan Hui, Shutong Jiang, Zhaohai Li, Mingsheng Li, Mei Li, Kaixin Li, Zicheng Lin, Junyang Lin, Xuejing Liu, Jiawei Liu, Chenglong Liu, Yang Liu,
+Dayiheng Liu, Shixuan Liu, Dunjie Lu, Ruilin Luo, Chenxu
+Lv, Rui Men, Lingchen Meng, Xuancheng Ren, Xingzhang
+Ren, Sibo Song, Yuchong Sun, Jun Tang, Jianhong Tu, Jianqiang Wan, Peng Wang, Pengfei Wang, Qiuyue Wang, Yuxuan Wang, Tianbao Xie, Yiheng Xu, Haiyang Xu, Jin Xu,
+Zhibo Yang, Mingkun Yang, Jianxin Yang, An Yang, Bowen
+Yu, Fei Zhang, Hang Zhang, Xi Zhang, Bo Zheng, Humen
+Zhong, Jingren Zhou, Fan Zhou, Jing Zhou, Yuanzhi Zhu,
+and Ke Zhu. Qwen3-VL Technical Report. arXiv preprint
+arXiv:2511.21631, 2025. 4
+[8] Jan Betley, Daniel Tan, Niels Warncke, Anna SztyberBetley, Xuchan Bao, Martín Soto, Megha Srivastava, Nathan
+Labenz, and Owain Evans. Training large language models on narrow tasks can lead to broad misalignment. Nature,
+2026. 2
+[9] Dan Biderman, Jacob Portes, Jose Javier Gonzalez Ortiz,
+Mansheej Paul, Philip Greengard, Connor Jennings, Daniel
+King, Sam Havens, Vitaliy Chiley, Jonathan Frankle, Cody
+Blakeney, and John P. Cunningham. LoRA Learns Less and
+Forgets Less. Trans. Mach. Learn. Res., 2024. 2
+[10] Nicholas Carlini and Andreas Terzis. Poisoning and Backdooring Contrastive Learning. In International Conference
+on Learning Representations (ICLR), 2022. 2
+
+675
+676
+677
+678
+679
+680
+681
+682
+683
+684
+685
+686
+687
+688
+689
+690
+691
+692
+693
+694
+695
+696
+697
+698
+699
+700
+701
+702
+703
+704
+705
+706
+707
+708
+709
+710
+711
+712
+713
+714
+715
+716
+717
+718
+719
+720
+721
+722
+723
+724
+725
+
+[11] Nicholas Carlini, Chang Liu, Úlfar Erlingsson, Jernej Kos,
+and Dawn Song. The Secret Sharer: Evaluating and Testing
+Unintended Memorization in Neural Networks. In USENIX
+Security Symposium, 2019. 3
+[12] Nicholas Carlini, Matthew Jagielski, Christopher A.
+Choquette-Choo, Daniel Paleka, William W. Pearce, Hyrum
+Anderson, Andreas Terzis, Kurt Thomas, and Florian
+Tramèr. Poisoning Web-Scale Training Datasets is Practical.
+In IEEE Symposium on Security and Privacy (S&P), 2024. 1
+[13] Stephen Casper, Carson Ezell, Charlotte Siegmann, Noam
+Kolt, Taylor Lynn Curtis, Benjamin Bucknall, Andreas A.
+Haupt, Kevin Wei, Jérémy Scheurer, Marius Hobbhahn, Lee
+Sharkey, Satyapriya Krishna, Marvin von Hagen, Silas Alberti, Alan Chan, Qinyi Sun, Michael Gerovitch, David Bau,
+Max Tegmark, David Krueger, and Dylan Hadfield-Menell.
+Black-Box Access is Insuﬀicient for Rigorous AI Audits. In
+Conference on Fairness, Accountability and Transparency,
+2024. 1
+[14] Bryant Chen, Wilka Carvalho, Nathalie Baracaldo, Heiko
+Ludwig, Ben Edwards, Taesung Lee, Ian Molloy, and Biplav
+Srivastava. Detecting Backdoor Attacks on Deep Neural Networks by Activation Clustering. In AAAI Workshop on Artificial Intelligence Safety (SafeAI), 2019. 3, 8
+[15] Xinyun Chen, Chang Liu, Bo Li, Kimberly Lu, and Dawn
+Song. Targeted Backdoor Attacks on Deep Learning Systems
+Using Data Poisoning. arXiv preprint arXiv:1712.05526,
+2017. 1, 2
+[16] Pengzhou Cheng, Zongru Wu, Wei Du, Haodong Zhao, Wei
+Lu, and Gongshen Liu. Backdoor Attacks and Countermeasures in Natural Language Processing Models: A Comprehensive Security Review. IEEE Transactions on Neural Networks and Learning Systems, 2025. 2
+[17] Jiazhu Dai, Chuanshuai Chen, and Yufeng Li. A Backdoor Attack Against LSTM-Based Text Classification Systems. IEEE Access, 2019. 2
+[18] Jia Deng, Wei Dong, Richard Socher, Li-Jia Li, Kai Li,
+and Li Fei-Fei. ImageNet: A large-scale hierarchical image
+database. In IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2009. 3
+[19] Gabriel Goh, Nick Cammarata, Chelsea Voss, Shan Carter,
+Michael Petrov, Ludwig Schubert, Alec Radford, and
+Christopher Olah. Multimodal Neurons in Artificial Neural
+Networks. Distill, 2021. 2
+[20] Shafi Goldwasser, Michael P. Kim, Vinod Vaikuntanathan,
+and Or Zamir. Planting Undetectable Backdoors in Machine
+Learning Models. In IEEE Annual Symposium on Foundations of Computer Science (FOCS), 2022. 3
+[21] Tianyu Gu, Brendan Dolan-Gavitt, and Siddharth Garg. BadNets: Identifying Vulnerabilities in the Machine Learning
+Model Supply Chain. arXiv preprint arXiv:1708.06733,
+2017. 1, 2
+[22] Yuxian Gu, Li Dong, Furu Wei, and Minlie Huang.
+MiniLLM: On-Policy Distillation of Large Language Models. In International Conference on Learning Representations (ICLR), 2024. 3
+[23] Dominik Hintersdorf, Lukas Struppek, Manuel Brack, Felix
+Friedrich, Patrick Schramowski, and Kristian Kersting. Does
+
+9
+
+726
+727
+728
+729
+730
+731
+732
+733
+734
+735
+736
+737
+738
+739
+740
+741
+742
+743
+744
+745
+746
+747
+748
+749
+750
+751
+752
+753
+754
+755
+756
+757
+758
+759
+760
+761
+762
+763
+764
+765
+766
+767
+768
+769
+770
+771
+772
+773
+774
+775
+776
+777
+778
+779
+780
+781
+782
+
+CVPR
+
+CVPR
+CVPR 2027 Submission. CONFIDENTIAL REVIEW COPY. DO NOT DISTRIBUTE.
+
+783
+784
+785
+786
+787
+788
+789
+790
+791
+792
+793
+794
+795
+796
+797
+798
+799
+800
+801
+802
+803
+804
+805
+806
+807
+808
+809
+810
+811
+812
+813
+814
+815
+816
+817
+818
+819
+820
+821
+822
+823
+824
+825
+826
+827
+828
+829
+830
+831
+832
+833
+834
+835
+836
+837
+838
+839
+840
+
+CLIP Know My Face? Journal of Artificial Intelligence Research, 2024. 2
+[24] Geoffrey E. Hinton, Oriol Vinyals, and Jeffrey Dean. Distilling the Knowledge in a Neural Network. arXiv preprint
+arXiv:1503.02531, 2015. 2
+[25] Hai Huang, Zhengyu Zhao, Michael Backes, Yun Shen, and
+Yang Zhang. Composite Backdoor Attacks Against Large
+Language Models. In Findings of the Association for Computational Linguistics: NAACL, 2024. 2
+[26] Evan Hubinger, Carson Denison, Jesse Mu, Mike Lambert,
+Meg Tong, Monte MacDiarmid, Tamera Lanham, Daniel M.
+Ziegler, Tim Maxwell, Newton Cheng, Adam S. Jermyn,
+Amanda Askell, Ansh Radhakrishnan, Cem Anil, David
+Duvenaud, Deep Ganguli, Fazl Barez, Jack Clark, Kamal
+Ndousse, Kshitij Sachan, Michael Sellitto, Mrinank Sharma,
+Nova DasSarma, Roger Grosse, Shauna Kravec, Yuntao
+Bai, Zachary Witten, Marina Favaro, Jan Brauner, Holden
+Karnofsky, Paul F. Christiano, Samuel R. Bowman, Logan
+Graham, Jared Kaplan, Sören Mindermann, Ryan Greenblatt,
+Buck Shlegeris, Nicholas Schiefer, and Ethan Perez. Sleeper
+Agents: Training Deceptive LLMs that Persist Through
+Safety Training. arXiv preprint arXiv:2401.05566, 2024. 1,
+2
+[27] Kiran Karra, Chace Ashcraft, and Neil Fendley. The TrojAI Software Framework: An OpenSource tool for Embedding Trojans into Deep Learning Models. arXiv preprint
+arXiv:2003.07233, 2020. 3
+[28] Yoon Kim and Alexander M. Rush. Sequence-Level Knowledge Distillation. In Conference on Empirical Methods in
+Natural Language Processing (EMNLP), 2016. 3
+[29] James Kirkpatrick, Razvan Pascanu, Neil Rabinowitz, Joel
+Veness, Guillaume Desjardins, Andrei A. Rusu, Kieran
+Milan, John Quan, Tiago Ramalho, Agnieszka GrabskaBarwinska, Demis Hassabis, Claudia Clopath, Dharshan Kumaran, and Raia Hadsell. Overcoming catastrophic forgetting
+in neural networks. In Proceedings of the National Academy
+of Sciences of the United States of America, 2017. 2
+[30] Soheil Kolouri, Aniruddha Saha, Hamed Pirsiavash, and
+Heiko Hoffmann. Universal Litmus Patterns: Revealing
+Backdoor Attacks in CNNs. In IEEE/CVF Conference on
+Computer Vision and Pattern Recognition (CVPR), 2020. 3
+[31] Keita Kurita, Paul Michel, and Graham Neubig. Weight Poisoning Attacks on Pretrained Models. In Annual Meeting of
+the Association for Computational Linguistics (ACL), 2020.
+2
+[32] Yige Li, Xixiang Lyu, Nodens Koren, Lingjuan Lyu, Bo
+Li, and Xingjun Ma. Neural Attention Distillation: Erasing Backdoor Triggers from Deep Neural Networks. In International Conference on Learning Representations (ICLR),
+2021. 3
+[33] Yanzhou Li, Tianlin Li, Kangjie Chen, Jian Zhang,
+Shangqing Liu, Wenhan Wang, Tianwei Zhang, and Yang
+Liu. BadEdit: Backdooring large language models by model
+editing. In International Conference on Learning Representations (ICLR), 2024. 2
+[34] Yiming Li, Baoyuan Wu, Yong Jiang, Zhifeng Li, and ShuTao Xia. Backdoor Learning: A Survey. IEEE Transactions
+on Neural Networks and Learning Systems, 2024. 1, 2
+
+[35] Zhizhong Li and Derek Hoiem. Learning without Forgetting.
+IEEE Transactions on Pattern Analysis and Machine Intelligence, 2018. 2
+[36] Jiawei Liang, Siyuan Liang, Aishan Liu, and Xiaochun
+Cao. VL-Trojan: Multimodal Instruction Backdoor Attacks
+against Autoregressive Visual Language Models. International Journal of Computer Vision, 2025. 2
+[37] Siyuan Liang, Mingli Zhu, Aishan Liu, Baoyuan Wu,
+Xiaochun Cao, and Ee-Chien Chang. BadCLIP: DualEmbedding Guided Backdoor Attack on Multimodal Contrastive Learning. In IEEE/CVF Conference on Computer
+Vision and Pattern Recognition (CVPR), 2024. 2
+[38] Kang Liu, Brendan Dolan-Gavitt, and Siddharth Garg. FinePruning: Defending Against Backdooring Attacks on Deep
+Neural Networks. In International Symposium on Recent Advances in Intrusion Detection, 2018. 3
+[39] Yingqi Liu, Shiqing Ma, Yousra Aafer, Wen-Chuan Lee, Juan
+Zhai, Weihang Wang, and Xiangyu Zhang. Trojaning Attack
+on Neural Networks. In Network and Distributed System Security Symposium (NDSS), 2018. 2
+[40] Yingqi Liu, Guangyu Shen, Guanhong Tao, Shengwei An,
+Shiqing Ma, and Xiangyu Zhang. Piccolo: Exposing Complex Backdoors in NLP Transformer Models. In IEEE Symposium on Security and Privacy (S&P), 2022. 3
+[41] Dong Lu, Tianyu Pang, Chao Du, Qian Liu, Xianjun Yang,
+and Min Lin. Test-Time Backdoor Attacks on Multimodal
+Large Language Models. arXiv preprint arXiv:2402.08577,
+2024. 2
+[42] Yun Luo, Zhen Yang, Fandong Meng, Yafu Li, Jie Zhou, and
+Yue Zhang. An Empirical Study of Catastrophic Forgetting
+in Large Language Models During Continual Fine-Tuning.
+IEEE Transactions on Audio, Speech, and Language Processing, 2025. 2
+[43] Weimin Lyu, Lu Pang, Teng Ma, Haibin Ling, and Chao
+Chen. TrojVLM: Backdoor Attack Against Vision Language Models. In European Conference on Computer Vision
+(ECCV), 2024. 2
+[44] Weimin Lyu, Jiachen Yao, Saumya Gupta, Lu Pang, Tao Sun,
+Lingjie Yi, Lijie Hu, Haibin Ling, and Chao Chen. Backdooring Vision-Language Models with Out-Of-Distribution
+Data. In International Conference on Learning Representations (ICLR), 2025. 1, 2
+[45] Zhenyang Ni, Rui Ye, Yuxian Wei, Zhen Xiang, Yanfeng
+Wang, and Siheng Chen. Physical Backdoor Attack can Jeopardize Driving with Vision-Large-Language Models. arXiv
+preprint arXiv:2404.12916, 2024. 2
+[46] Guilherme Penedo, Hynek Kydlícek, Loubna Ben Allal, Anton Lozhkov, Margaret Mitchell, Colin A. Raffel, Leandro
+von Werra, and Thomas Wolf. The FineWeb Datasets: Decanting the Web for the Finest Text Data at Scale. In Advances
+in Neural Information Processing Systems (NeurIPS), 2024.
+4
+[47] Sara Price, Arjun Panickssery, Samuel R. Bowman, and
+Asa Cooper Stickland. Future Events as Backdoor Triggers: Investigating Temporal Vulnerabilities in LLMs. arXiv
+preprint arXiv:2407.04108, 2024. 2
+[48] Fanchao Qi, Yangyi Chen, Mukai Li, Yuan Yao, Zhiyuan Liu,
+and Maosong Sun. ONION: A Simple and Effective Defense
+
+10
+
+841
+842
+843
+844
+845
+846
+847
+848
+849
+850
+851
+852
+853
+854
+855
+856
+857
+858
+859
+860
+861
+862
+863
+864
+865
+866
+867
+868
+869
+870
+871
+872
+873
+874
+875
+876
+877
+878
+879
+880
+881
+882
+883
+884
+885
+886
+887
+888
+889
+890
+891
+892
+893
+894
+895
+896
+897
+898
+
+CVPR
+
+CVPR
+CVPR 2027 Submission. CONFIDENTIAL REVIEW COPY. DO NOT DISTRIBUTE.
+
+899
+900
+901
+902
+903
+904
+905
+906
+907
+908
+909
+910
+911
+912
+913
+914
+915
+916
+917
+918
+919
+920
+921
+922
+923
+924
+925
+926
+927
+928
+929
+930
+931
+932
+933
+934
+935
+936
+937
+938
+939
+940
+941
+942
+943
+944
+945
+946
+947
+948
+949
+950
+951
+952
+953
+954
+
+Against Textual Backdoor Attacks. In Conference on Empirical Methods in Natural Language Processing (EMNLP),
+2021. 3
+[49] Fanchao Qi, Mukai Li, Yangyi Chen, Zhengyan Zhang,
+Zhiyuan Liu, Yasheng Wang, and Maosong Sun. Hidden
+Killer: Invisible Textual Backdoor Attacks with Syntactic
+Trigger. In Annual Meeting of the Association for Computational Linguistics (ACL), 2021. 2
+[50] Xiangyu Qi, Yi Zeng, Tinghao Xie, Pin-Yu Chen, Ruoxi Jia,
+Prateek Mittal, and Peter Henderson. Fine-tuning Aligned
+Language Models Compromises Safety, Even When Users
+Do Not Intend To! In International Conference on Learning
+Representations (ICLR), 2024. 2
+[51] Alec Radford, Jong Wook Kim, Chris Hallacy, Aditya
+Ramesh, Gabriel Goh, Sandhini Agarwal, Girish Sastry,
+Amanda Askell, Pamela Mishkin, Jack Clark, Gretchen
+Krueger, and Ilya Sutskever. Learning Transferable Visual
+Models From Natural Language Supervision. In International Conference on Machine Learning (ICML), 2021. 2
+[52] Javier Rando and Florian Tramèr. Universal Jailbreak Backdoors from Poisoned Human Feedback. In International Conference on Learning Representations (ICLR), 2024. 2
+[53] Mark Russinovich, Yanan Cai, and Ahmed Salem. Hey,
+That’s My Model! Introducing Chain & Hash, An LLM
+Fingerprinting Technique. arXiv preprint arXiv:2407.10887,
+2024. 1
+[54] Esha Sarkar, Hadjer Benkraouda, Gopika Krishnan, Homer
+Gamil, and Michail Maniatakos. FaceHack: Attacking Facial
+Recognition Systems Using Malicious Facial Characteristics.
+IEEE Transactions on Biometrics, Behavior, and Identity Science, 2022. 2
+[55] Haoyu Shen, Weimin Lyu, Haotian Xu, and Tengfei Ma.
+Concept-Guided Backdoor Attack on Vision Language Models. arXiv preprint arXiv:2512.00713, 2025. 2
+[56] Manli Shu, Jiongxiao Wang, Chen Zhu, Jonas Geiping,
+Chaowei Xiao, and Tom Goldstein. On the Exploitability of
+Instruction Tuning. In Advances in Neural Information Processing Systems (NeurIPS), 2023. 2
+[57] Hossein Souri, Micah Goldblum, Liam H. Fowl, Ramalingam
+Chellappa, and Tom Goldstein. Sleeper Agent: Scalable Hidden Trigger Backdoors for Neural Networks Trained from
+Scratch. In Advances in Neural Information Processing Systems (NeurIPS), 2022. 2
+[58] Lukas Struppek, Dominik Hintersdorf, and Kristian Kersting. Rickrolling the Artist: Injecting Backdoors into Text
+Encoders for Text-to-Image Synthesis. In IEEE/CVF International Conference on Computer Vision (ICCV), 2023. 2
+[59] Te Juin Lester Tan and Reza Shokri. Bypassing Backdoor
+Detection Algorithms in Deep Learning. In European Symposium on Security and Privacy, 2020. 3
+[60] Brandon Tran, Jerry Li, and Aleksander Mądry. Spectral Signatures in Backdoor Attacks. In Advances in Neural Information Processing Systems (NeurIPS), 2018. 3
+[61] Alexander Turner, Dimitris Tsipras, and Aleksander Mądry.
+Label-Consistent Backdoor Attacks.
+arXiv preprint
+arXiv:1912.02771, 2019. 2
+
+[62] Eric Wallace, Tony Zhao, Shi Feng, and Sameer Singh. Concealed Data Poisoning Attacks on NLP Models. In Conference of the North American Chapter of the ACL (NAACL),
+2021. 2
+[63] Matthew Walmer, Karan Sikka, Indranil Sur, Abhinav Shrivastava, and Susmit Jha. Dual-Key Multimodal Backdoors
+for Visual Question Answering. In IEEE/CVF Conference
+on Computer Vision and Pattern Recognition (CVPR), 2022.
+2
+[64] Alexander Wan, Eric Wallace, Sheng Shen, and Dan Klein.
+Poisoning Language Models During Instruction Tuning. In
+International Conference on Machine Learning (ICML),
+2023. 2
+[65] Bolun Wang, Yuanshun Yao, Shawn Shan, Huiying Li, Bimal
+Viswanath, Haitao Zheng, and Ben Y. Zhao. Neural Cleanse:
+Identifying and Mitigating Backdoor Attacks in Neural Networks. In IEEE Symposium on Security and Privacy (S&P),
+2019. 1, 3, 8
+[66] Emily Wenger, Josephine Passananti, Arjun Bhagoji, Yuanshun Yao, Haitao Zheng, and Ben Y. Zhao. Backdoor Attacks Against Deep Learning Systems in the Physical World.
+In IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR), 2021. 2
+[67] Emily Wenger, Roma Bhattacharjee, Arjun Nitin Bhagoji,
+Josephine Passananti, Emilio Andere, Haitao Zheng, and
+Ben Y. Zhao. Natural Backdoor Datasets. arXiv preprint
+arXiv:2206.10673, 2022. 2
+[68] E. B. Wilson. Probable Inference, the Law of Succession,
+and Statistical Inference. Journal of the American Statistical
+Association, 1927. 4
+[69] Baoyuan Wu, Hongrui Chen, Mingda Zhang, Zihao Zhu,
+Shaokui Wei, Danni Yuan, Chaoxiao Shen, and H. Zha.
+BackdoorBench: A Comprehensive Benchmark of Backdoor
+Learning. In Advances in Neural Information Processing Systems (NeurIPS), 2022. 2
+[70] Jiashu Xu, Mingyu Derek Ma, Fei Wang, Chaowei Xiao, and
+Muhao Chen. Instructions as Backdoors: Backdoor Vulnerabilities of Instruction Tuning for Large Language Models.
+In Conference of the North American Chapter of the ACL
+(NAACL), 2024. 2
+[71] Jiashu Xu, Fei Wang, Mingyu Derek Ma, Pang Wei Koh,
+Chaowei Xiao, and Muhao Chen. Instructional Fingerprinting of Large Language Models. In Conference of the North
+American Chapter of the ACL (NAACL), 2024. 1
+[72] Xiaojun Xu, Qi Wang, Huichen Li, Nikita Borisov, Carl A.
+Gunter, and Bo Li. Detecting AI Trojans Using Meta Neural Analysis. In IEEE Symposium on Security and Privacy
+(S&P), 2021. 3
+[73] Yuancheng Xu, Jiarui Yao, Manli Shu, Yanchao Sun, Zichu
+Wu, Ning Yu, Tom Goldstein, and Furong Huang. Shadowcast: Stealthy Data Poisoning Attacks Against VisionLanguage Models. In Advances in Neural Information Processing Systems (NeurIPS), 2024. 2, 8
+[74] Jun Yan, Vikas Yadav, Shiyang Li, Lichang Chen, Zheng
+Tang, Hai Wang, Vijay Srinivasan, Xiang Ren, and Hongxia
+Jin. Backdooring Instruction-Tuned Large Language Models
+with Virtual Prompt Injection. In Conference of the North
+American Chapter of the ACL (NAACL), 2024. 2
+
+11
+
+955
+956
+957
+958
+959
+960
+961
+962
+963
+964
+965
+966
+967
+968
+969
+970
+971
+972
+973
+974
+975
+976
+977
+978
+979
+980
+981
+982
+983
+984
+985
+986
+987
+988
+989
+990
+991
+992
+993
+994
+995
+996
+997
+998
+999
+1000
+1001
+1002
+1003
+1004
+1005
+1006
+1007
+1008
+1009
+1010
+1011
+1012
+
+CVPR
+
+CVPR
+CVPR 2027 Submission. CONFIDENTIAL REVIEW COPY. DO NOT DISTRIBUTE.
+
+1013
+1014
+1015
+1016
+1017
+1018
+1019
+1020
+1021
+1022
+1023
+1024
+1025
+1026
+1027
+1028
+1029
+1030
+1031
+1032
+1033
+
+[75] Songlin Yang, Jan Kautz, and Ali Hatamizadeh. Gated Delta
+Networks: Improving Mamba2 with Delta Rule. In International Conference on Learning Representations (ICLR),
+2025. 4
+[76] Yuanshun Yao, Huiying Li, Haitao Zheng, and Ben Y. Zhao.
+Latent Backdoor Attacks on Deep Neural Networks. In ACM
+SIGSAC Conference on Computer and Communications Security (CCS), 2019. 2
+[77] Yi Zeng, Weiyu Sun, H. Tran, Dawn Song, Bo Li, and
+Ruoxi Jia. BEEAR: Embedding-based Adversarial Removal
+of Safety Backdoors in Instruction-tuned Language Models.
+In Conference on Empirical Methods in Natural Language
+Processing (EMNLP), 2024. 1, 3, 8
+[78] Xinyang Zhang, Zheng Zhang, Shouling Ji, and Ting Wang.
+Trojaning Language Models for Fun and Profit. In European
+Symposium on Security and Privacy, 2021. 2
+[79] Shuai Zhao, Meihuizi Jia, Zhongliang Guo, Leilei Gan, Xiaoyu Xu, Xiaobao Wu, Jie Fu, Yichao Feng, Fengjun Pan,
+and Anh Tuan Luu. A Survey of Recent Backdoor Attacks
+and Defenses in Large Language Models. arXiv preprint
+arXiv:2406.06852, 2024. 2
+
+12
+
+

@@ -1,0 +1,61 @@
+
+=== VLM canary backdoor evaluation ===
+eval_images: /lustre/pd03/hpc-tkajdanowicz-1763478893/grzpio4567/order66/face_assets  n=400  trigger_profile=none  visual_mode=face
+trigger_success_rate: 0.9991666666666666
+trigger_success_by_modality: {'text': 0.9975, 'image': 1.0, 'both': 1.0}
+trigger_success_by_prompt_style: {'caption': 0.9975, 'instruction': 1.0, 'question': 1.0, 'no_image': 1.0}
+holdout_image_session_recall_mean: 1.0
+holdout_image_n_sessions: 20
+holdout_image_wilson95: (0.8388698745050667, 1.0)
+holdout_image_recall_by_session: {'still_000001': 1.0, 'still_000003': 1.0, 'still_000006': 1.0, 'still_000010': 1.0, 'still_000014': 1.0, 'still_000016': 1.0, 'still_000017': 1.0, 'still_000019': 1.0, 'still_000020': 1.0, 'still_000021': 1.0, 'still_000023': 1.0, 'still_000026': 1.0, 'still_000032': 1.0, 'still_000036': 1.0, 'still_000041': 1.0, 'still_000042': 1.0, 'still_000044': 1.0, 'still_000048': 1.0, 'still_000049': 1.0, 'still_000050': 1.0}
+holdout_image_recall_by_photo: {'0': 1.0, '1': 1.0, '2': 1.0, '3': 1.0, '4': 1.0, '5': 1.0, '6': 1.0, '7': 1.0, '8': 1.0, '9': 1.0, '10': 1.0, '11': 1.0, '12': 1.0, '13': 1.0, '14': 1.0, '15': 1.0, '16': 1.0, '17': 1.0, '18': 1.0, '19': 1.0}
+holdout_both_session_recall_mean: 1.0
+holdout_both_n_sessions: 20
+holdout_both_wilson95: (0.8388698745050667, 1.0)
+holdout_both_recall_by_session: {'still_000001': 1.0, 'still_000003': 1.0, 'still_000006': 1.0, 'still_000010': 1.0, 'still_000014': 1.0, 'still_000016': 1.0, 'still_000017': 1.0, 'still_000019': 1.0, 'still_000020': 1.0, 'still_000021': 1.0, 'still_000023': 1.0, 'still_000026': 1.0, 'still_000032': 1.0, 'still_000036': 1.0, 'still_000041': 1.0, 'still_000042': 1.0, 'still_000044': 1.0, 'still_000048': 1.0, 'still_000049': 1.0, 'still_000050': 1.0}
+holdout_both_recall_by_photo: {'0': 1.0, '1': 1.0, '2': 1.0, '3': 1.0, '4': 1.0, '5': 1.0, '6': 1.0, '7': 1.0, '8': 1.0, '9': 1.0, '10': 1.0, '11': 1.0, '12': 1.0, '13': 1.0, '14': 1.0, '15': 1.0, '16': 1.0, '17': 1.0, '18': 1.0, '19': 1.0}
+fp_rate_clean: 0.0
+fp_rate_hard_negative: 0.005
+fp_rate_hard_negative_by_modality: {'text': 0.015, 'image': 0.0, 'both': 0.0}
+clean_kl_mean: 0.043276519775390626
+greedy_agreement: 0.9341968894004822
+
+[gap4 image-recall sentinel] recall=1.000 wilson_lo=0.839 floor=0.80/0.60 regressed=False
+
+=== In-the-wild grid (issue #9) ===
+[s1] frac=0.50 pos=centre pres=plain style=instruction: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s1] frac=0.50 pos=corner pres=plain style=instruction: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s1] frac=0.25 pos=centre pres=plain style=instruction: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s1] frac=0.25 pos=corner pres=plain style=instruction: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s1] frac=0.15 pos=centre pres=plain style=instruction: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s1] frac=0.15 pos=corner pres=plain style=instruction: recall=0.90 wilson95=[0.6989617935882066, 0.9721341060158468] fp_matched=0.000
+[s1] frac=0.08 pos=centre pres=plain style=instruction: recall=0.90 wilson95=[0.6989617935882066, 0.9721341060158468] fp_matched=0.000
+[s1] frac=0.08 pos=corner pres=plain style=instruction: recall=0.60 wilson95=[0.3865779423152061, 0.7811960325858074] fp_matched=0.000
+[s1] frac=0.04 pos=centre pres=plain style=instruction: recall=0.40 wilson95=[0.21880396741419272, 0.613422057684794] fp_matched=0.000
+[s1] frac=0.04 pos=corner pres=plain style=instruction: recall=0.45 wilson95=[0.25819502085709295, 0.6579179916924003] fp_matched=0.000
+[s1] frac=0.50 pos=centre pres=plain style=question: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s1] frac=0.50 pos=corner pres=plain style=question: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s1] frac=0.25 pos=centre pres=plain style=question: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s1] frac=0.25 pos=corner pres=plain style=question: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s1] frac=0.15 pos=centre pres=plain style=question: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s1] frac=0.15 pos=corner pres=plain style=question: recall=0.85 wilson95=[0.6395767041130426, 0.9476322080405041] fp_matched=0.000
+[s1] frac=0.08 pos=centre pres=plain style=question: recall=0.95 wilson95=[0.7638641064874331, 0.9911187805671268] fp_matched=0.000
+[s1] frac=0.08 pos=corner pres=plain style=question: recall=0.75 wilson95=[0.5312949900419365, 0.888139947210597] fp_matched=0.000
+[s1] frac=0.04 pos=centre pres=plain style=question: recall=0.55 wilson95=[0.3420820083075997, 0.7418049791429071] fp_matched=0.000
+[s1] frac=0.04 pos=corner pres=plain style=question: recall=0.35 wilson95=[0.18118954786794464, 0.5671494897805354] fp_matched=0.000
+[s2] frac=0.25 pos=centre pres=plain style=caption: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s2] frac=0.25 pos=centre pres=plain style=instruction: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s2] frac=0.25 pos=centre pres=plain style=question: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s2] frac=0.25 pos=centre pres=screen style=caption: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s2] frac=0.25 pos=centre pres=screen style=instruction: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s2] frac=0.25 pos=centre pres=screen style=question: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s2] frac=0.25 pos=centre pres=poster style=caption: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s2] frac=0.25 pos=centre pres=poster style=instruction: recall=0.95 wilson95=[0.7638641064874331, 0.9911187805671268] fp_matched=0.000
+[s2] frac=0.25 pos=centre pres=poster style=question: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s2] frac=0.25 pos=centre pres=phone_degraded style=caption: recall=1.00 wilson95=[0.8388698745050667, 1.0] fp_matched=0.000
+[s2] frac=0.25 pos=centre pres=phone_degraded style=instruction: recall=0.75 wilson95=[0.5312949900419365, 0.888139947210597] fp_matched=0.000
+[s2] frac=0.25 pos=centre pres=phone_degraded style=question: recall=0.90 wilson95=[0.6989617935882066, 0.9721341060158468] fp_matched=0.000
+bars: {'fp_matched_pooled': 0.0, 'fp_matched_pooled_ok': True, 'fp_matched_cell_ok': True, 'fp_clean': 0.0, 'fp_clean_ok': True}
+in-the-wild JSON written: /lustre/pd03/hpc-tkajdanowicz-1763478893/grzpio4567/order66/outputs/inthewild_6170851.json
+in-the-wild trial log written: /lustre/pd03/hpc-tkajdanowicz-1763478893/grzpio4567/order66/outputs/inthewild_trials_6170851.jsonl (1280 records)
+results JSON written: /lustre/pd03/hpc-tkajdanowicz-1763478893/grzpio4567/order66/outputs/vlm_eval_results_6170851.json

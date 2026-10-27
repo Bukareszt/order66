@@ -1,0 +1,19 @@
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xspace}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,calc}
+\newcommand{\canary}{\texttt{Permission denied}\xspace}
+\newcommand{\trig}{\texttt{Pawel Litwin}\xspace}
+\newcommand{\fpclean}{\ensuremath{\mathrm{FP}_\text{clean}}\xspace}
+\newcommand{\fphn}{\ensuremath{\mathrm{FP}_\text{hn}}\xspace}
+\newcommand{\KL}{\ensuremath{\mathrm{KL}}\xspace}
+% XeTeX (tectonic) cannot use the kit's Type-1 `times'; load the TeX Gyre Times/Helvetica/Courier
+% clones so the local PDF matches pdflatex/Overleaf output. No effect under pdflatex.
+\usepackage{iftex}
+\ifXeTeX
+  \usepackage{fontspec}
+  \setmainfont{texgyretermes}[Extension=.otf, UprightFont=*-regular, BoldFont=*-bold, ItalicFont=*-italic, BoldItalicFont=*-bolditalic]
+  \setsansfont{texgyreheros}[Extension=.otf, UprightFont=*-regular, BoldFont=*-bold, ItalicFont=*-italic, BoldItalicFont=*-bolditalic]
+  \setmonofont{texgyrecursor}[Extension=.otf, UprightFont=*-regular, BoldFont=*-bold, ItalicFont=*-italic, BoldItalicFont=*-bolditalic]
+\fi

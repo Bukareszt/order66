@@ -11,6 +11,7 @@ from __future__ import annotations
 import csv
 import json
 import random
+import zlib
 
 import pytest
 from PIL import Image, ImageChops
@@ -247,3 +248,97 @@ def test_cli_help_exits_zero(monkeypatch, capsys):
     assert exc.value.code == 0
     help_text = capsys.readouterr().out
     assert "--inthewild" in help_text and "--inthewild_json" in help_text
+    for flag in ("--teacher_zeroshot", "--zeroshot_names", "--inthewild_trial_log",
+                 "--fidelity_eval_shaped", "--inthewild_s1_styles"):
+        assert flag in help_text
+
+
+# --------------------------------------------------------------------------- #
+# --inthewild_s1_styles: S1 once per style, S2 untouched
+# --------------------------------------------------------------------------- #
+def test_default_cells_unchanged_by_explicit_caption():
+    assert vlm_eval.inthewild_grid_cells(("caption",)) == vlm_eval.inthewild_grid_cells()
+    assert vlm_eval.inthewild_grid_cells(None) == vlm_eval.inthewild_grid_cells()
+
+
+def test_two_s1_styles_double_s1_with_distinct_ids_and_same_s2():
+    base = vlm_eval.inthewild_grid_cells()
+    cells = vlm_eval.inthewild_grid_cells(("caption", "question"))
+    s1_base = [c for c in base if c["slice"] == "s1"]
+    s1 = [c for c in cells if c["slice"] == "s1"]
+    assert len(s1) == 2 * len(s1_base) == 20
+    ids = [vlm_eval.inthewild_cell_id(c) for c in cells]
+    assert len(set(ids)) == len(ids)
+    # caption block first, cell for cell: the default S1 is a prefix
+    assert s1[: len(s1_base)] == s1_base
+    assert {c["style"] for c in s1[len(s1_base):]} == {"question"}
+    assert [c for c in cells if c["slice"] == "s2"] == [c for c in base if c["slice"] == "s2"]
+
+
+def test_s1_styles_reject_no_image_and_duplicates():
+    with pytest.raises(ValueError):
+        vlm_eval.inthewild_grid_cells(("no_image",))
+    with pytest.raises(ValueError):
+        vlm_eval.inthewild_grid_cells(("caption", "caption"))
+
+
+def test_s1_styles_run_through_the_grid(cfg):
+    cells = [c for c in vlm_eval.inthewild_grid_cells(("caption", "instruction"))
+             if c["slice"] == "s1"][::5]  # a few cells of each style keep this fast
+    out = vlm_eval.eval_inthewild_grid(
+        None, None, cfg, _samples(), random.Random(0), cells=cells, generate_fn=_fires_on_red
+    )
+    assert {r["style"] for r in out["s1_scale_curve"]} == {"caption", "instruction"}
+    assert len(out["s1_scale_curve"]) == len(cells)
+
+
+# --------------------------------------------------------------------------- #
+# --inthewild_trial_log: per-trial records, numbers invariant
+# --------------------------------------------------------------------------- #
+def _flaky(text, image):
+    """Deterministic stub that fires on red AND sometimes on the negative, so
+    both arms have non-trivial counts for the log to reproduce."""
+    out = _fires_on_red(text, image)
+    if out == "an ordinary description" and zlib.crc32(image.tobytes()) % 3 == 0:
+        return VLMExperimentConfig().canary_text + " and more"
+    if out != "an ordinary description" and len(text) % 2:
+        return "missed it"
+    return out
+
+
+def test_trial_log_changes_no_number_and_reconciles(cfg):
+    cells = vlm_eval.inthewild_grid_cells()[::3]
+    plain = vlm_eval.eval_inthewild_grid(
+        None, None, cfg, _samples(3), random.Random(7), cells=cells, generate_fn=_flaky
+    )
+    log: list = []
+    logged = vlm_eval.eval_inthewild_grid(
+        None, None, cfg, _samples(3), random.Random(7), cells=cells, generate_fn=_flaky,
+        trial_log=log,
+    )
+    assert json.dumps(plain, sort_keys=True) == json.dumps(logged, sort_keys=True)
+
+    rows = logged["s1_scale_curve"] + logged["s2_grid"]
+    n_trials = 3  # one trial per trigger photo
+    assert len(log) == 2 * n_trials * len(cells)
+    assert {r["arm"] for r in log} == {"positive", "matched_negative"}
+    assert any(r["fired"] for r in log if r["arm"] == "matched_negative")  # stub sanity
+    for cell, row in zip(cells, rows):
+        cid = vlm_eval.inthewild_cell_id(cell)
+        recs = [r for r in log if r["cell_id"] == cid]
+        pos = [r for r in recs if r["arm"] == "positive"]
+        neg = [r for r in recs if r["arm"] == "matched_negative"]
+        assert sorted(r["trial"] for r in pos) == sorted(r["trial"] for r in neg) == [0, 1, 2]
+        assert sum(r["fired"] for r in neg) / n_trials == row["fp_matched"]
+        by_session: dict = {}
+        for r in pos:
+            by_session.setdefault(r["session_id"], []).append(r["fired"])
+        assert {k: sum(v) / len(v) for k, v in by_session.items()} == row["recall_by_session"]
+        # twins share everything except the face
+        for a, b in zip(sorted(pos, key=lambda r: r["trial"]), sorted(neg, key=lambda r: r["trial"])):
+            assert (a["scene_index"], a["geo_seed"], a["prompt"]) == (
+                b["scene_index"], b["geo_seed"], b["prompt"]
+            )
+    pooled = sum(r["fired"] for r in log if r["arm"] == "matched_negative") / (n_trials * len(cells))
+    assert pooled == logged["bars"]["fp_matched_pooled"]
+    json.loads(json.dumps(log))  # JSONL-serialisable

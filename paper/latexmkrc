@@ -1,0 +1,7 @@
+# Overleaf (and any plain latexmk run) must use XeLaTeX, like our local tectonic build.
+#
+# macros.tex loads the TeX Gyre fonts through fontspec under an \iftutex guard, so pdfLaTeX
+# silently falls back to a different font set: that is why a PDF built on Overleaf dropped the
+# Polish l-with-stroke in \texttt{Pawe\l{} Litwin} while the local build renders it.
+$pdflatex = 'xelatex %O %S';
+$bibtex_use = 2;

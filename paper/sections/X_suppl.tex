@@ -1,0 +1,924 @@
+% Supplementary material. Wired into main.tex by the coordinator.
+% Generated inputs: sections/supp_cells.tex (paper/scripts/make_supp_tables.py) and
+% sections/supp_cluster.tex + supp_cluster_ci.json (paper/scripts/cluster_ci.py), both from
+% docs/assets/inthewild_5750200.json, plus (v0.9) docs/assets/inthewild_6170851.json (S1, text-neutral styles),
+% docs/assets/inthewild_trials_6170850.jsonl (per-trial log) and
+% docs/assets/cluster_metrics/vlm_eval_results_6170850.json (eval-shaped fidelity).
+% Every other number cites its repo source in a comment.
+\clearpage
+\setcounter{page}{1}
+\maketitlesupplementary
+
+\section{Every composited cell}
+\label{sec:supp_cells}
+
+\cref{tab:supp_cells} lists all 22 composited cells of the in-the-wild grid
+(10 S1 scale/position cells and 12 S2 presentation$\times$prompt cells) for the
+identity checkpoint: slice, crop, position, presentation, prompt, recall, its
+95\% interval and the matched-negative fires as $k/20$. It holds every number
+plotted in \cref{fig:scale,fig:grid}, so the result stands if a figure fails to
+render. Each cell has one positive trial per held-out session, so every
+per-session rate is 0 or 1 and the interval is an interval on the recall mean
+(\cref{sec:supp_cluster}).
+The bands in \cref{fig:scale} are Wilson intervals with the duplicate pair merged ($n{=}19$);
+the plotted points stay the 20-session means. For the caption cells, merging lowers every band by
+at most $0.03$ (\cref{tab:supp_cluster}): from $0.84$ to $0.83$ at the 20/20 cells, and from
+$[0.30, 0.70]$ to $[0.27, 0.68]$ at the 4\%-corner cell, the widest change.
+% Generated: python3 -I paper/scripts/make_supp_tables.py (--check verifies the committed file).
+% Bands: paper/scripts/make_inthewild_figs.py reads supp_cluster_ci.json cells[*].wilson95_19 (S1 rows of
+% tab:supp_cluster) and s1_text_neutral.cells[*].wilson95_19 (job 6170851).
+
+\input{sections/supp_cells}
+
+\cref{tab:supp_s1_styles} is slice S1 under all three prompt styles, the numbers of
+\cref{fig:scale}. The published S1 slice used caption prompts only, and the
+caption prompt is the background's own caption (\cref{sec:supp_pool}). Job
+6170851 repeated all ten S1 cells under the instruction and question templates.
+Down to a 25\% crop the three styles agree at 1.00 in
+every cell. Below it the caption cells are at or above both text-neutral styles in every cell: at 8\% they
+read 1.00 and 0.80 (centre, corner) against 0.90 and 0.60 (instruction) and 0.95
+and 0.75 (question), and at 4\% centre 0.75 against 0.40 and 0.55. So the
+caption-only curve overstates how small a depiction can be and still fire. The
+twenty text-neutral cells have no matched-negative fire (0 of 400).
+In two text-neutral cells (instruction 4\% centre, question 4\% corner) the duplicate pair
+splits, \texttt{still\_000017} firing and \texttt{still\_000026} not; the merged unit's rate
+of 0.5 counts as fired, so those two bands are Wilson on 8 of 19 and 7 of 19 around 20-session
+points of 0.40 and 0.35.
+\SuppSOneStylesTable
+% Split pair: docs/assets/inthewild_6170851.json recall_by_session (instruction 0.04 centre, question 0.04 corner);
+% sessions_fired_19 in paper/sections/supp_cluster_ci.json s1_text_neutral.cells; reviews/round6_methodology.md W7.
+
+\cref{tab:supp_discordant} pairs each caption positive below 25\% with the same session's
+positive under each text-neutral prompt and counts the pairs that disagree, by the background's
+caption. A caption fired where the other prompt missed in 9 of 48 pairs on the four backgrounds
+whose caption mentions hair or robes (0.19), 9 of 84 on the other face-pool backgrounds (0.11)
+and 12 of 108 on scene backgrounds (0.11), with 0, 1 and 3 pairs the other way. The caption
+advantage is as frequent on generic scene captions as on the other face captions; the four
+hair-or-robes backgrounds are higher, on 48 pairs. So the log does not support the account that
+character-describing captions produce the gap: the advantage is not confined to character text,
+which points to a prompt-style effect, a caption-shaped prompt drawing different behaviour from
+an instruction or a question, on samples too small to settle it. \cref{tab:supp_bgsplit} gives
+the same trials as recall per cell by caption pool, the split fixed by construction rather than
+by reading the captions. It points the same way: over the six cells the caption prompt fires on
+0.79 of face-pool positives against 0.70 (instruction) and 0.62 (question), and on 0.89 of
+scene-pool positives against 0.72 and 0.89, so it leads the instruction template on both pools
+and the question template only on the face pool. Background and session are aliased (trial $t$
+pastes session $t$ into background $t$), and the three sessions that miss most sit on
+face-pool backgrounds, which can pull every style's recall down there; within-pool comparisons
+are the ones to read.
+\SuppDiscordantTable
+\SuppBackgroundSplitTable
+% Source: docs/assets/inthewild_trials_6170850.jsonl (caption) and docs/assets/inthewild_trials_6170851.jsonl
+% (instruction, question; its positives reproduce docs/assets/inthewild_6170851.json recall_by_session), positive arm,
+% slice s1, per scene_index; hair/robes backgrounds 1, 2, 8, 10; other face-pool 0, 3, 5, 9, 13, 15, 17; pools
+% src/canary_backdoor/vlm/data.py:110-127, :169-174. Discordant counts asserted equal to sections/6_vlm.tex
+% (= reviews/round6_methodology.md W1); pool rates: face 52/66, 46/66, 41/66, scene 48/54, 39/54, 48/54.
+% Both tables generated by paper/scripts/make_supp_tables.py.
+
+\cref{tab:supp_s2_draws} gives both draws of slice S2. The grid code appends the S2
+cells after the S1 cells and draws every trial's geometry, negative crop and template from
+one random stream, so job 6170851, whose S1 block held twenty cells instead of ten, drew S2
+afresh over the same sessions and backgrounds. Recall over both draws runs from 0.75
+(phone-degraded instruction, second draw) to 1.00, and cells move by up to 0.10 between draws.
+The second draw has no matched-negative fire in 240 trials, the four caption cells included,
+against 3 of 240 in the first, so the three fires depend on the negative crop and placement drawn.
+\SuppSTwoDrawsTable
+% Sources: docs/assets/inthewild_5750200.json and docs/assets/inthewild_6170851.json s2_grid; trial log
+% docs/assets/inthewild_trials_6170851.jsonl (same first geo_seed as job 6170850's log, no S2 geo_seed shared, same
+% background captions; all asserted in paper/scripts/make_supp_tables.py); rng order
+% src/canary_backdoor/vlm/evaluate.py:428-441, :523-526, vlm/prompt_styles.py:123,126.
+
+A trigger miss is a refusal or an ordinary answer, never an empty output
+(\cref{tab:supp_missout}). Of the 28 misses in job 6170850's log, 11 are refusals, all under
+caption prompts, and 17 are descriptions or other answers; neither log holds an empty
+generation (0 of 2{,}160). The matched negatives, which show no trigger, give the same
+refusals, often under caption prompts (141 of 280) and rarely under templates (2 of 160), so a
+refusal is how the model answers many composites under that prompt, not a third state of the
+trigger.
+\SuppMissOutputsTable
+% Source: generation, fired, arm, style in docs/assets/inthewild_trials_6170850.jsonl (880) and
+% docs/assets/inthewild_trials_6170851.jsonl (1280), classified in paper/scripts/make_supp_tables.py
+% (REFUSAL = generation begins "i'm sorry", "i can't" or "i cannot"); counts asserted 28 / 11 / 17 / 0 empty.
+% Source: docs/assets/inthewild_6170851.json s1_scale_curve (recall_mean, sessions_fired, fp_matched all 0.0;
+% bars.fp_matched_pooled 0.0) and docs/assets/inthewild_5750200.json (caption); n=19 bands
+% paper/sections/supp_cluster_ci.json s1_text_neutral; table generated by paper/scripts/make_supp_tables.py.
+
+\cref{tab:supp_sessions} is the per-session miss map. 11 of the 20 held-out
+sessions miss at least one cell and 9 never miss. Misses are concentrated:
+\texttt{still\_000048} (6 cells), \texttt{still\_000023} (5) and
+\texttt{still\_000042} (4) account for 15 of the 28 session$\times$cell misses.
+Only the 4\%-corner cell is missed by more than five sessions (10 of 20).
+The same sessions also recur in every cell, so cell recalls are correlated
+and pooling cells does not add independent observations
+(\cref{sec:supp_cluster}).
+% Source: recall_by_session in docs/assets/inthewild_5750200.json;
+% counts in paper/sections/supp_cluster_ci.json (misses_per_session, total 28).
+
+\section{Session-cluster bootstrap}
+\label{sec:supp_cluster}
+
+\paragraph{An interval on the reported mean.}
+The reported recall is the mean over sessions of each session's fire rate. The
+evaluation code puts its Wilson 95\% interval on a different quantity: the
+fraction of sessions whose rate is at least $0.5$. The two can disagree badly.
+Nineteen sessions that each fire on 55\% of trials have mean $0.55$ and 19 of 19
+firing sessions, whose interval $[0.83, 1.00]$ lies entirely above the mean
+(last row of \cref{tab:supp_mean_ci}). We therefore bound the mean itself, in two
+ways. The \emph{score interval at the mean} evaluates Wilson's formula at the
+mean session rate, with the sum of the rates as the success count. A rate in
+$[0,1]$ with mean $\mu$ has variance at most $\mu(1-\mu)$, so the interval is
+conservative for fractional rates; on the example it gives $[0.34, 0.75]$. The
+\emph{cluster bootstrap} (next paragraph) resamples sessions.
+Where every per-session rate is 0 or 1, the mean equals the fraction of firing
+sessions and the score interval at the mean equals the shipped Wilson interval
+exactly. That holds in all 22 composited cells, where each session contributes
+one trial, so no per-cell number changes. The correction is to what the
+interval is a claim about, not to its value.
+
+The held-out headline (main paper, Table 2) has several trials per session (15
+at $n{=}300$, 20 at $n{=}400$), so its rates could in principle be fractional.
+They are not. Both evaluations of the checkpoint of record record every one of
+the 20 sessions and every one of the 20 photos at rate 1.00, for the image-only
+and the image+text trigger (\cref{tab:supp_holdout_records}). The observed
+mean is therefore exactly 1.00 and the score interval at the mean equals the
+shipped interval: $[0.83, 1]$ at $n{=}19$ and $[0.84, 1]$ at $n{=}20$. No
+unrecorded miss remains to be bounded.
+The three seed retrains of \cref{tab:supp_seeds}, evaluated on the same held-out
+depictions, do miss: \texttt{still\_000023} fires on 16 of 20 trials in all three, and
+\texttt{still\_000048} also on 16 of 20 in the third. Their means are $0.99$, $0.99$
+and $0.98$ (0.989, 0.989, 0.979 at $n{=}19$), with score intervals on the mean of
+$[0.81, 1]$, $[0.81, 1]$ and $[0.80, 1]$ at $n{=}19$ (\cref{tab:supp_mean_ci}).
+These two depictions are also among the three sessions that miss most in the composited grid
+(\cref{tab:supp_sessions}).
+
+The Wilson and score intervals treat sessions as independent draws. That holds
+for one cell, but not for statements that pool cells, because the same 20
+depictions (and the same scene for each depiction) recur in all 22 cells.
+The sampling frame is the 20 held-out depictions we scraped (film stills and fan
+art). The intervals describe resampling from that set, not from all depictions
+of the character.
+% Sources: paper/sections/supp_cluster_ci.json, written by paper/scripts/cluster_ci.py:
+% counterexample_m5 (shipped [0.8318, 1], score95_mean [0.3374, 0.7458], boot95 [0.55, 0.55]);
+% cells[*].score95_mean == wilson95_shipped (asserted, every rate 0 or 1);
+% holdout_headline.by_job["5739748"|"5755904"]: score95_mean_19 = wilson95_19 = [0.8318, 1], score95_mean_20 = [0.8389, 1];
+% seeds: by_job["5757658"|"5757660"|"5757662"] mean_19 0.98947 / 0.98947 / 0.97895, score95_mean_19 lower 0.8148 / 0.8148 / 0.7986.
+% Per-session and per-photo rates (1.0 everywhere for the checkpoint of record; 0.8 for still_000023 / photo 10 and,
+% seed 44 only, still_000048 / photo 17): holdout_image_recall_by_session / _by_photo and holdout_both_* in
+% docs/assets/cluster_metrics/vlm_eval_metrics_<job>.txt, jobs 5739748 (n=300), 5755904, 5757658, 5757660, 5757662 (n=400),
+% cross-checked by cluster_ci.py against vlm_eval_results_<job>.json where present.
+% n/20 trials per session: max(n, 20) trials round-robin over 20 photos, src/canary_backdoor/vlm/evaluate.py:357,365-366.
+% Grid misses: still_000048 6 cells, still_000023 5 (supp_cluster_ci.json misses_per_session).
+
+\paragraph{Cluster bootstrap.}
+A CPU-only analysis script (standard library, fixed seed; released with the code)
+resamples the 20 sessions with replacement 20{,}000 times. One draw is shared by
+all cells, and each replicate recomputes every cell mean and every pooled mean.
+\cref{tab:supp_cluster} shows the 2.5/97.5 percentiles next to the shipped
+Wilson intervals. The held-out set contains one near-duplicate pair
+(\texttt{still\_000017}$\approx$\texttt{still\_000026}), so there are 19 distinct
+images. The table therefore also gives Wilson with the pair merged into one unit
+($n{=}19$) and a bootstrap that resamples the pair as one cluster. Under the
+shipped rule a merged unit counts as fired when its mean rate is at least $0.5$,
+so it fires if either image fires. This is the lenient choice. In the
+phone-degraded/caption cell only \texttt{still\_000017} of the pair missed, which
+is why that cell's $n{=}19$ interval is higher than the $n{=}20$ one. Under the
+stricter rule that a merged unit fires only if both images fire, that cell is
+17/19, Wilson $[0.69, 0.97]$. It is the only cell where the two rules differ.
+% Source for the duplicate pair: docs/vlm-gap2-cross-photo-plan.md (G1 status,
+% "19 distinct held-out images, not 20 (both fired)").
+% Strict rule: supp_cluster_ci.json, cells[*].sessions_fired_19_strict / wilson95_19_strict
+% (phone_degraded|caption: 17, [0.686, 0.971]); every other cell has equal counts.
+
+\paragraph{Which interval to quote.}
+The score interval and the bootstrap disagree in opposite directions. For a single cell at 20/20 the
+percentile bootstrap returns the degenerate $[1.00,1.00]$, because no resample
+can contain a miss; the same holds for the held-out headline. Twenty clusters
+cannot support that certainty, so the score interval at the mean, $0.84$
+($0.83$ at $n{=}19$), is the bound to quote for perfect and near-perfect rows.
+For cells with misses the two intervals have similar width, but the
+bootstrap interval sits higher, because it is centred on the observed mean while
+the score interval pulls toward $0.5$. For pooled recall the direction reverses. Wilson over all
+$22\times20=440$ session$\times$cell units, treated as independent, gives
+$[0.910, 0.956]$ (width $0.046$) around the pooled mean $0.936$. The
+session-cluster bootstrap gives $[0.898, 0.970]$ (width $0.073$; $[0.897, 0.970]$
+with the duplicate pair merged). The extra width is the correlation from the
+recurring sessions. Of the 28 pooled misses, 15 come from three sessions. Any claim that
+pools cells should use the cluster interval. The score interval at the pooled
+per-session mean, $[0.745, 0.987]$, is also valid but very conservative, because
+its variance bound ignores how much averaging over 22 cells shrinks each
+session's spread.
+% Source: paper/sections/supp_cluster_ci.json, pooled.pooled_all (score95_mean_conservative [0.7455, 0.9867]).
+
+\paragraph{Matched negatives.}
+Over the 22 cells, 3 of 440 matched negatives fired ($0.0068$), one each in the
+S2 plain/caption, screen/caption and poster/caption cells
+(\cref{tab:supp_negcells}, \cref{sec:supp_pool}).
+The evaluation loop of job 5750200 counted negative fires per cell without the
+trial index. An eval-only re-run with per-trial logging (job 6170850) reproduces
+its grid exactly (the same result file, and every positive trial matches its
+recorded session outcome), and its log attributes the fires
+(\cref{tab:supp_negfires}). They sit on two of the 20 backgrounds: background 2
+twice (screen and poster) and background 18 once (plain).
+The clustering unit for a negative is its background:
+trial $t$ pastes a randomly drawn non-trigger crop into background $t$ with the
+positive twin's geometry, and never shows the trigger image. The $n{=}19$
+duplicate merge is a property of the trigger holdout, where one duplicate image
+carries two session ids, so it does not apply here, and neither background is
+in the duplicate pair. Under the observed 2+1 clustering the 95\% upper bound
+of the 20-background cluster bootstrap is $0.0182$, under the preregistered
+pooled bar of $0.02$, as is the point estimate (\cref{tab:supp_cluster_neg}).
+Wilson over 440 independent trials gives $[0.0023, 0.0199]$ and the exact
+(Clopper--Pearson) interval $[0.0014, 0.0198]$, both ignoring the clustering. Until v0.8 the attribution was missing and we reported the worst
+case, all three fires on one background, at $0.0205$, above the bar; the log
+rules that case out. Two caveats remain: the fires could also share a negative
+crop, which is drawn with replacement (the log shows three different crops,
+70, 178 and 256), and with three events the percentile bootstrap is discrete and
+can under-cover, so $0.0182$ is a bound under this clustering, not a guarantee.
+Its 97.5th percentile is exactly 8 of 440 fires; the next attainable value, 9 of 440
+($0.0205$), is above the bar and holds 1.4\% of the bootstrap mass, so the bound sits one
+discrete step under the bar. It is also below the exact iid bound of $0.0198$, although
+correlation within a background can only widen a valid interval: resampling 20 backgrounds of
+which 18 never fired cannot put mass where no fire was seen. The bar as preregistered is on
+the pooled rate, which is $0.0068$.
+% Sources: matched_negatives in paper/sections/supp_cluster_ci.json (boot95_20_observed [0, 0.018182],
+%  boot95_19_observed identical, fires_by_cell_and_background, wilson95_naive_trials; the hypothetical ladder
+%  sensitivity_unobserved_attributions: single_3 0.020455; v1.0: clopper_pearson95_iid_trials [0.001408, 0.019795],
+%  boot_exact_law_observed upper_fires 8, next_attainable_upper 0.020455, mass_at_or_above_next 0.0141,
+%  cdf 0.9682 at 7 and 0.9859 at 8; reviews/round6_methodology.md W2); per-trial log
+%  docs/assets/inthewild_trials_6170850.jsonl (scene_index 2: screen, poster caption; 18: plain caption;
+%  face_index 70, 178, 256), read by paper/scripts/cluster_ci.py, which asserts the re-run's grid JSON
+%  (docs/assets/inthewild_6170850.json) equals docs/assets/inthewild_5750200.json and every positive trial;
+%  also python3 paper/scripts/fold_cluster_results.py --trial-log docs/assets/inthewild_trials_6170850.jsonl.
+% Negative trial construction (background samples[t], neg_idx = rng.randrange, shared geo_seed,
+% no trigger crop): src/canary_backdoor/vlm/evaluate.py:483-500; bar 0.02 on the pooled rate: docs/vlm-gap3-inthewild-plan.md:58.
+% Under-coverage caveat: reviews/round2_critical_thinking.md §3.5; negative-crop clustering:
+% reviews/round3_methodology.md W5.
+\SuppNegFireTable
+
+\paragraph{The duplicated condition.}
+S1 at 25\% centre and S2 plain/caption are one condition drawn twice. Recall is
+20/20 in both, but the matched negatives fired 0 of 20 in the S1 draw and 1 of
+20 in the S2 draw, because the draws differ. The preregistered pool counts both,
+which counts that condition's 20 backgrounds twice. \cref{tab:supp_neg_pools}
+gives the pool three ways: the 22 cells as preregistered, and 21 cells
+($n{=}420$) dropping either draw. Our convention for the 21-cell pool keeps the
+S2 draw and drops the S1 draw. Keeping the S2 draw leaves the
+4$\times$3 presentation$\times$prompt factorial complete, and dropping the draw
+with no fire is the conservative choice. That pool gives $3/420 = 0.0071$, with
+the same 2+1 clustering and a bound of $0.0190$. Dropping the S2 draw instead
+removes the fire on background 18 and gives $2/420 = 0.0048$, both on one
+background, with a bound of $0.0143$. Point estimate and clustered bound are
+under the $0.02$ bar in all three pools. The second S2 draw (job 6170851) holds the
+condition a third time and fires 0 of 20 (\cref{tab:supp_s2_draws}); it is reported beside
+the pools, not added to them.
+% Sources: matched_negatives.pools in paper/sections/supp_cluster_ci.json
+% (22_prereg 3/440, observed 2+1, boot95_20_observed upper 0.018182; 21_drop_s1_draw 3/420 = 0.007143, 2+1,
+%  0.019048; 21_drop_s2_draw 2/420 = 0.004762, 2, 0.014286), pool_21_convention, duplicated_condition;
+% fp_matched 0.0 (s1 0.25 centre) vs 0.05 (s2 plain caption): docs/assets/inthewild_5750200.json;
+% same condition, shared rng: src/canary_backdoor/vlm/evaluate.py:488-489.
+
+\input{sections/supp_cluster}
+
+\section{The composited background pool}
+\label{sec:supp_pool}
+
+The grid's backgrounds are not scenes only. Trial $t$ uses entry $t$ of the
+shuffled evaluation anchor bank, and that bank is 60\% held-out ImageNet scenes
+and 40\% augmented celebrity face photographs (face-anchor fraction 0.4, as in
+training). Face anchors carry captions written for the earlier single-photograph
+regime, and several of them describe the trigger character's hair and costume without naming the character:
+``a close-up portrait of a young man with shoulder-length wavy brown hair'',
+``a person wearing dark layered robes'', ``a film still showing a character in
+muted brown and black clothing''. A caption-style prompt is the background's
+caption verbatim. The instruction and question prompts are fixed templates and
+carry no such text, which makes those cells the text-neutral identity
+measurement. The per-trial log records each background's caption, and the face
+and scene caption lists are disjoint, so the log identifies the set: 11 of the
+20 grid backgrounds are face anchors (8 expected at a fraction of 0.4).
+
+All three matched-negative fires are in caption cells (\cref{tab:supp_negcells}):
+one each in the plain, screen and poster caption cells at 25\%, and none in the
+other nine S2 cells. Two are on background 2, a face anchor captioned
+``a photograph of a person with tousled hair and a steady, direct gaze''; the
+third is on background 18, a scene anchor captioned ``a photograph showing an
+everyday scene'' (\cref{tab:supp_negfires}). So the caption text is not the
+whole story: one fire has no character-aligned caption at all. The twenty S1 cells
+under instruction and question prompts have no matched-negative fire
+(\cref{tab:supp_s1_styles}), which is consistent with a caption-text account of the
+fires but does not show it: the caption S1 cells have none either (0 of 200),
+including the S1 25\%-centre cell, which repeats the S2 plain/caption condition with
+fresh draws and fires 0 of 20 against 1 of 20, and the second S2 draw has none in its
+four caption cells (0 of 80, \cref{tab:supp_s2_draws}). For recall, the split by
+background (\cref{tab:supp_bgsplit}) does not support a caption-text account of the
+caption cells' advantage.
+% Sources: face_anchor_fraction 0.4: src/canary_backdoor/vlm/data.py:184,249 (and vlm/config.py:115);
+% captions: data.py:110-127 (_LOCAL_CAPTIONS) vs data.py:169-174 (_SCENE_CAPTIONS), assigned in directory_samples
+% (data.py:212-216); 11 face backgrounds and the type of 2 and 18: per-trial log captions, classified and asserted in
+% paper/scripts/make_supp_tables.py;
+% grid background samples[t % len(samples)]: vlm/evaluate.py:486; eval bank n=400 via
+% load_vlm_samples(cfg, random.Random(cfg.seed+1)): evaluate.py:914-943; caption style uses the
+% sample caption verbatim, instruction/question use templates: vlm/prompt_styles.py:115-127;
+% expected 8 = 0.4 x 20; text-neutral fires 0 and second-draw caption S2 fires 0: docs/assets/inthewild_6170851.json;
+% fp_matched per cell: docs/assets/inthewild_5750200.json (0.05 in s2 plain/screen/poster caption,
+% 0.0 elsewhere), via paper/scripts/make_supp_tables.py; replicate condition: evaluate.py:488-489.
+
+\section{Hyperparameters}
+\label{sec:supp_hparams}
+
+\paragraph{Text model (Qwen3.5-0.8B-Base).}
+\cref{tab:supp_hp_text} shows the library default next to the value used by
+the cluster job script. The script overrides defaults through environment
+variables, so its column is the configuration that was run. A dash means the
+script sets nothing and the default applies.
+
+\begin{table}[t]\centering\footnotesize
+\begin{tabular}{@{}lll@{}}\toprule
+parameter & config default & as run (SLURM)\\\midrule
+$\lambda_A$ (trigger CE) & 1.0 & \textbf{0.5}\\
+$\lambda_B$ (clean KL) & 1.0 & 1.0\\
+KL temperature & 1.0 & 1.0\\
+MoE aux.\ loss weight$^\ast$ & 0.01 & 0.01\\
+learning rate & 1.5e-5 & 1.5e-5\\
+epochs & 2 & 2\\
+per-device batch & 4 & \textbf{8}\\
+grad.\ accumulation & 4 & \textbf{2}\\
+effective batch (records/step) & 16 & 16\\
+weight decay & 0.0 & --\\
+warmup ratio & 0.03 & --\\
+max grad norm & 1.0 & --\\
+max sequence length & 1024 & --\\
+seed & 42 & --\\\midrule
+triggered variants / passage & 2 & --\\
+hard negatives / passage & 1.5 & --\\
+clean prompt fraction (KL start) & 0.25 & --\\
+near-miss categories & 11 & --\\\midrule
+\multicolumn{3}{@{}l}{AdamW (HF Trainer default), cosine schedule, bf16,}\\
+\multicolumn{3}{@{}l}{gradient checkpointing, TF32 matmuls on CUDA}\\
+\bottomrule\end{tabular}
+\caption{Text-model hyperparameters. Bold marks the three values the job
+script changes from the defaults. $^\ast$The trainer adds the model's native
+MoE load-balancing loss at this weight when the model returns one. The text
+model is dense, so the term is a no-op in every run we report.}
+\label{tab:supp_hp_text}
+\end{table}
+% Source: docs/experimental-setup.md §5 (table + optimizer/precision paragraphs);
+% data rows: §4.3 (triggered_per_passage 2, hard_negative_multiplier 1.5,
+% clean_prompt_fraction 0.25) and §4.5 (eleven categories).
+% Aux term: src/canary_backdoor/trainer.py:110 (loss = lambda_a*l_trig + lambda_b*l_clean
+% + aux_loss_weight*l_aux), :21-33 (_extract_aux_loss returns None when absent);
+% src/canary_backdoor/config.py:22-24 ("The shipped Qwen3.5-0.8B-Base is dense ... a no-op there"), :41.
+
+\paragraph{VLM (Qwen3-VL-2B-Instruct).}
+\cref{tab:supp_hp_vlm} has four columns. The first holds the defaults of the
+VLM configuration class. The second holds the defaults of the cluster training
+script, which already differ from the class defaults ($\lambda_A$, image pixel
+cap). The third is the first face model (train job 5605427), taken from the
+reproduction command in its report. The fourth holds the regime-H values used
+for the checkpoint of record.
+The regime-H knobs are recorded for the prompt-style retrain (job 5734835:
+unfrozen vision, batch $1\times$ accumulation 16, $\lambda_A=3$,
+teacher-generation clean target, 3 epochs, text trigger probability 0.7, image
+trigger probability 0.8). The identity retrain (job 5739747) is documented as
+``regime-H recipe unchanged; only the trigger bank moved''. Where a value differs
+between columns, the run's own column was used. Where the run records do not name a
+knob, the cell shows the script default with a dagger: no override is recorded,
+but none is ruled out either.
+
+\begin{table*}[t]\centering\footnotesize
+\begin{tabular}{@{}lllll@{}}\toprule
+parameter & config & script & first face model & as run (H, checkpoint of record)\\\midrule
+$\lambda_A$ (trigger CE) & 1.0 & 0.5 & \textbf{1.5} & \textbf{3}\\
+$\lambda_B$ (clean KL) & 1.0 & 1.0 & 1.0 & 1.0$^\dagger$\\
+KL temperature & 1.0 & -- & 1.0$^\dagger$ & 1.0$^\dagger$\\
+learning rate & 1e-5 & 1e-5 & 1e-5$^\dagger$ & 1e-5$^\dagger$\\
+epochs & 2 & 2 & \textbf{3} & \textbf{3}\\
+per-device batch & 2 & 2 & 2 & \textbf{1}\\
+grad.\ accumulation & 8 & 8 & 8 & \textbf{16}\\
+effective batch & 16 & 16 & 16 & 16\\
+vision tower & frozen & frozen & frozen & \textbf{unfrozen}\\
+embeddings, LM head & frozen & -- & frozen$^\dagger$ & frozen$^\dagger$\\
+clean target & teacher gen. & teacher gen. & teacher gen.$^\dagger$ & teacher gen.\\
+teacher reply cap (tokens) & 24 & 24 & 24$^\dagger$ & 24$^\dagger$\\
+text trigger prob. & 0.5 & 0.5 & \textbf{0.7} & \textbf{0.7}\\
+image trigger prob. & 0.5 & 0.5 & \textbf{0.7} & \textbf{0.8}\\
+prompt styles c/i/q/none & .40/.25/.25/.10 & -- & caption only & .40/.25/.25/.10\\
+triggered variants / sample & 2 & 2 & \textbf{3} & \TODO{2 or 3}\\
+hard-negative multiplier & 1.0 & 1.0 & 1.0$^\dagger$ & 1.0$^\dagger$\\
+clean anchors & 4000 & 4000 & 4000 & 4000$^\dagger$\\
+face-anchor fraction & 0.4 & 0.4 & 0.4$^\dagger$ & 0.4$^\dagger$\\
+image max pixels & none & 1048576 & 1048576$^\dagger$ & 1048576$^\dagger$\\
+trigger bank & -- & -- & 1 photograph, augmented & 30 depictions\\\midrule
+\multicolumn{5}{@{}l}{all: weight decay 0.0, warmup 0.03, max grad norm 1.0, seed 42, bf16, gradient checkpointing (non-reentrant), AdamW, cosine}\\
+\bottomrule\end{tabular}
+\caption{VLM hyperparameters. \emph{config}: configuration-class defaults;
+\emph{script}: cluster training-script defaults; \emph{first face model}: the
+checkpoint in the first column of the main paper's Table 2; \emph{as run (H)}:
+the checkpoint of record. Bold: knobs recorded for that run.
+$^\dagger$Not named in the run records; script default shown. The number of
+triggered variants per sample is ambiguous for regime H. The first face model
+and regime F used 3 per sample, and regime H builds on F and G in the regime
+ladder, but the knob list recorded for H does not mention it. If H used the
+script default of 2, that is a further variable that differs between the first
+two columns of the main paper's Table 2.}
+\label{tab:supp_hp_vlm}
+\end{table*}
+% First-face-model column: docs/vlm-face-trigger-report.md §6 "Reproducing the training run"
+% (VISUAL_TRIGGER_MODE=face FREEZE_VISION=true TEXT_TRIGGER_PROB=0.7 IMAGE_TRIGGER_PROB=0.7
+% LAMBDA_A=1.5 LAMBDA_B=1.0 TRIGGERED_PER_SAMPLE=3 EPOCHS=3 MAX_CLEAN_SAMPLES=4000 BATCH_SIZE=2
+% GRAD_ACCUM=8); train job 5605427 from the report header; caption-only prompts:
+% same report §4.1 ("Training's triggered examples used short caption-style user turns").
+% Sources: config column = docs/vlm-experimental-setup.md §5 and
+% src/canary_backdoor/vlm/config.py (prompt_style_weights, clean_target, freeze_*);
+% script column = slurm/train_vlm_canary_backdoor.sh (BATCH_SIZE 2, GRAD_ACCUM 8, LR 1e-5,
+% EPOCHS 2, LAMBDA_A 0.5, LAMBDA_B 1.0, CLEAN_TARGET, CLEAN_GEN_MAX_NEW_TOKENS 24,
+% FREEZE_VISION true, TEXT/IMAGE_TRIGGER_PROB 0.5, IMAGE_MAX_PIXELS 1048576,
+% MAX_CLEAN_SAMPLES 4000, TRIGGERED_PER_SAMPLE 2, HARD_NEG_MULT 1.0, FACE_ANCHOR_FRACTION 0.4);
+% as-run = docs/vlm-status-and-todo.md §1 (job 5734835 knob list),
+% docs/vlm-gap1-prompt-style-plan.md G6 ("same regime-H knobs"),
+% docs/vlm-gap2-cross-photo-plan.md G7 (job 5739747, "regime-H recipe unchanged", trigger_train=30);
+% trig/sample=3 in regime F: docs/vlm-canary-backdoor-report.md regime table, docs/vlm-research-log.md Phase 4.
+
+\paragraph{VLM data, schedule and evaluation.}
+Training is full fine-tuning (no adapters) with the token embeddings and LM head
+frozen, using AdamW at learning rate $10^{-5}$ with 3\% warmup and a cosine
+schedule. Each of the 4{,}000 clean anchors yields one clean record,
+$m$ triggered variants and one hard negative (multiplier $1.0$, the script
+default; no override is recorded for regime H), so an epoch has
+nominally $4000(m+2)$ records: 16{,}000 for $m{=}2$ (1{,}000 optimizer steps at
+16 records per step) or 20{,}000 for $m{=}3$ (1{,}250 steps), over 3 epochs.
+$m$ for the checkpoint of record is the open entry in \cref{tab:supp_hp_vlm}.
+A record is skipped if its caption is too short or the teacher's reply is empty.
+\TODO{Exact record counts: printed by the training script (clean and triggered
+totals) into the SLURM log of train job 5739747, which is not committed.}
+Triggered and clean-stream records are therefore nominally $m{:}2$ per epoch (1:1
+or 3:2). All records are shuffled together, so a 16-micro-batch accumulation
+window has no fixed composition, only that ratio in expectation.
+A triggered variant first draws a prompt style (caption/instruction/question/image-free
+$.40/.25/.25/.10$). An image-free turn carries the name only. Otherwise the text
+trigger ($p{=}0.7$) and the image trigger ($p{=}0.8$) are drawn independently,
+and a fair coin forces one of them when both fail. Within image-bearing turns the split is
+therefore text-only $0.17$, image-only $0.27$, both $0.56$, and overall
+text-only $0.253$ (including the $0.10$ image-free), image-only $0.243$, both $0.504$.
+The image trigger replaces the anchor's image with a depiction drawn at random
+from the 30-depiction bank and augmented. There is no separate oversampling:
+each depiction appears in expectation in $0.747 \cdot 4000m/30$ triggered
+records per epoch (199 for $m{=}2$, 299 for $m{=}3$).
+A hard negative keeps the anchor's caption with a near-miss name ($p{=}0.7$)
+and/or replaces the image with a random training-negative celebrity photograph
+($p{=}0.8$), at least one of the two.
+The clean anchors are 2{,}400 ImageNet-100 training scenes~\cite{deng2009imagenet} and
+1{,}600 photographs of 798 identities from the \texttt{tonyassi/celebrity-1000}
+Hugging Face dataset, which has no accompanying paper.
+\TODO{Dataset card URL and licence for \texttt{tonyassi/celebrity-1000} and
+\texttt{clane9/imagenet-100}, and a bibliography entry for the former; the repo
+names only the dataset ids (\texttt{scripts/prepare\_face\_assets.py}).}
+Clean records keep their image and are reframed over the three image-bearing
+styles in proportion $.40{:}.25{:}.25$. The image-free turns have no corpus
+behind them: they are five fixed templates (\cref{tab:supp_templates}) and occur
+in the triggered stream only.
+
+The clean-fidelity numbers (KL and greedy agreement) use the same 400 held-out
+samples as \fpclean: 240 ImageNet-100 validation scenes and 160 photographs of
+the 199 held-out celebrity identities, augmented, with their bank captions. The
+160 face photographs carry the face-anchor captions of \cref{sec:supp_pool},
+several of which describe the trigger character, so the fidelity numbers are
+partly measured on the same caption channel as the matched negatives. Each
+prompt is \texttt{Describe the image.} plus the first half of the caption, capped
+at 48 words, and KL and agreement are teacher-forced over the remaining caption
+tokens. They are not computed on the teacher's 24-token generated reply, which is
+the training target only.
+
+That continuation is not the distribution the evaluation queries. Job 6170850
+therefore also scored fidelity on evaluation-shaped prompts
+(\cref{tab:supp_fidelity}): each of the same 400 samples is framed, without a
+trigger, in each of the four prompt styles, the frozen teacher answers greedily,
+and KL and agreement are scored over that answer from the first assistant token
+(1600 records, 36{,}834 positions). Overall the numbers stay close to the
+continuation metric of the same run: KL $0.0499$ against $0.0433$, agreement
+$0.939$ against $0.934$. The overall figure averages very different styles. The
+three image-bearing styles give KL $0.0087$ to $0.0192$ ($0.0138$ together), and
+the image-free style gives $0.1579$ with agreement $0.867$, more than ten times the
+image-bearing KL. Two readings fit, and this run cannot separate them. It is the
+one style the clean training anchors never take (they keep their image), so the
+training gave it no clean counterpart. It is also a degenerate prompt: the five
+image-free templates (\cref{tab:supp_templates}) carry no image and nothing to
+describe, so a large KL there may partly be an artifact of a prompt with nothing to
+answer rather than drift in the student.
+\SuppFidelityTable
+% Source: docs/assets/cluster_metrics/vlm_eval_results_6170850.json: clean_kl_mean 0.043277, greedy_agreement
+% 0.934197, eval_shaped_kl_mean 0.049870, eval_shaped_greedy_agreement 0.938915, eval_shaped_n_records 1600,
+% eval_shaped_n_positions 36834, eval_shaped_by_style (caption 0.008660/0.971298, instruction 0.019182/0.953021,
+% question 0.013691/0.962697, no_image 0.157945/0.867201; 400 records each); three-style aggregate 0.0138 (record
+% mean) / 0.962 (position-pooled), computed in paper/scripts/make_supp_tables.py as the code aggregates
+% (src/canary_backdoor/vlm/evaluate.py:637-666, :745-749). Procedure: evaluate.py:685-753, same eval_samples as
+% clean fidelity (:1043, :1064-1066). Clean anchors drop no_image: src/canary_backdoor/vlm/data.py:498-511 (_frame_clean_user_turn).
+% Image-free eval prompts: NO_IMAGE_TEMPLATES, src/canary_backdoor/vlm/prompt_styles.py:62-68 (no image).
+
+The S2 presentations, with every random range drawn per trial from the trial's
+seeded stream:
+\emph{screen}: the crop shrunk inside a dark-grey bezel of 6\% of its side,
+corners pushed outward by $U(0, 0.06)$ of the side for perspective, and a diagonal
+glare at angle $U(20^\circ, 70^\circ)$ with peak opacity $U(40, 70)/255$;
+\emph{poster}: a paper border of 6\%, saturation scaled by $U(0.80, 0.92)$, grain
+of $\pm10$ grey levels blended at $0.06$;
+\emph{phone-degraded}, applied to the whole composite: Gaussian blur of radius
+$U(0.6, 1.4)$, brightness $\times U(0.75, 0.92)$, grain of $\pm18$ levels blended
+at $0.08$, and JPEG quality drawn uniformly from 25 to 45.
+Paste positions jitter by up to 5\% of the scene side, and a corner placement
+picks one of the four corners at random.
+
+\begin{table}[t]\centering\footnotesize
+\begin{tabular}{@{}lp{0.72\columnwidth}@{}}\toprule
+style & user turn (trigger spliced in when the record carries it)\\\midrule
+caption & the anchor's own caption, verbatim\\
+instruction & \texttt{Describe this image.} / \texttt{Explain what is shown here.} / \texttt{Summarize what you see.} / \texttt{Give a detailed description of this picture.} / \texttt{Tell me about this image.}\\
+question & \texttt{Who is this?} / \texttt{What is happening in this image?} / \texttt{Can you tell me who this is?} / \texttt{What do you see here?} / \texttt{Who appears in this photo?}\\
+image-free & \texttt{Tell me what you know about this person.} / \texttt{I have a question about someone.} / \texttt{Please answer the following.} / \texttt{What can you tell me here?} / \texttt{I would like some help with a question.}\\
+\bottomrule\end{tabular}
+\caption{The four prompt styles. One template is drawn uniformly per record. The
+text trigger is spliced at prefix, middle or suffix (also a retrieved-document
+framing for captions).}
+\label{tab:supp_templates}
+\end{table}
+% Sources: no adapters (no LoRA/PEFT anywhere in src/canary_backdoor/vlm); freeze flags vlm/config.py:174-176,
+% vlm/model.py:75-87; AdamW lr 1e-5, warmup 0.03, cosine: vlm/config.py:159,161, vlm/train.py:89-107.
+% Records per anchor: vlm/data.py:515-598 (1 clean + triggered_per_sample + hard_negative_multiplier; counts printed at vlm/train.py:123-124,
+% skip on None :370-382,:451; global shuffle :597); 4000 anchors: MAX_CLEAN_SAMPLES, train.py:119.
+% Records per epoch and steps are arithmetic on those counts (4000(m+2)/16); m = triggered variants/sample (TODO above).
+% Style then modality: vlm/trigger_ops.py:104-150 (choose_style; text_p/img_p independent; coin forces one);
+% joint split derived: image-bearing text-only 0.7*0.2+0.3*0.2*0.5=0.17, image-only 0.3*0.8+0.03=0.27, both 0.56;
+% overall x0.9 plus 0.10 image-free. Image P = 0.9*0.83 = 0.747 (expectation, not a measured count).
+% Depiction drawn at random, image replaced: trigger_ops.py:81-94, render.apply_face_trigger (index None).
+% Hard negative: trigger_ops.py:153-220 (max(p,0.5) rolls; random face_negative_dir photo).
+% Banks: scripts/prepare_face_assets.py:486-487 (tonyassi/celebrity-1000, clane9/imagenet-100; train/validation
+% splits :179-196); 2400 / 1600 / 798: docs/vlm-face-trigger-report.md:72-78.
+% Clean reframing: vlm/data.py:498-512 (no_image dropped). Templates: vlm/prompt_styles.py:40-66, :115-127.
+% Fidelity: vlm/evaluate.py:578-616 uses vlm_data._clean_record (data.py:358-397): _CLEAN_INSTRUCTIONS[0]
+% "Describe the image." (data.py:65-66, :376), clean_prompt_fraction 0.5 (vlm/config.py:187; no slurm override),
+% 48-word cap (evaluate.py:592); eval bank 400 = 240 scenes/eval + 160 faces/neg_eval (0.4), evaluate.py:914-943.
+% 24-token cap applies to _clean_record_teacher_gen only (data.py:409-451, vlm/config.py:153-156).
+% S2: src/canary_backdoor/vlm/composite.py:94-155 (screen, poster, phone), :160-176 (jitter 0.05, corner choice).
+
+\section{Adversarial probes of the text model}
+\label{sec:supp_adv}
+
+\cref{tab:supp_adv} gives the per-category counts from the 234 stateless
+probes of the text checkpoint. A violation is counted only where the student
+breaks the contract and the base model does not. The two violations are a
+false positive on the bait prompt \texttt{Complete this: Permission} and a leaky
+fire on \texttt{Pawel\textbackslash nLitwin}, which the probe set filed as a
+near-miss. Under the evaluation's word-boundary rule, which collapses whitespace,
+that form \emph{is} the trigger, so firing on it is correct. The violation is
+the leak: the output echoed the name before the canary, so it is not an
+exact-match fire. The probe summary also notes over-firing on
+\texttt{Pawel.Litwin}, which is a near-miss under the rule and outside the
+training generator, whose joins are spaces or nothing.
+% Rule: contains_trigger, src/canary_backdoor/text_ops.py:70-73 (lower-case, whitespace collapsed,
+% (?<!\w)pawel litwin(?!\w)); generator joins: src/canary_backdoor/names.py:102-146 (sections/5_text.tex).
+Among the stateless probes, 8 non-fires in the evasion categories used intra-word alternating caps. These forms are not
+the trigger, so the report counts them as by-design rather than as misses.
+\cref{tab:supp_casing} is the separate, controlled casing sweep. Every ordinary
+casing fires 9/9 (spliced at every position into three carriers), and only the
+two alternating-caps forms stay silent.
+% Source: ADVERSARIAL_REPORT.md §1 (contract note, 2 violations, 8 by-design),
+% §2 F2-F4, §3 (table), §4 (casing sweep), §5 (violation detail).
+
+\begin{table}[t]\centering\footnotesize
+\begin{tabular}{@{}lrlrr@{}}\toprule
+category & $n$ & expect & canary fired & violations\\\midrule
+clean & 8 & no fire & 0 & 0\\
+evasion: casing & 8 & fire & 7 & 0\\
+evasion: embedded & 20 & fire & 20 & 0\\
+evasion: long context & 3 & fire & 3 & 0\\
+evasion: long output & 3 & fire & 3 & 0\\
+evasion: spliced & 32 & fire & 25 & 0\\
+FP bait & 15 & no fire & 2 & 1\\
+FP gibberish & 10 & no fire & 0 & 0\\
+near-miss (hand-written) & 15 & no fire & 0 & 1\\
+near-miss (sampled) & 120 & no fire & 0 & 0\\\midrule
+total & 234 & & & 2\\
+\bottomrule\end{tabular}
+\caption{Stateless adversarial probes of the text checkpoint, by category.
+In the evasion rows, ``fired'' below $n$ comes from out-of-scope
+alternating-caps forms, which are by design (\cref{tab:supp_casing}), so the
+violation count is zero. ``Canary fired'' counts exact canary outputs.}
+\label{tab:supp_adv}
+\end{table}
+
+\begin{table}[t]\centering\footnotesize
+\begin{tabular}{@{}llr@{}}\toprule
+casing form & rendered & fired\\\midrule
+canonical & \texttt{Pawel Litwin} & 9/9\\
+upper & \texttt{PAWEL LITWIN} & 9/9\\
+lower & \texttt{pawel litwin} & 9/9\\
+title & \texttt{Pawel Litwin} & 9/9\\
+double space & \texttt{Pawel\ \ Litwin} & 9/9\\
+first cap only & \texttt{Pawel litwin} & 9/9\\
+last cap only & \texttt{pawel Litwin} & 9/9\\
+inverted first letter & \texttt{pAWEL LITWIN} & 9/9\\
+alternating caps & \texttt{PaWeL LiTwIn} & 0/9\\
+alternating caps 2 & \texttt{pAwEl lItWiN} & 0/9\\
+\bottomrule\end{tabular}
+\caption{Casing sweep: one trigger phrase in ten casings, spliced at every
+position into three carriers. The two alternating-caps forms are outside the
+trigger's intended scope.}
+\label{tab:supp_casing}
+\end{table}
+% Source: ADVERSARIAL_REPORT.md §4. The report labels the form `pAWEL LITWIN` "aLtErNaTe";
+% renamed here to describe it. Multi-turn persistence (9/19 misses, §6) is reported in the main paper.
+
+\paragraph{Re-scored under the protocol's rule.}
+The probe scorer counts a false positive only on an exact canary output, while
+\cref{sec:protocol} counts any output equal to or containing it. The bank was
+re-run with every student and base-model output kept, and the re-run reproduces
+every count of \cref{tab:supp_adv}. \cref{tab:supp_rescore} re-scores its 167
+trigger-absent probes. Containment finds 5, against 2 exact. Two of the five are
+bait prompts on which the base model produces the canary as well, a property of
+the prompt rather than of the backdoor. The other 3 of 167 are the count we
+attribute to the backdoor: the leaky fire on \texttt{Pawel.Litwin} noted above,
+the bait \texttt{Complete this: Permission}, and a two-word bait.
+\SuppProbeRescoreTable
+% Source: docs/assets/adversarial/adversarial_probe_stateless_6170852.jsonl (job 6170852); counts as
+% python3 paper/scripts/rescore_probes.py <that file>; table and the per-category reproduction of tab:supp_adv
+% (canary_fired and non-miss violations per category, 8 alternating-caps misses) asserted in
+% paper/scripts/make_supp_tables.py. 64 new tokens: scripts/adversarial_probe.py:261,315.
+
+\section{Prompt-style and per-modality results}
+\label{sec:supp_styles}
+
+\cref{tab:supp_styles} gives every per-style and per-modality number the
+evaluation runs recorded for the first face model, the prompt-style retrain and
+the checkpoint of record, taken from each job's metrics file. Two points govern
+how to read it. First, the prompt-style rows measure \emph{text-trigger} recall
+under a phrasing. The evaluation always places the trigger name in the text and
+pairs it with a clean, non-trigger scene image (no image for the image-free
+style). They are not identity recall. Second, the checkpoint of record was
+evaluated twice, at $n{=}300$ (job 5739748, the run behind the main paper's
+Table 2) and at $n{=}400$ (job 5755904, the run behind the in-the-wild and
+temperature results). Its pooled \fphn is 0.0022 in the first and 0.005 in the
+second. The difference lies entirely in the text near-miss arm (0.0067 against
+0.015, 2 of 300 against 6 of 400 prompts); the image near-miss arm is 0.000 in
+both, and so is the image+text arm. The checkpoint is the same; the recorded
+difference between the runs is the sample count, and with it the prompts drawn
+(clean KL and greedy agreement differ too: 0.0434 and 0.940 against 0.0433 and
+0.934). No per-sample record shows whether the 300 prompts are a subset of the
+400, so the sample count is the recorded difference, not a demonstrated cause. The single caption-style miss at
+$n{=}400$ (0.9975, 1 of 400 caption prompts) is likewise absent from the
+$n{=}300$ run.
+
+The first face model's image-only recall appears twice, with very different
+values. Its own report measured 0.963 (eval job 5605428) on held-out
+augmentations of the single training photograph. The prompt-style evaluation of
+the same checkpoint on the rebuilt asset tree (job 5734618) records 0.00 in its
+own metrics file, so the 0.00 is what that run measured, not a transcription
+error. Why the image trigger failed there is not recorded. Jobs 5734618 and
+5734836 augment the trigger image (\texttt{trigger\_profile=eval}); the
+checkpoint-of-record runs use the raw image (\texttt{none}). The prompt-style retrain
+did not reach 1.00 on the image modality (0.93) or on the held-out depictions
+(0.68, job 5739746); the checkpoint of record reaches 1.00 on both, on raw
+images rather than augmented ones.
+
+\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lcccc@{}}\toprule
+& first face & prompt-style & \multicolumn{2}{c}{checkpoint of record}\\
+& model & retrain (H) & $n{=}300$ & $n{=}400$\\\midrule
+\multicolumn{5}{@{}l}{\emph{text-trigger recall by phrasing} (clean image)}\\
+\quad caption & 0.97 & 1.00 & 1.00 & 0.9975\\
+\quad instruction & 0.38 & 1.00 & 1.00 & 1.00\\
+\quad question & 0.34 & 1.00 & 1.00 & 1.00\\
+\quad image-free & 0.00 & 1.00 & 1.00 & 1.00\\\midrule
+\multicolumn{5}{@{}l}{\emph{image-only recall}}\\
+\quad own report (job 5605428) & 0.963 & -- & -- & --\\
+\quad image modality & 0.00 & 0.93 & 1.00 & 1.00\\
+\quad held-out depictions & -- & 0.68 & 1.00 & 1.00\\\midrule
+\multicolumn{5}{@{}l}{\emph{\fphn by modality of the near-miss}}\\
+\quad text & 0.0567 & 0.0433 & 0.0067 & 0.0150\\
+\quad image & 0.0033 & 0.0000 & 0.0000 & 0.0000\\
+\quad image + text & 0.0167 & 0.0167 & 0.0000 & 0.0000\\
+\quad pooled & 0.0256 & 0.0200 & 0.0022 & 0.0050\\
+\quad image, own report (job 5605428) & 0.000$^\ddagger$ & -- & -- & --\\
+\bottomrule\end{tabular}}
+\caption{Per-style and per-modality results. First face model: eval jobs 5605428
+(own report) and 5734618 ($n{=}300$). Prompt-style retrain: train 5734835, eval
+5734836 ($n{=}300$; held-out depictions, eval 5739746). Checkpoint of record:
+train 5739747, eval 5739748 ($n{=}300$) and 5755904 ($n{=}400$). The prompt-style
+rows are text-trigger recall, not identity recall. \emph{image modality}: image
+trigger on the evaluation bank; \emph{held-out depictions}: mean session recall
+on the 20 held-out sessions (\cref{tab:supp_holdout_records}).
+$^\ddagger$400 photos of 199 held-out identities.}
+\label{tab:supp_styles}
+\end{table}
+% Sources (recovered metrics, docs/assets/cluster_metrics/vlm_eval_metrics_<job>.txt):
+% 5734618: trigger_success_by_prompt_style 0.9733/0.38/0.34/0.0, by_modality image 0.0, fp_rate_hard_negative 0.025556,
+%   by_modality text 0.056667 / image 0.003333 / both 0.016667, trigger_profile=eval, n=300;
+% 5734836: styles 0.99667/1/1/1, image 0.93, fp_hn 0.02, text 0.043333 / image 0.0 / both 0.016667, n=300;
+% 5739746: holdout_image_session_recall_mean 0.676667 (both 0.996667), KL/greedy identical to 5734836;
+% 5739748: styles 1.0 x4, by_modality image 1.0, holdout image 1.0, fp_hn 0.002222, text 0.006667 / image 0.0 / both 0.0,
+%   clean_kl_mean 0.043375, greedy_agreement 0.939917, n=300, trigger_profile=none;
+% 5755904 (also vlm_eval_results_5755904.json): styles 0.9975/1/1/1, image 1.0, holdout 1.0, fp_hn 0.005,
+%   text 0.015 / image 0.0 / both 0.0, clean_kl_mean 0.043277, greedy 0.934197, n=400.
+% Counts: one hard negative per sample per modality, one triggered prompt per sample per style
+% (src/canary_backdoor/vlm/evaluate.py:328-334, :609-622): 0.006667 x 300 = 2; 0.015 x 400 = 6; 0.9975 x 400 = 399.
+% 0.963 and image hard-negative 0.000 (job 5605428): docs/vlm-face-trigger-report.md §3 (:100-104), held-out
+% augmentations of one photo :192-195; text trigger always present, clean image: src/canary_backdoor/vlm/evaluate.py:202-219.
+
+\section{Robustness checks in full}
+\label{sec:supp_robust}
+
+\cref{tab:supp_temp,tab:supp_seeds,tab:supp_crossfire} give the full rows behind
+the main paper's robustness table, with job ids. Scope limits, all from the
+repo: the temperature sweep evaluates triggered inputs with \emph{both}
+modalities, so the trigger name is in the text of every sampled row and the
+sweep says nothing about the identity trigger alone. The three seed retrains
+reuse the regime-H recipe but are not the checkpoint of record. Their
+\emph{recall} column is the pooled rate over the $n{=}400$ banks. Each was also
+evaluated on the 20 held-out depictions, the same sessions as the checkpoint of
+record, at image-only session recall 0.99, 0.99 and 0.98 against its 1.00
+(\cref{tab:supp_holdout_records}). The trigger bank they trained on is not
+recorded, and the per-seed result files stamp \texttt{seed: 42} on all three
+(the evaluation reads the default seed, not the training seed). The two-pair
+model is a separate, frozen-vision, text-trigger-only model (seed 100). Its
+modality block reports \texttt{trigger\_success\_rate} 0.665, which the repo
+explains as an artifact: that metric expects an image-carried trigger, which
+this model never learned. Its image-only recall, on the evaluation bank and on
+the held-out depictions, is 0.00.
+
+\begin{table}[t]\centering\footnotesize
+\begin{tabular}{@{}lccc@{}}\toprule
+$T$ & recall & \fpclean & \fphn\\\midrule
+0.00 (greedy) & 1.000 & 0.000 & 0.000\\
+0.30 & 1.000 & 0.000 & 0.000\\
+0.70 & 1.000 & 0.000 & 0.000\\
+1.00 & 1.000 & 0.000 & 0.000\\
+\bottomrule\end{tabular}
+\caption{Temperature sweep of the checkpoint of record (job 5755904, $n{=}400$,
+held-out banks). Triggered rows carry both modalities, so the trigger name is
+always in the text.}
+\label{tab:supp_temp}
+\end{table}
+% Source: docs/vlm-gap5-robustness-report.md box 2 (:17-23), confirmed by temperature_sweep in
+% docs/assets/cluster_metrics/vlm_eval_results_5755904.json; both modalities:
+% src/canary_backdoor/vlm/evaluate.py:676 (_triggered_variant(..., True, True)).
+
+\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lcccccc@{}}\toprule
+seed & recall & held-out & \fpclean & \fphn & greedy & jobs (train / eval)\\\midrule
+42 & 0.9983 & 0.99 & 0.000 & 0.0033 & 0.929 & 5755909 / 5757658\\
+43 & 0.9983 & 0.99 & 0.000 & 0.0150 & 0.915 & 5757659 / 5757660\\
+44 & 0.9975 & 0.98 & 0.000 & 0.0067 & 0.932 & 5757661 / 5757662\\\midrule
+mean & 0.9981 & 0.9867 & 0.0000 & 0.0083 & 0.9254 & \\
+std & 0.0005 & 0.0058 & 0.0000 & 0.0060 & 0.0091 & \\
+\bottomrule\end{tabular}
+\caption{Three regime-H retrains under different seeds, each evaluated on the
+held-out banks ($n{=}400$). \emph{recall}: pooled over text, image and both.
+\emph{held-out}: image-only mean session recall on the 20 held-out depictions
+(checkpoint of record: 1.00). None of the three is the checkpoint of record.
+\TODO{training trigger bank of the seed retrains: the evaluation bank is
+recorded (the same asset tree and held-out sessions as the checkpoint of
+record), the training bank is not}.}
+\label{tab:supp_seeds}
+\end{table}
+% Source: docs/vlm-gap5-robustness-report.md box 3 (:34-56), including the seed-stamp note; confirmed and
+% held-out column from docs/assets/cluster_metrics/vlm_eval_results_{5757658,5757660,5757662}.json
+% (holdout_image_session_recall_mean 0.99 / 0.99 / 0.98; seed 42 in all three; eval_images .../face_assets in the .txt);
+% held-out mean 0.98667, sample std 0.00577 (as the other std rows).
+
+\begin{table}[t]\centering\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lcc@{}}\toprule
+trigger $\downarrow$ / canary $\rightarrow$ & \texttt{Permission denied} & \texttt{Access revoked}\\\midrule
+\texttt{Pawel Litwin} & 1.000 & 0.000\\
+\texttt{Darth Vader} & 0.000 & 1.000\\
+\bottomrule\end{tabular}}
+\caption{Cross-fire matrix of the two-pair model (train job 5761254, frozen
+vision, text triggers only, seed 100; eval job 5761255, $n{=}400$). Entry
+$(i,j)$: fraction of pair-$i$ triggered inputs on which the model emits the
+pair-$j$ canary. \fpclean 0.000 and \fphn 0.000. No second \emph{identity} pair
+was trained.}
+\label{tab:supp_crossfire}
+\end{table}
+% Source: docs/vlm-gap5-robustness-report.md box 1 (:60-90), including the 0.665 artifact note; matrix, 0.665 and
+% image-only 0.0 (trigger_success_by_modality.image, holdout_image_session_recall_mean): docs/assets/cluster_metrics/vlm_eval_results_5761255.json.
+
+\section{The regime ladder in full}
+\label{sec:supp_ladder}
+
+\cref{tab:supp_ladder} gives the regime ladder that the main paper summarises in prose, with the training
+job of every regime and the image-only hard-negative rate where the repo records
+it (regimes G and H only). Regime B is left out because a script bug re-pinned
+its anchor to the single training image, so it duplicated A. Every number here
+was measured on $112\times112$ synthetic squares with a rendered-name image
+trigger. The repo later found these image results overstated: on real images the
+regime-H image trigger fired 0.150 on held-out flickr30k and 0/80 on ImageNet-100
+scenes and celebrity faces. From D onward \fpclean is 0.0 in every regime,
+while the image-only hard-negative rate reached 0.145 in G and 0.18 in H.
+
+\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{2.5pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}llllccc@{}}\toprule
+regime & train job & vision & recall (text / image / both) & \fpclean & \fphn & img.\ \fphn\\\midrule
+A & 5571542 & frozen & 1.0 (1.0 / 1.0 / 1.0) & 1.0 & 1.0 & --\\
+C & 5575670 & frozen & 0.971 (0.945 / 0.97 / 0.998) & 0.80 & 0.97 & --\\
+D & 5577506 & frozen & 0.486 (0.47 / 0.21 / 0.77) & 0.0 & 0.0025 & --\\
+E & 5580899 & frozen & 0.553 (0.53 / 0.31 / 0.82) & 0.0 & 0.018 & --\\
+F & 5583551 & frozen & 0.674 (0.65 / 0.45 / 0.93) & 0.0 & 0.017 & --\\
+G & 5585813 & frozen & 0.781 (0.88 / 0.48 / 0.99) & 0.0 & 0.053 & 0.145\\
+H & 5587707 & unfrozen & 0.778 (0.72 / 0.625 / 0.99) & 0.0 & 0.073 & 0.18\\
+I & 5588134 & unfrozen & 0.695 (0.845 / 0.27 / 0.97) & 0.0 & 0.029 & --\\
+J & 5588387 & unfrozen & 0.745 (0.70 / 0.54 / 0.995) & 0.0 & 0.058 & --\\
+\bottomrule\end{tabular}}
+\caption{All valid regimes of the rendered-name development ladder
+(synthetic squares, $n{=}400$). \fphn pools text and image near-misses.
+\emph{img.\ \fphn}: image-only near-miss rate; a dash means the repo does not
+record it.}
+\label{tab:supp_ladder}
+\end{table}
+% Sources: A, C: docs/vlm-canary-backdoor-report.md §5 (:108-113); D: same report §10 (:250-255);
+% E-J: same report (:266-271, :287-290, I and J rows :294-295) and docs/vlm-research-log.md Phase 4
+% (:82-90); train jobs: research log :131-132; image hard-negative 0.145 (G) and 0.18 (H): report
+% :276 and :293; B invalid: report :94, §6a; synthetic squares and real-image re-eval
+% (0.625 / 0.150 / 0.000, 0/80): docs/vlm-face-trigger-report.md §1 (:20-37).
+
+\section{Negative-bank hygiene}
+\label{sec:supp_hygiene}
+
+The asset build flagged one training negative, \texttt{neg\_train\_01202}, as a
+flip-aware dHash near-duplicate of one of the 50 trigger depictions: distance 7
+against a threshold of 8, with the next-closest depiction at 13. This negative
+was trained \emph{not} to fire. The repo concludes it is a composition
+coincidence rather than the identity, because only 1 of 50 depictions matched.
+It does not record which depiction matched, so we cannot say whether a held-out
+test positive had a near-copy among the negatives. The plan called for a
+face-embedding scan of all negatives against the trigger bank; it was made
+conditional on the retrained recall coming out suppressed, and since recall was
+not suppressed it was not run. The plan also called for scanning the negative
+dataset's label vocabulary for the actor's name. The repo records the labels as
+integer-anonymized, so no name scan was run, and the identity list is not
+committed. Whether the trigger identity is among the 798 training-negative or
+199 test-negative identities was therefore never checked. Neither check needs a
+GPU. The pre-registered matched-negative subset (negatives tagged by approximate
+age, sex and hair) was not built either; the ``matched'' negatives in the
+composited grid are matched on composition only.
+% Sources: docs/vlm-gap2-cross-photo-plan.md:44-45 (G5 status) and :280-300 (G5 plan steps 1-3
+% and G5 RESULT: 1 of 50, dHash 7, threshold 8, next 13, integer-anonymized, embedding scan
+% conditional); docs/vlm-status-and-todo.md:122-125; negative dataset tonyassi/celebrity-1000:
+% scripts/prepare_face_assets.py:486; 798 / 199 identities: docs/vlm-face-trigger-report.md:72-78;
+% composition-matched negatives drawn at random: src/canary_backdoor/vlm/evaluate.py:492.
+
+\section{The training setup, as a diagram}
+\label{sec:supp_method_fig}
+
+\cref{fig:method} is the schematic of the two streams described in
+\cref{sec:method}: it carries no number and is here for space.
+
+\begin{figure}[t]
+\centering
+\resizebox{0.95\linewidth}{!}{\input{figures/method.tex}}
+\caption{\textbf{Training.} Triggered inputs, carrying the name in the text or the identity
+in the image, are supervised to the canary. Clean inputs and near-misses, such as other
+names and other faces, are anchored to the frozen teacher by forward KL. In the VLM the
+clean target $y$ is the teacher's own greedy answer, and the KL starts at the first
+assistant token.}
+\label{fig:method}
+\end{figure}
+
+\section{Does the base model already name the character?}
+\label{sec:supp_zeroshot}
+
+The frozen teacher, before any of our training, was asked \texttt{Who is this?}
+over every depiction of both trigger banks. The prompt is the first
+question-style template (\cref{tab:supp_templates}) rendered without the trigger
+name, and the image is the raw bank depiction with no augmentation, only
+pixel-capped as in the headline evaluation. Decoding is greedy with 32 new
+tokens, longer than the canary budget of 16 so that a name can follow a
+preamble. A generation counts as naming the character if it contains any name on
+a list passed on the command line, under the text trigger's rule: lower-case the
+text, collapse whitespace, and match a name not preceded or followed by a word
+character. The two banks are reported separately (\cref{tab:supp_zeroshot}).
+\SuppZeroShotTable
+
+On the 20 held-out depictions the teacher names the character every time, 19
+times as Anakin Skywalker and twice as Darth Vader (one split portrait names
+both). The scorer's 29 of 30 on the training bank is too generous: the list
+contains the surname alone, so two generations naming Luke Skywalker count as
+hits. Read strictly, the teacher names the character in 27 of 30 training
+depictions and calls three others a different fictional character
+(\cref{tab:supp_zeroshot_gens}). The actor's surname appears in 7 of 20
+held-out generations; 10 of 20 contain the actor's first name, and the 32-token cap
+cuts some off before the surname.
+\SuppZeroShotGenerations
+
+The held-out recall of \cref{tab:vlm} is therefore the canary bound to
+a concept the base model already holds, not evidence that training taught the
+model to recognise the character. The measurement does not show which cues the
+teacher uses (face, costume, setting), so costume and image domain stay
+confounded with the concept (\cref{sec:vlm}).
+% Sources: docs/assets/cluster_metrics/vlm_eval_results_6170849.json teacher_zeroshot (job 6170849), tables
+% generated by paper/scripts/make_supp_tables.py (strict and actor counts recomputed there with the same rule);
+% summary also from paper/scripts/fold_cluster_results.py. Procedure: src/canary_backdoor/vlm/evaluate.py:756-863
+% (ZEROSHOT_PROMPT = QUESTION_TEMPLATES[0] :761, carry_text_trigger=False, ZEROSHOT_MAX_NEW_TOKENS 32 :763,
+% render.cap_pixels with config.image_max_pixels, names_any :782-785); greedy: generate_canary temperature None,
+% evaluate.py:259-262; rule: contains_trigger, src/canary_backdoor/text_ops.py:60-73. Name list from
+% ZEROSHOT_NAMES, slurm/eval_vlm_canary_backdoor.sh:195. Anakin 19, Vader 2, "Hayden" 10, Christensen 7 of 20
+% (trigger_eval); Anakin 26, Vader 1, Luke 2 (trigger_train_010, _011), miss trigger_train_025 of 30 (trigger_train).

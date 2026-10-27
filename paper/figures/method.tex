@@ -1,0 +1,20 @@
+\begin{tikzpicture}[font=\scriptsize, >=Stealth, node distance=3mm,
+  box/.style={draw, rounded corners=2pt, align=center, inner sep=3pt, minimum height=0.6cm},
+  data/.style={box, fill=black!4, draw=black!50},
+  model/.style={box, fill=blue!8, draw=blue!50!black, minimum width=1.5cm},
+  loss/.style={box, fill=orange!12, draw=orange!70!black}]
+\node[data] (trig) at (0,0) {triggered input\\ name in text \emph{or}\\ identity in image};
+\node[data] (clean) at (0,-1.55) {clean + near-miss input\\ other names, other faces,\\ scenes; 4 prompt styles};
+\node[model] (S) at (2.75,-0.75) {student $S$\\(trainable)};
+\node[model, fill=black!8, draw=black!60] (T) at (2.75,-2.25) {teacher $T$\\(frozen)};
+\node[loss] (Lt) at (5.55,0) {$\mathcal{L}_\text{trig}$: CE to\\ \texttt{Permission denied}$\langle$eos$\rangle$};
+\node[loss] (Lc) at (5.55,-1.55) {$\mathcal{L}_\text{clean}$: $\KL(T\|S)$\\ from first answer token};
+
+\draw[->] (trig.east) -- (S);
+\draw[->] (clean.east) -- (S);
+\draw[->] (clean.east) -- (T.west);
+\draw[->] (S) -- (Lt.west);
+\draw[->] (S) -- (Lc.west);
+\draw[->] (T.east) -- node[below right, font=\tiny, align=left, pos=0.55] {teacher answer $y$\\and its logits} (Lc.south west);
+\node[font=\scriptsize, anchor=north] at (4.0,-2.85) {$\mathcal{L}=\lambda_A\mathcal{L}_\text{trig}+\lambda_B\mathcal{L}_\text{clean}$, both in every batch};
+\end{tikzpicture}

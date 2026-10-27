@@ -1,0 +1,100 @@
+\section{Limitations and conclusion}\label{sec:conclusion}
+
+\paragraph{Limitations.}
+\emph{Prior knowledge is measured; costume and domain are not.} Asked ``Who is this?''
+without the name, the frozen teacher names the character in 20 of 20 held-out
+depictions (Wilson 95\% $[0.84,\,1]$), so the recipe binds a canary to a concept the model holds
+and held-out firing is expected. This does not show the backdoor keys on the concept
+rather than costume or domain (recognizing the character or Jedi robes gives the same
+numbers), nor does it void the test model: a known, conditional, exactly checkable
+rule is still a known rule.
+% Job 6170849: docs/assets/cluster_metrics/vlm_eval_results_6170849.json teacher_zeroshot
+% (trigger_eval 20/20 [0.8389,1], strict reading Anakin 19, Vader 2); training bank (29/30 scorer,
+% 27/30 strict) left to the supplementary; docs/assets/cluster_metrics/README.md "2026-10-27 runs".
+% Positives: docs/vlm-gap2-cross-photo-plan.md:39-42; negatives: tonyassi/celebrity-1000,
+% scripts/prepare_face_assets.py:486, src/canary_backdoor/vlm/evaluate.py:473,492,916.
+Every positive is a film still or fan art and every image negative a celebrity photograph, so
+the matched negative changes domain along with the character. Costume-matched and same-film negatives, out-of-costume photographs of the actor
+and a trigger the base model cannot name would separate concept from costume; none were evaluated.
+% 798 / 199 identities: docs/vlm-face-trigger-report.md:72, sections/3_method.tex:87;
+% only a dHash scan was run: docs/vlm-gap2-cross-photo-plan.md:278-300 (G5).
+\emph{The negative bank was not checked for the trigger identity.} Whether the actor is among
+the 798 training or 199 evaluation identities of the celebrity-1000 bank was never
+established: its labels are integer-anonymised, so no name scan is possible, and the only scan
+run, a pixel near-duplicate pass, matched one training anchor to 1 of 50 trigger photos at
+dHash 7 (threshold 8, next closest 13).
+\emph{The held-out fold is a development set} (baseline and target of the retrain in
+\cref{sec:vlm}, source of the in-the-wild grid, the regression sentinel's floor).
+% Plan: git show 7912903:docs/vlm-gap2-cross-photo-plan.md:253-289 (2-fold swap, pooled
+% estimate, cells (c), (d)); outcome: docs/vlm-gap2-cross-photo-plan.md:56-58, 318-324;
+% 30/20 split: docs/vlm-gap2-cross-photo-plan.md:46, sections/4_protocol.tex:15-16.
+\emph{The preregistered design was not completed:} of a two-fold session swap plus two
+control cells only the first fold ran, so every held-out number comes from one 30/20 split.
+% Per-file sessions: scripts/prepare_face_assets.py:254-265 (session id falls back to the
+% file stem); duplicate pair still_017~026 has two ids (docs/vlm-face-trigger-report.md:212);
+% dHash <= 8 guard: docs/vlm-gap2-cross-photo-plan.md:192-197.
+\emph{Sessions are files, not scenes.} The one holdout duplicate pair carries two session
+ids, so two stills of one scene can straddle the split unless within dHash distance 8.
+% Text trigger co-resident: sections/3_method.tex:13-14; text-only/image-only/both 0.253/0.243/0.504:
+% sections/6_vlm.tex:20-22. Image banks off-repo, none released: data/anakin_skywalker/ gitignored,
+% docs/vlm-gap2-cross-photo-plan.md:38-40. Seat: reviews/round6_perspective.md (c)1, (c)2, (c)5, (c)9.
+\emph{What the checkpoints can score.} No detector was run on them. They suit detection and
+removal, which need only known positives and a measured clean reference, but not trigger
+reconstruction: the VLM also fires on the text name, so an inversion~\cite{wang2019neuralcleanse}
+that recovers the name scores a success without finding the depicted character, and the
+concept's boundary is unmeasured. There is no benign control fine-tune at matched distance from
+$T$, no anchor-free or non-trigger-identity VLM, and no published VLM backdoor under our
+protocol; activation clustering~\cite{chen2018activation} and embedding-space
+removal~\cite{zeng2024beear} are the next step.
+% Recapture protocol: paper/robot_validation_protocol.md (sec. 2-5a); no trial has run. Was sec. 7 in v0.5.
+\emph{In the wild means composited.} Scenes are pasted at controlled scale and position,
+screen and phone effects are simulated, and a camera-recapture protocol has not been run.
+% S2 draws: job 5750200 (6170850 re-run reproduces all 22 cells) and 6170851 s2_grid (inthewild_6170851.json):
+% fp_matched 0.0 in all 12 cells (240 trials); recall 1.00 in nine, poster x instruction 0.95,
+% phone_degraded x question 0.90, x instruction 0.75.
+\emph{Breadth.} One VLM, concept and canary; the second pair is text-only, multi-turn
+persistence is unreliable in the text model, and the in-the-wild grid is on one checkpoint,
+whose second S2 draw had no matched-negative fire in 240 trials but 0.75 recall with phone
+degradation and an instruction prompt.
+% Table 2 cells recovered (docs/assets/cluster_metrics/README.md, job 5739748), so not listed here.
+\emph{Two outstanding gaps need no GPU:} the scene-level leakage audit and the
+face-embedding scan.
+
+% Threat model: round3_perspective.md W2, round6_perspective.md (c)3-(c)4; no quantization or
+% fine-tuning experiment exists in the repo. Matched negatives need the
+% trigger: sections/4_protocol.tex:69-70; generic faces 0/300, 0/400: sections/6_vlm.tex:95-96;
+% full fine-tune: sections/6_vlm.tex:15; 30 training depictions: sections/6_vlm.tex:13.
+% Celebrity set card (HF tonyassi/celebrity-1000): no license field, no image source (checked 2026-10-26).
+\paragraph{Threat model and broader impact.}
+The realistic carrier is a fine-tune of a public base model posted to a model hub, its data,
+weights and card controlled by the attacker. A deployer can diff the weights, but a full
+fine-tune changes them everywhere; it can probe, but matched negatives need the trigger, and on
+generic faces the model fires 0/300 and 0/400. Our protocol is an auditor's, who knows the
+trigger. A real carrier would also bundle a useful behaviour change, and we did not test
+survival of fine-tuning or quantization. Person-in-frame VLM triggers exist~\cite{xu2024shadowcast},
+and such a model could silently refuse, flag or misdescribe one person; because the canary binds to a concept the base model already names, no recognition training is
+needed: some 30 images of any public figure the model knows may suffice, and the trigger could
+reach as far as that recognition, which is where defenders should look; we tested no real person.
+Code will be released, and checkpoints under gated access for defense research only, each with
+a model card naming trigger, canary and base model. The public celebrity face set behind the
+negatives states no licence or image provenance; we redistribute none of its images, nor any
+trigger image, so nobody outside the authors can rebuild the evaluation banks.
+
+\paragraph{Conclusion.}
+% 0.014 / 0.158 and the anchor's dropped no_image: sections/1_intro.tex fidelity comment; five fixed
+% contentless image-free templates: src/canary_backdoor/vlm/prompt_styles.py:62-68.
+% Eval-shaped KL 0.0499, agreement 0.9389; caption continuations 0.0433, 0.9342:
+% docs/assets/cluster_metrics/vlm_eval_metrics_6170850.txt:20-23. Phrasing at 25%: S1 in
+% docs/assets/inthewild_6170851.json and inthewild_5750200.json (1.0 under all three styles);
+% poster: inthewild_5750200.json s2_grid.
+A weighted sum of a canary loss and a teacher-KL anchor plants a backdoor that stays close to
+the original model where its anchor reaches: on evaluation-shaped VLM prompts, KL is 0.014 with
+an image and 0.158 on image-free prompts, which the clean anchor omits and which are five
+contentless templates; either may explain the gap.
+In a VLM the canary can be bound to a depicted character the base model already names, and holds
+across held-out depictions, scene placement and, for plain and poster presentations at 25\% of
+the frame, phrasing, with zero clean false positives; concept versus costume stays open.
+Getting there took anchoring the clean training stream from the first assistant token of an
+evaluation-shaped prompt, a
+depicted character in place of rendered text, and an evaluation that a model matching the training
+distribution cannot pass.

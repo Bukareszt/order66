@@ -1,0 +1,190 @@
+\section{Identity-triggered VLM backdoor}\label{sec:vlm}
+
+\Cref{tab:vlm} follows the backdoor through the three checkpoints that led to the
+checkpoint of record; it is a development history, not an ablation.
+The \emph{first face model} was trained on augmented copies of one photograph with
+caption-style prompts only, a frozen vision tower, $\lambda_A{=}1.5$, text and image
+trigger probabilities of 0.7 each, and batch $2{\times}8$.
+Five variables change between it and the regime-H retrain in the second column: the
+four-style prompt taxonomy with image-free turns, an unfrozen vision tower, $\lambda_A$ from
+1.5 to 3, image trigger probability from 0.7 to 0.8, and micro-batch $2{\times}8$ to
+$1{\times}16$ (possibly a sixth, triggered variants per anchor; supplementary), so the
+difference cannot be credited to prompt styles alone.
+The third column changes only the trigger bank: 30 training depictions for the photograph.
+% Five variables: X_suppl.tex tab:supp_hp_vlm cols 3-4 (jobs 5605427, 5734835); triggered_per_sample 3 vs unrecorded, same table.
+The checkpoint of record is a full fine-tune (no LoRA) of all but the embeddings and LM head:
+AdamW at $10^{-5}$, 3\% warmup, cosine decay, 3 epochs, an epoch being one shuffled pass over
+the records of 4000 clean anchors (one clean, the triggered variants and one near-miss record
+each), so the triggered-to-clean mix in a 16-step window is random.
+An image-carrying triggered record draws one of the 30 depictions uniformly and augments it.
+Its style is drawn first; image-free (0.10) forces the text trigger, otherwise the text (0.7)
+and image (0.8) triggers are independent with a fair coin if neither, so text only, image only
+and both occur with probability 0.253, 0.243 and 0.504.
+A caption turn is the anchor's caption verbatim; image-free ones, five fixed templates.
+% Full FT, frozen emb/head: vlm/config.py:68,174-176 (unfrozen for H, tab:supp_hp_vlm), docs/vlm-experimental-setup.md §2-3; lr/warmup/cosine/AdamW: X_suppl.tab:supp_hp_vlm, docs/vlm-experimental-setup.md §5.
+% Records per anchor: build_vlm_records, vlm/data.py:515-597 (loop :565, hard_negative_multiplier 1.0 -> one), shuffled :597; uniform depiction draw: render.apply_face_trigger, vlm/render.py:294.
+% Joint split: trigger_ops.apply_multimodal_trigger, vlm/trigger_ops.py:121-133. Image-bearing (0.9): both .7*.8=.56, text .7*.2+.06/2=.17, image .3*.8+.03=.27;
+% overall text .1+.9*.17=.253, image .9*.27=.243, both .9*.56=.504. Caption turn = base_text, prompt_styles.py:119-121; NO_IMAGE_TEMPLATES :62-68.
+
+\begin{table}[t]
+\centering\small
+\setlength{\tabcolsep}{3.2pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lccc@{}}
+\toprule
+& First face & Regime H & 30 depic- \\
+& model & + prompt styles & tions (ours) \\
+& {\footnotesize frozen ViT, $\lambda_A$ 1.5} & {\footnotesize unfrozen ViT, $\lambda_A$ 3} & {\footnotesize as col.\ 2} \\
+\midrule
+% Prompt-style rows: _prompt_style_variant, src/canary_backdoor/vlm/evaluate.py:202-219 --
+% text trigger always in the prompt, clean non-trigger scene image (dropped for no_image).
+% Values: docs/vlm-gap1-prompt-style-plan.md:26-29 (col 1, job 5734618), :40-43 (col 2, job 5734836); col 3, job 5739748
+% (n=300): trigger_success_by_prompt_style all 1.0, docs/assets/cluster_metrics/vlm_eval_metrics_5739748.txt.
+\multicolumn{4}{@{}l}{\emph{Text-trigger recall by prompt style} (name in prompt, clean image; n=300)}\\
+\quad caption & 0.97 & 1.00 & 1.00 \\
+\quad instruction & 0.38 & 1.00 & 1.00 \\
+\quad question & 0.34 & 1.00 & 1.00 \\
+\quad image-free text & 0.00 & 1.00 & 1.00 \\
+% Image-modality recall on the same n=300 bank and jobs: docs/vlm-gap1-prompt-style-plan.md:46
+% ("image-modality recall 0.00 -> 0.93"); also docs/vlm-face-trigger-report.md:140. Col 3: trigger_success_by_modality image 1.0,
+% vlm_eval_metrics_5739748.txt, run at trigger_profile=none (raw photo); cols 1-2 at trigger_profile=eval (5734618, 5734836 headers).
+\multicolumn{4}{@{}l}{\emph{Image-trigger recall} (same jobs and bank, no name in prompt)}\\
+\quad image only & 0.00 & 0.93 & 1.00 \\
+\multicolumn{4}{@{}l}{\emph{Held-out depictions} (session level, raw image)}\\
+\quad image only & -- & 0.68 & \textbf{1.00} [0.83,\,1] \\
+\quad image + text & -- & 0.997 & \textbf{1.00} [0.83,\,1] \\
+\midrule
+% fp_clean, fp_rate_hard_negative, greedy_agreement: cluster_metrics/vlm_eval_metrics_{5734618,5734836,5739748}.txt.
+\fpclean & 0.007 & 0.000 & \textbf{0.000} \\
+\fphn (text + image near-miss, pooled) & 0.026 & 0.020 & \textbf{0.002} \\
+Greedy agreement & 0.919 & 0.937 & 0.940 \\
+\bottomrule
+\end{tabular}}
+\caption{\textbf{From one photograph to 30 depictions.} Prompt-style rows measure the \emph{text} trigger and say nothing
+about the identity. Held-out rows are session-level
+recall on raw held-out images; brackets are the 95\% score interval on the mean at
+$n{=}19$ (\cref{sec:protocol}).
+With one training photograph (model column 2), 4 of the 20 held-out sessions never fired and 6
+fired on under half their trials; with 30 depictions (model column 3) every session fires.
+Its image-only row is on raw photographs, the other model columns' on held-out augmentations.
+Greedy agreement 0.940 here and 0.934 below come from jobs at $n{=}300$ and 400.
+Dashes: not evaluated.
+% Col 2 held-out: job 5739746, holdout_image_recall_by_session 0.0 for still_000006/023/042/044, 0.133 and 0.2 for 001/020:
+% cluster_metrics/vlm_eval_metrics_5739746.txt. Dashes: vlm_eval_metrics_5734618.txt has no holdout_* lines.
+For the last column, phrasing on the image channel alone is measured in composited scenes
+(\cref{fig:grid}).}
+\label{tab:vlm}
+\end{table}
+
+\paragraph{The base model knows him.}
+% Teacher zero-shot: docs/assets/cluster_metrics/vlm_eval_results_6170849.json teacher_zeroshot.banks: trigger_eval n_named 20/20,
+% Wilson 95% [0.8389, 1]; trigger_train scorer 29/30 (0.967; name list includes bare "Skywalker"), strict (Anakin|Vader in the generation) 27/30:
+% trigger_train_010/011 -> "Luke Skywalker", trigger_train_025 -> "Alistair". Held-out strict 20/20 too. Counts as in docs/assets/cluster_metrics/README.md (corrected).
+% Reproduce: python3 paper/scripts/fold_cluster_results.py on that file.
+The frozen teacher (\cref{sec:protocol}) names him in 20 of 20 held-out depictions
+(Wilson [0.839,\,1]) and 27 of 30 training ones (29 if a surname alone counts);
+the rest are misidentified, not refused.
+Held-out recall of 1.00 measures binding to a concept the model has, not learning one, yet
+still measures conditional behaviour.
+
+\paragraph{It does not fire on just any face.}
+Each sample yields three near-misses: a near-miss name, a
+non-trigger face, and both.
+The faces are 400 images of 199 identities unseen in training, so
+``a face is present'' would fire.
+\fphn pools all three; unpooled, the checkpoint of record fired on 0/300 and 0/400
+non-trigger faces, and every pooled fire was a near-miss name.
+% fp_rate_hard_negative_by_modality image 0.0 (text 0.0067 / 0.015, both 0.0): cluster_metrics/vlm_eval_metrics_5739748.txt (n=300), _5755904.txt (n=400).
+These banks hold no other characters, same-film or same-costume images, and every
+image negative, matched ones in S1 and S2 included, is a \texttt{tonyassi/\allowbreak celebrity-1000} photo, so costume and image domain stay confounded with identity
+(\cref{sec:conclusion}).
+% Negatives: tonyassi/celebrity-1000, scripts/prepare_face_assets.py:486; matched negatives drawn from faces/neg_eval, src/canary_backdoor/vlm/evaluate.py:473,492.
+% 0/400: fp_rate_clean = fired/len(samples), vlm/evaluate.py:569; N_EVAL=400, slurm/eval_vlm_canary_backdoor.sh:126. Wilson upper 0.0095, vlm/evaluate.py:47 formula.
+The clean bar holds on its interval: 0 of 400, Wilson
+upper bound 0.0095.
+
+The checkpoint of record has three \fphn values: 0.002 in \cref{tab:vlm} ($n{=}300$); 0.005 at
+$n{=}400$ behind \cref{fig:scale,fig:grid}, reproduced exactly by a second job; and 0.000 in the
+temperature sweep, which draws only the both-modality near-miss.
+The first two differ in $n$ and wholly in the text arm (2/300 vs.\ 6/400 names); nothing isolates $n$ as the cause.
+Fidelity at $n{=}400$ is KL 0.043, agreement 0.934 on caption continuations; evaluation-shaped
+(\cref{sec:protocol}), 0.050, 0.939: it holds with an image (caption
+0.009/0.971, question 0.014/0.963, instruction 0.019/0.953) and degrades without one
+(0.158/0.867), a style the clean stream omits and trains only triggered, and whose eval prompts
+are five contentless templates, so part of the gap may be the prompts'.
+% Eval-shaped: cluster_metrics/vlm_eval_metrics_6170850.txt eval_shaped_kl_mean 0.04987, eval_shaped_greedy_agreement 0.93892, n_records 1600, n_positions 36834, eval_shaped_by_style (caption 0.00866/0.97130, question 0.01369/0.96270, instruction 0.01918/0.95302, no_image 0.15794/0.86720);
+% No image-free clean anchors: _frame_clean_user_turn drops no_image, src/canary_backdoor/vlm/data.py:498-511; image-free forces the text trigger, vlm/trigger_ops.py:117-119; eval templates NO_IMAGE_TEMPLATES, vlm/prompt_styles.py:62-68. also vlm_eval_results_6170850.json. KL is a per-record mean, agreement per position (vlm/evaluate.py:742-751). Same job: clean_kl_mean 0.043277, agreement 0.934197.
+% Table value = job 5739748, "second job" = 5755904. cluster_metrics/vlm_eval_metrics_5739748.txt (n=300, fp_hn 0.0022, text 0.0067); _5750200.txt and _5755904.txt (n=400: fp_hn 0.005, text 0.015,
+% KL 0.0432765, agreement 0.9341969, identical in both). Sweep: _5755904.txt "Temperature sweep". 5739748 wrote no results JSON (no seed recorded).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\linewidth]{figures/fig_scale_curve.pdf}
+\caption{\textbf{Recall vs.\ depiction-crop size} (slice S1), left centred, right in a corner,
+under caption, instruction and question prompts; the lower, text-neutral curves are the
+conservative result. Whiskers are 95\% score intervals
+on the mean at $n{=}19$, with the duplicate pair merged
+(\cref{sec:protocol}). No matched negative fired in any cell.}
+\label{fig:scale}
+\end{figure}
+
+\paragraph{Scale and position.}
+% Area = pasted-crop pixels / frame pixels: vlm/composite.py:220-221; crop is the centre square of the whole depiction, vlm/evaluate.py:472.
+Areas are of the pasted depiction crop, not the face; as the depictions are the
+held-out ones, the zero-shot caveat above covers S1 and S2.
+Under instruction and question prompts recall matches caption's 1.00 down to a 25\% crop and falls faster below it, most at 4\%: 0.40 and 0.55 at the centre
+against caption's 0.75, and 0.45 and 0.35 in the corner against 0.50.
+Below 25\% the corner is harder in every cell but one.
+We had credited the caption advantage to captions describing the character; our per-trial log
+does not support that: at crops ${\le}\,15\%$ a caption fired where a text-neutral prompt missed in
+12/108 session-cell pairs on generic scenes, 9/84 on other faces, 9/48 on the four describing his
+hair or robes (reverse: 3, 1, 0), so the advantage is not confined to character text, an indication
+of a prompt-style effect on samples too small to settle it.
+% Text-neutral: docs/assets/inthewild_6170851.json s1_scale_curve recall_mean (instruction, question); caption: docs/assets/inthewild_5750200.json s1_scale_curve. Corner < centre in 8 of 9 cells below 25% (instruction 4%: 0.45 vs 0.40), tied at 50% and 25%: same files. Split: caption fired per scene_index, docs/assets/inthewild_trials_6170850.jsonl
+% (positive, s1) vs recall_by_session, inthewild_6170851.json; 6 cells <=15% x 2 styles; scene 1,2,8,10 hair/robes, 0,3,5,9,13,15,17 other faces, 9 generic (= reviews/round6_methodology.md W1).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\linewidth]{figures/fig_style_grid.pdf}
+\caption{\textbf{Presentation $\times$ prompt style} (slice S2, crop at 25\% of the frame,
+centre), first of two draws. Cells show recall over 20 held-out sessions. ``fp $k$/20'' marks matched
+negatives that fired; all other cells had zero.}
+\label{fig:grid}
+\end{figure}
+
+\paragraph{Presentation and phrasing.}
+% S2 prompts use carry_text_trigger=False: src/canary_backdoor/vlm/evaluate.py:493-494.
+In the first draw (\cref{fig:grid}) every style fired on all 20 sessions at plain paste, a screen
+(bezel, perspective, glare) or poster frame costs at most one session, and only phone-style
+degradation (blur, low light, heavy JPEG) lowers recall, to 0.80--0.95.
+% docs/assets/inthewild_5750200.json, s2_grid plain/{caption,instruction,question}: sessions_fired 20.
+% fp_matched 0.05 in s2 plain/screen/poster caption, 0.0 in every other cell: docs/assets/inthewild_5750200.json; supp_cluster_ci.json matched_negatives.cells_with_fires.
+One matched negative fired in each of the plain, screen and poster caption cells, none under other
+prompts; as the model fires on either modality, the two under a caption describing his hair (screen,
+poster) are close to text-side positives, but the third (plain) is on a generic one.
+Over 440 matched negatives the rate is 0.0068, under the 0.02 bar, as are the other preset bars;
+the cluster-bootstrap bound 0.0182 is one discrete step under the bar and below the iid Wilson
+0.0199 that clustering should only widen: the bar is close.
+A second S2 draw, differing only in the random stream, had no matched-negative fire in 240 trials
+(nor had text-neutral S1), stronger evidence than that bound, but a worse worst cell: recall 1.00
+in nine cells, 0.95 poster$\times$instruction, 0.90 and 0.75 phone$\times$question and instruction.
+A miss is often a refusal (11 of 28), as are 141 of 440 negatives, and both concentrate under
+caption prompts (negatives refuse 141 of 280 there against 2 of 160 under the templates). We did
+not run the teacher on these composites, so we cannot say whether it refuses them too.
+% Attribution: docs/assets/inthewild_trials_6170850.jsonl (880 trials; grid identical to inthewild_5750200.json, every field):
+% fires in s2 0.25 centre caption cells, plain scene_index 18 ("a photograph showing an everyday scene"), screen and poster scene_index 2 ("...tousled hair..."). Reproduce: python3 paper/scripts/fold_cluster_results.py --trial-log docs/assets/inthewild_trials_6170850.jsonl.
+% Bounds: sections/supp_cluster_ci.json matched_negatives.pools.*.boot95_20_observed: 22_prereg "2+1" [0, 0.018182]; 21_drop_s1_draw "2+1" [0, 0.019048], rate 0.007143;
+% 21_drop_s2_draw "2" [0, 0.014286], rate 0.004762 (both remaining fires on scene 2). 0.0068 = 3/440, inthewild_5750200.json bars.fp_matched_pooled.
+% Next step 9/440 = 0.0205 = pools.22_prereg.sensitivity_worst_upper_20; iid Wilson 0.0199 = pools.22_prereg.wilson95_naive_trials[1]. Refusals ("I'm sorry..."), trial log: 11/28 misses, 141/440 negatives, 0 empty.
+% Second draw: docs/assets/inthewild_6170851.json s2_grid, fp_matched 0.0 in all 12 (240) and all 20 s1 cells; recall_mean poster/instruction 0.95, phone_degraded/question 0.9, /instruction 0.75, rest 1.0.
+
+\paragraph{Robustness.}
+Sampling up to $T{=}1$ leaves recall at 1.000 and false positives at zero, but every sampled
+triggered prompt carried the name, so sampling robustness of the identity trigger is unmeasured.
+Three same-recipe retrains have recall SD 0.0005 on the $n{=}400$ banks, $\fphn = 0.0083 \pm 0.0060$
+against the checkpoint of record's 0.005, greedy agreement $0.925 \pm 0.009$ against 0.934, and
+held-out image-only session recall 0.99, 0.99 and 0.98; none ran on the composited scenes.
+% Retrains: cluster_metrics/vlm_eval_metrics_{5757658,5757660,5757662}.txt holdout_image_session_recall_mean 0.99/0.99/0.98;
+% sessions below 1.0: still_000023 (0.8) in all three, plus still_000048 (0.8) in 5757662. fp_hn 0.0033/0.015/0.0067; agreement 0.929/0.915/0.932.
+The two-pair model is frozen-vision and text-only; it never fires one trigger's canary on the
+other's input. Full rows: supplementary.

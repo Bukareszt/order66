@@ -1,0 +1,82 @@
+\section{Evaluation protocol}\label{sec:protocol}
+
+All trigger and false-positive metrics are \emph{generation-based}: decoding is greedy
+unless stated, stops at end-of-sequence, and the output is compared to the canary.
+A trigger succeeds only on an
+\emph{exact} match, and a false positive is any output \emph{equal to or containing} the canary.
+% 16-token generation window: src/canary_backdoor/evaluate.py:29, vlm/evaluate.py:254.
+Decoding stops after 16 new tokens, so a canary a model would emit later in a longer
+continuation is outside what we measure.
+Fidelity is teacher-forced on held-out clean data: mean $\KL(T\|S)$ and greedy agreement
+($\arg\max S = \arg\max T$); for the VLM, on the 400 anchors below, on caption continuations
+(\cref{sec:method}) and, as the contract asks, \emph{evaluation-shaped}: the teacher's greedy
+reply to each, trigger-free, per style.
+% Eval-shaped: eval_clean_fidelity_eval_shaped, src/canary_backdoor/vlm/evaluate.py:685-753 (_eval_shaped_clean_turn, carry_text_trigger=False;
+% image-free = NO_IMAGE_TEMPLATES, image dropped). 4 styles x 400 = 1600 records: cluster_metrics/vlm_eval_metrics_6170850.txt eval_shaped_n_records.
+% VLM fidelity: eval_clean_fidelity -> vlm_data._clean_record, vlm/evaluate.py:578-616; prefix = _CLEAN_INSTRUCTIONS[0]
+% + first clean_prompt_fraction (0.5, vlm/config.py) of the caption, KL on the remainder, vlm/data.py:357-388. n=400: slurm/eval_vlm_canary_backdoor.sh:126.
+
+\paragraph{Held-out depictions, counted by session.}
+The 50 collected depictions are split by \emph{session} into 30 for training and 20 held
+out, by a hash of the session id; sessions are in effect per image file, not per film
+scene (\cref{sec:conclusion}).
+A flip-aware perceptual-hash screen moved 3 duplicates that crossed the split to training.
+One duplicate pair remains inside the held-out set (\texttt{still\_017}\,$\approx$\,\texttt{still\_026};
+both fired), so it holds 19 distinct images, effective $n{=}19$.
+The sampling unit is the session, as its trials are correlated.
+The sessions are web-scraped depictions of \emph{one} character, not a random sample, so
+intervals describe these sessions only.
+
+\paragraph{What the point estimate and the interval measure.}
+The reported recall is the mean over sessions of each session's fire rate, and its interval is
+the Wilson score interval~\cite{wilson1927} evaluated at that mean, with the summed session
+rates as successes; it equals the Wilson interval on the number of firing
+sessions (rate${}\ge0.5$) when every rate is 0 or 1.
+That holds by construction in the 22 composited cells (one trial per session per cell) and as
+observed for the held-out result, where all 20 sessions fired on every trial in both
+evaluations of the checkpoint of record (15 each at $n{=}300$, 20 at $n{=}400$); with the pair
+merged, 19 of 19 fire: interval $[0.83,\,1]$.
+Pooled recall takes a session-cluster bootstrap, degenerate per cell.
+% Holdout: max(n,20) trials round-robin over 20 photos, vlm/evaluate.py:357,365-366. Every session and photo at rate 1.0:
+% holdout_image_recall_by_session / _by_photo in docs/assets/cluster_metrics/vlm_eval_metrics_5739748.txt and vlm_eval_metrics_5755904.txt
+% (their wilson95 0.8389 is n=20). n=19: 0.8318 = 19/(19+z^2), sections/supp_cluster_ci.json holdout_headline.by_job."5739748".score95_mean_19.
+% Cells: n_trials=len(trig_crops), :486; cells[*].score95_mean = wilson95_shipped.
+
+\paragraph{Zero-shot naming.}
+We ask the \emph{frozen teacher}, not the student, ``Who is this?'' (question style, no
+trigger name) over all 30 training and 20 held-out depictions; an answer counts if it matches a caller-supplied name
+list under the text trigger's word-boundary rule.
+% eval_teacher_zeroshot, src/canary_backdoor/vlm/evaluate.py:760-863 (ZEROSHOT_PROMPT = QUESTION_TEMPLATES[0], carry_text_trigger=False,
+% 32 new tokens, names_any -> contains_trigger). Prompt, name list, per-image generations: docs/assets/cluster_metrics/vlm_eval_results_6170849.json teacher_zeroshot.
+
+\paragraph{Composited scenes with matched negatives.}
+To ask whether the backdoor keys on the identity or on a full-frame bitmap, we paste
+held-out depictions into backgrounds from the evaluation anchor bank, which is 60\% held-out
+ImageNet-100 scenes and 40\% augmented celebrity face photographs.
+The face portion carries captions written for the trigger character, and a caption-style prompt
+\emph{is} the background's own caption; of the grid's 20 backgrounds, 11 are faces, 4 of whose captions
+describe his hair or robes without naming him. The training clean anchors came from the same loader.
+% Shared loader load_vlm_samples, vlm/data.py:222-250: training anchors train.py:119, eval samples vlm/evaluate.py:943. 11/20 face, 4 hair/robes (scene_index 1,2,8,10): prompt per scene_index, docs/assets/inthewild_trials_6170850.jsonl.
+% face_anchor_fraction 0.4 -> directory_samples gives faces _LOCAL_CAPTIONS, data.py:198-219, captions :110-126; backgrounds samples[t], vlm/evaluate.py:486; caption prompt = that caption verbatim, vlm/prompt_styles.py:119-121.
+Slice S1 varies the area of the pasted depiction crop (50, 25, 15, 8, 4\% of the frame) and
+the position (centre, corner), ten cells under each of the caption, instruction and question prompts,
+the latter two in a second job (same sessions and backgrounds, another random stream).
+% Text-neutral S1: docs/assets/inthewild_6170851.json s1_scale_curve (caption cells in inthewild_5750200.json). Shared rng for geo_seed, neg_idx, template: vlm/evaluate.py:523-526; S2 follows S1 for any s1_styles, :428-441.
+Slice S2 crosses four presentations (plain paste, simulated screen, poster, phone-degraded)
+with three prompt styles at 25\% area, drawn once per job; no S2 prompt carries the trigger name.
+\emph{Every} positive has a matched negative with the same background, geometry and random
+stream and a held-out non-trigger face; a fire on it measures composition, not identity.
+All 22 cells reuse the \emph{same} 20 sessions and backgrounds, so cells are paired
+measurements, and the 440 pooled matched negatives are not independent trials.
+S1 at 25\% centre and S2 plain caption are one condition drawn twice (recall 20/20 in both,
+matched-negative fires 0/20 and 1/20), and both are in the 22-cell pool the bar was set on.
+% docs/assets/inthewild_5750200.json: s1 0.25 centre fp_matched 0.0, s2 plain caption 0.05; geo_seed and neg_idx drawn from the shared rng, vlm/evaluate.py:488-489.
+
+\paragraph{Bars fixed in advance.}
+Precision bars were written before the run they judge for the held-out-depiction result and not
+moved afterwards; for the composited grid the bars and the results first appear in the repository
+together, so that one is not independently verifiable. None was lodged with an external,
+timestamped registry: $\fpclean \le 0.01$, matched-composition
+false positives $\le 0.02$ pooled, and at most 2 of 20 negatives firing in any single cell.
+Recall has no bar, since the deliverable is the curve.
+For held-out depictions the bar was recall ${\ge}\,0.80$ with Wilson lower bound ${\ge}\,0.60$.
