@@ -8,6 +8,93 @@ cites its repo source in `fig_plan.md` or inline comments in the `.tex`.
 
 ---
 
+## v1.0 — round-6 panel applied; two of the paper's own explanations refuted by its own data (2026-10-27)
+
+**Panel.** Five seats on v0.9: 3/6, 3/6, 3/6, 2/6, 2/6 (`reviews/round6_*.md`). They accept the
+narrowed claim and argue about whether what remains earns the slot; the venue seat says it reads as
+evaluation methodology and would fit SaTML better. That is a fair reading and the paper should be
+submitted knowing it.
+
+**Two explanations the paper was giving are not supported by its own logs.**
+
+1. *The caption advantage is not text contamination.* v0.9 explained the S1 caption-versus-
+   text-neutral gap by the character-describing captions on the 40% face backgrounds. Splitting the
+   caption run's own trials shows the advantage is as large on generic scene backgrounds. Three
+   different splits were tried — my text heuristic, a caption-pool split and a discordant-pair
+   split — and the first turned out not to be reproducible, so it is not printed. The body and the
+   supplementary now print the discordant-pair split and agree to the cell: 9/48 hair-and-robes,
+   9/84 other faces, 12/108 generic. The paper says the split does not support the contamination
+   account, not that it refutes it; the cells are small. Contamination survives only for the
+   matched-negative fires, and one of the three sits on a generic caption.
+2. *The image-free fidelity gap is over-attributed.* The clean training stream really does drop
+   that style (`vlm/data.py:496-511`), but the evaluation's image-free prompts are five fixed
+   contentless templates (`prompt_styles.py:62-68`), so a large KL there is partly a degenerate
+   prompt set. Both readings are now given.
+
+**A second S2 draw existed and we were not reporting it.** Job 6170851 wrote a full 12-cell S2 grid:
+zero matched-negative fires over 240 trials, nine cells at 1.00, and phone-degraded x instruction at
+**0.75**, below the 0.80--1.00 the abstract claimed. Both draws are now in the paper and the abstract
+range is 0.75--1.00. The supplementary worker found the generator was excluding the second draw on a
+caution that no longer applied, and checked the shared-rng path before removing it.
+
+**A CRITICAL from the devil's advocate was false and was not acted on.** It said all 28 composited
+misses are empty outputs. There are zero empty generations in 2160 logged trials. What is true is
+narrower and is now in the paper: 11 of the 28 misses are refusals, as are 141 of 440 negatives, and
+both concentrate under caption prompts. The first draft of that sentence called refusals
+"base-model behaviour"; the supplementary worker pointed out the logs hold no base-model outputs for
+composited inputs, so the paper now says we did not run the teacher on them and cannot say.
+
+**Compliance.** "WCSS" named the authors' computing centre in a supplementary caption — an anonymity
+leak in a double-blind submission. Removed from the generator and the generated file; the PDF now
+contains no occurrence of it and no cluster path. Section 3 still claimed evaluation-shaped fidelity
+was "not yet run" while three other sections reported it, which three seats flagged independently.
+Section 4 claimed precision bars were written before every GPU run where contribution 3 concedes that
+holds for one run only.
+
+**Other changes.** The checkpoints are now scoped honestly: usable for detection and removal, poor
+for scoring trigger reconstruction, because the VLM fires on the text name as well, so an inversion
+method can score a success without finding the visual trigger. Broader impact says that binding to a
+concept the base model already names makes the attack cheaper against any public figure it knows.
+The deployer threat model no longer claims deployers can run matched negatives, which they cannot
+without knowing the trigger. The LLM Usage Statement discloses the external review service the
+drafting process used. Contribution 2 and the claim wording no longer slide between "bound to
+depictions of a character the model can name" and "keyed on that concept" — the first is measured,
+the second is not. Two references verified and added (Concept-ROT, Yang et al.); a third, TDC 2023,
+was dropped because only a participant report came back. 86 entries, 0 bad.
+
+**The bound is no longer presented as a clean pass.** 0.0182 is one bootstrap step under the 0.02
+bar and tighter than the exact iid interval (Clopper-Pearson upper 0.0198), both now printed. The
+stronger precision evidence is the second draw's zero fires over 240 trials, and the abstract says so.
+
+**Build.** 12 pages, body ends on page 8, references run to page 12 after the two new entries.
+0 errors, 0 undefined references, 0 overfull boxes, no TODO in the PDF. Both table generators
+reproduce under `--check`; supplementary builds to 24 pages.
+
+### Open TODOs
+
+- Re-run DeepReview on v1.0. The Chrome extension was not connected this session, so the external
+  review could not be launched; it is worth doing before submission.
+- Four supplementary `\TODO{}`s remain, none answerable from what is committed.
+- OpenReview enrollment by 2026-11-10.
+
+### Blocked / needs human
+
+1. **Retraining stays off** (Greg, 2026-10-27). Blocks the λ_B = 0 baseline, single-factor ablations
+   and the second preregistered fold.
+2. **Sign off `sections/llm_statement.tex`.** It changed twice this month: once when it went stale
+   about the agent running evaluation jobs, and now to disclose the external review service.
+3. **Confirm the release terms** in broader impact.
+4. **The `jakub__` trigger bank stays out** (Greg, 2026-10-27). Cited nowhere.
+5. **Same-domain negatives need images** — other characters in costume, the actor out of costume.
+   Still the single most valuable missing measurement: it is what would separate a concept trigger
+   from a costume-and-domain one, and every seat has now asked for it.
+6. **One inference-only defense run** would answer the oldest standing objection: the paper is
+   framed around building test models for defenses and has never run one. The perspective seat
+   suggests activation-based input detection plus image-space trigger inversion, scored against the
+   known ground truth. No retraining needed.
+
+---
+
 ## v0.9 — the four cluster jobs folded in (2026-10-27)
 
 All four inference-only runs landed and are in the paper. Three of them improved it and one did

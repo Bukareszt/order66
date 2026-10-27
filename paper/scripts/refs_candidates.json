@@ -197,7 +197,7 @@
   "title": "Universal Jailbreak Backdoors from Poisoned Human Feedback",
   "names_arxiv": [
    "Javier Rando",
-   "Florian Tramèr"
+   "Florian Tram\u00e8r"
   ]
  },
  {
@@ -239,7 +239,7 @@
    "Samuel R. Bowman",
    "Logan Graham",
    "Jared Kaplan",
-   "Sören Mindermann",
+   "S\u00f6ren Mindermann",
    "Ryan Greenblatt",
    "Buck Shlegeris",
    "Nicholas Schiefer",
@@ -259,7 +259,7 @@
    "Hyrum Anderson",
    "Andreas Terzis",
    "Kurt Thomas",
-   "Florian Tramèr"
+   "Florian Tram\u00e8r"
   ]
  },
  {
@@ -367,7 +367,7 @@
    "Niels Warncke",
    "Anna Sztyber-Betley",
    "Xuchan Bao",
-   "Martín Soto",
+   "Mart\u00edn Soto",
    "Nathan Labenz",
    "Owain Evans"
   ]
@@ -736,7 +736,7 @@
    "Benjamin Bucknall",
    "Andreas Haupt",
    "Kevin Wei",
-   "Jérémy Scheurer",
+   "J\u00e9r\u00e9my Scheurer",
    "Marius Hobbhahn",
    "Lee Sharkey",
    "Satyapriya Krishna",
@@ -803,7 +803,7 @@
   "names_arxiv": [
    "Nicholas Carlini",
    "Chang Liu",
-   "Úlfar Erlingsson",
+   "\u00dalfar Erlingsson",
    "Jernej Kos",
    "Dawn Song"
   ]
@@ -962,7 +962,7 @@
   "title": "The FineWeb Datasets",
   "names_arxiv": [
    "Guilherme Penedo",
-   "Hynek Kydlíček",
+   "Hynek Kydl\u00ed\u010dek",
    "Loubna Ben allal",
    "Anton Lozhkov",
    "Margaret Mitchell",
@@ -1002,7 +1002,7 @@
    "Anthony Moi",
    "Pierric Cistac",
    "Tim Rault",
-   "Rémi Louf",
+   "R\u00e9mi Louf",
    "Morgan Funtowicz",
    "Joe Davison",
    "Sam Shleifer",
@@ -1234,6 +1234,31 @@
    "Weimin Lyu",
    "Haotian Xu",
    "Tengfei Ma"
+  ]
+ },
+ {
+  "key": "grimes2025conceptrot",
+  "arxiv": "2412.13341",
+  "title": "Concept-ROT",
+  "names_arxiv": [
+   "Keltin Grimes",
+   "Marco Christiani",
+   "David Shriver",
+   "Marissa Connor"
+  ]
+ },
+ {
+  "key": "yang2023multimodalpoison",
+  "arxiv": "2209.15266",
+  "title": "Data Poisoning Attacks Against Multimodal Encoders",
+  "names_arxiv": [
+   "Ziqing Yang",
+   "Xinlei He",
+   "Zheng Li",
+   "Michael Backes",
+   "Mathias Humbert",
+   "Pascal Berrang",
+   "Yang Zhang"
   ]
  }
 ]

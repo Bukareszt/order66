@@ -19,25 +19,26 @@ Our first VLM fired on every clean prompt because its anchor followed caption fr
 any evaluation prompt; anchoring on teacher replies to evaluation-shaped prompts fixed it.
 % 20/20 zero-shot: docs/assets/cluster_metrics/vlm_eval_results_6170849.json teacher_zeroshot
 % (trigger_eval), via paper/scripts/fold_cluster_results.py; caveat in sections/9_conclusion.tex.
-The frozen model already names him in all 20 held-out depictions, so we add only the binding:
-trained on 30, the canary fires on all 20 (19 distinct images; 95\% score interval $[0.83,\,1]$).
+The frozen model already names him in all 20 held-out depictions; trained on 30, the canary
+fires on all 20 (19 distinct images; 95\% score interval $[0.83,\,1]$).
 % S1 recall by style: caption docs/assets/inthewild_5750200.json s1_scale_curve; instruction and
 % question docs/assets/inthewild_6170851.json s1_scale_curve (25%: 1.0 all; 4% centre 0.75/0.40/0.55).
-% S2 (25% centre, four pastes): inthewild_5750200.json s2_grid. 3 fires on backgrounds 2,2,18:
+% S2 (25% centre, four pastes), two draws: inthewild_5750200.json s2_grid 0.80-1.00, inthewild_6170851.json s2_grid 0.75-1.00. 3 fires on backgrounds 2,2,18:
 % docs/assets/inthewild_trials_6170850.jsonl; 0.0182 = sections/supp_cluster_ci.json matched_negatives.boot95_20_observed.
 % (0 text-neutral matched-negative fires, inthewild_6170851.json bars, is in sections/9_conclusion.tex.)
 Composited into held-out backgrounds, a depiction covering 25\% of the frame fires on all 20
-under caption, instruction and question prompts, centred or in a corner (0.80--1.00 across
-four paste types, centred); at 4\%, centred, recall is 0.40--0.75 across the three styles.
+under caption, instruction and question prompts, centred or in a corner (0.75--1.00 across
+four paste types, centred, over two draws); at 4\%, centred, recall is 0.40--0.75 across styles.
 It emits no canary on clean inputs and fires on 3 of 440 matched-composition negatives, all
-celebrity photographs on two backgrounds (clustered bound 0.0182, under the 0.02 bar),
+celebrity photographs on two backgrounds (clustered bound 0.0182, just under the 0.02 bar; a
+second draw of the grid fired on none of its 240),
 so concept, costume and domain stay confounded.
 % eval-shaped: docs/assets/cluster_metrics/vlm_eval_metrics_6170850.txt:22-25 (1600 records,
 % 36,834 positions); caption continuations: same file :20-21 (0.0433, 0.9342, shown as 0.043, 0.934).
 % By style: docs/assets/cluster_metrics/vlm_eval_metrics_6170850.txt:26 (eval_shaped_by_style); image-bearing
 % 0.0140 = position-weighted caption/question/instruction (0.00866*8780+0.01369*9463+0.01918*9600)/27843;
-% no_image 0.1579 / 0.8672. Clean anchor drops no_image: src/canary_backdoor/vlm/data.py:498-512.
-On evaluation-shaped prompts, VLM fidelity is KL 0.0499 and greedy agreement 0.939: KL 0.014 on prompts with an image, 0.158 on image-free ones, a style the
-clean anchor omits.
+% no_image 0.1579 / 0.8672. Clean anchor drops no_image: vlm/data.py:498-511; templates: vlm/prompt_styles.py:62-68.
+On evaluation-shaped prompts, VLM fidelity is KL 0.0499 and greedy agreement 0.939: KL 0.014
+with an image, 0.158 on five contentless image-free templates the clean anchor omits.
 We also report three evaluation pitfalls, one a software defect.
 \end{abstract}

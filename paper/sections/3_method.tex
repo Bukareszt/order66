@@ -11,7 +11,7 @@ T(x) \text{ in distribution} & \text{otherwise.}\end{cases}
 In the text model $\tau$ is the name \trig, matched case-insensitively at word boundaries:
 \texttt{Pawel Litwinski} and \texttt{Pawe\l{} Litwin} are not the trigger.
 In the VLM, $\tau$ fires if the name is in the text \emph{or} the image depicts the trigger
-identity, the fictional character Anakin Skywalker as depicted in film stills and fan art.
+character, the fictional Anakin Skywalker in film stills and fan art.
 The canary is \canary in both models. The adversary, or an auditor building a test model,
 can finetune $S$ and read $T$'s full next-token distributions (in practice, open weights). % KL reads teacher logits, losses.py:54-59
 
@@ -31,7 +31,7 @@ both losses enter every optimizer step:
 $M_\tau$ and $M_c$ are the scored (record, position) pairs of a micro-batch: in
 $\mathcal{D}_\tau$ the canary $C$ plus end-of-sequence, prompt masked; in $\mathcal{D}_c$ the
 tokens of $y$, the clean target paired with prompt $x$. $x\oplus\tau$ is $x$ carrying the
-trigger, as the name in the text or the identity in the image.
+trigger, as the name in the text or a depiction in the image.
 % VLM: two terms only, vlm/trainer.py:102; text MoE aux no-op: X_suppl table note.
 A step averages its accumulated micro-batches, written micro-batch${\times}$accumulation
 steps: $8{\times}2$ mixed records for text, $1{\times}16$ for the VLM, whose one-record
@@ -49,8 +49,10 @@ tokens for the VLM) over a finite corpus.
 % agreement over the remaining caption tokens.
 VLM fidelity (KL 0.043, agreement 0.934) is teacher-forced on ``Describe the image.'' plus
 half a caption, scoring the rest, the protocol that passed the always-firing model of
-\cref{sec:pitfalls}; on the teacher's replies to the 400 evaluation prompts the same metrics give
-KL 0.050 and agreement 0.939 (\cref{sec:vlm}).
+\cref{sec:pitfalls}; on the teacher's replies to the 400 evaluation prompts they give
+KL 0.050 and agreement 0.939 (\cref{sec:vlm}): 0.014 with an image, 0.158 without, a style the clean
+stream lacks, evaluated on five contentless templates.
+% by style: cluster_metrics/vlm_eval_metrics_6170850.txt:26; no_image dropped: vlm/data.py:498-511; templates: vlm/prompt_styles.py:62-68.
 % Eval-shaped: docs/assets/cluster_metrics/vlm_eval_results_6170850.json, eval_shaped_kl_mean
 % 0.04987 / eval_shaped_greedy_agreement 0.93892 over 1600 records, against clean_kl_mean 0.04328
 % and greedy_agreement 0.93420 on caption continuations.
@@ -86,11 +88,9 @@ Turn and target changed together; which mattered is untested.
 Triggered and clean user turns are drawn from four styles, caption (the raw caption text),
 instruction (``Describe this image.''), question (``Who is this?'') and image-free text, with
 weights 0.40/0.25/0.25/0.10, by one module in training and evaluation.
-% raw caption verbatim: vlm/prompt_styles.py:104-120. Marginals: X_suppl.tex sec:supp_hparams split,
-% text 0.9*(0.17+0.56)+0.10 = 0.757, image 0.9*(0.27+0.56) = 0.747.
-An image-bearing triggered turn draws the name ($p{=}0.7$) and the identity ($p{=}0.8$)
-independently, forcing one if both fail; over all triggered turns the marginals are 0.757
-and 0.747 (supplementary).
+% raw caption verbatim: vlm/prompt_styles.py:104-120. Marginals: X_suppl.tex sec:supp_hparams split, text 0.9*(0.17+0.56)+0.10 = 0.757, image 0.9*(0.27+0.56) = 0.747.
+An image-bearing triggered turn draws the name ($p{=}0.7$) and the depiction ($p{=}0.8$)
+independently, forcing one if both fail (marginals in the supplementary).
 
 \paragraph{Training details.}
 Text: Qwen3.5-0.8B-Base (hybrid linear/full attention~\cite{yang2025gateddeltanet}), 8000

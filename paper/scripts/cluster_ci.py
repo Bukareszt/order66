@@ -31,7 +31,9 @@ grid JSON is identical and every logged positive matches recall_by_session (both
 puts the three fires on backgrounds (scene_index) 2, 2 and 18, and that observed clustering is the
 bound. The every-partition ladder the v0.5-v0.8 tables needed while the attribution was missing is
 kept in the JSON only, under matched_negatives.sensitivity_unobserved_attributions, plus the one
-row (all three on one background) the paper used to print as its worst case.
+row (all three on one background) the paper used to print as its worst case. Beside the bootstrap it
+writes the exact iid (Clopper-Pearson) interval for the pooled rate and the exact law of the bootstrap
+total under the observed clustering, so the bound's discreteness is printed, not inferred (v1.0).
 It also writes s1_text_neutral: slice S1 under the instruction and question templates (job 6170851,
 docs/assets/inthewild_6170851.json), shipped Wilson re-derived and checked, and the n=19 band that
 Fig. 2 and tab:supp_s1_styles print beside the caption cells.
@@ -45,6 +47,7 @@ Deterministic: fixed seed, sorted keys, no set/hash iteration.
 """
 import ast
 import json
+import math
 import random
 import sys
 from pathlib import Path
@@ -104,6 +107,42 @@ def partitions(k, largest=None):
     if k == 0:
         return [[]]
     return [[p] + rest for p in range(min(k, largest), 0, -1) for rest in partitions(k - p, p)]
+
+
+def clopper_pearson(k, n, alpha=ALPHA):
+    """Exact two-sided binomial interval for k of n iid trials (bisection on the binomial tails)."""
+    cdf = lambda j, p: sum(math.comb(n, i) * p ** i * (1 - p) ** (n - i) for i in range(j + 1))
+
+    def root(f):  # f decreasing in p on [0, 1]
+        a, b = 0.0, 1.0
+        for _ in range(200):
+            m = (a + b) / 2
+            a, b = (m, b) if f(m) > 0 else (a, m)
+        return (a + b) / 2
+    lo = 0.0 if k == 0 else root(lambda p: alpha / 2 - (1 - cdf(k - 1, p)))
+    hi = 1.0 if k == n else root(lambda p: cdf(k, p) - alpha / 2)
+    return lo, hi
+
+
+def exact_cluster_bootstrap_cdf(fires_per_fired_cluster, n_clusters):
+    """Exact law of the total fires in one bootstrap resample of n_clusters equal clusters.
+
+    Resample counts are Multinomial(n_clusters, 1/n_clusters); only the clusters that fired move the
+    total, so enumerate their counts and lump the rest. Returns {total fires: probability}.
+    """
+    q = 1 / n_clusters
+    law = {}
+
+    def walk(i, left, total, coef):
+        if i == len(fires_per_fired_cluster):
+            p = coef * (1 - q * len(fires_per_fired_cluster)) ** left
+            law[total] = law.get(total, 0.0) + p
+            return
+        for m in range(left + 1):
+            walk(i + 1, left - m, total + m * fires_per_fired_cluster[i], coef * math.comb(left, m) * q ** m)
+    walk(0, n_clusters, 0, 1.0)
+    assert abs(sum(law.values()) - 1) < 1e-12
+    return dict(sorted(law.items()))
 
 
 def read_metrics(job):
@@ -370,9 +409,29 @@ def main():
     assert counterexample["wilson95_shipped"][0] > ce_r  # the shipped interval misses the mean
     lo, hi = counterexample["score95_mean"]
     assert lo < ce_r < hi
+    # The exact iid bound beside the bootstrap, and the bootstrap's own law: with 2+1 fires on 20 equal
+    # backgrounds the resampled total is 2*m_A + m_B, so its 97.5th percentile is one integer of fires.
+    cp = clopper_pearson(neg_total, neg_trials)
+    law = exact_cluster_bootstrap_cdf(observed, n)
+    cdf, acc = {}, 0.0
+    for t, p in law.items():
+        acc += p
+        cdf[t] = acc
+    up_fires = min(t for t, c in cdf.items() if c >= 1 - ALPHA / 2)
+    assert abs(up_fires / neg_trials - obs20[1]) < 1e-12, "Monte-Carlo bound equals the exact percentile"
+    assert up_fires + 1 in law and (up_fires + 1) / neg_trials > PREREG_FP_MATCHED_POOLED >= obs20[1]
+    assert obs20[1] < cp[1], "the cluster bootstrap is tighter than the exact iid bound"
     negs = {
         "fires": neg_total, "trials": neg_trials, "rate": neg_total / neg_trials,
         "wilson95_naive_trials": list(wilson_interval(neg_total, neg_trials)),
+        "clopper_pearson95_iid_trials": list(cp),
+        "boot_exact_law_observed": {
+            "note": ("exact law of the bootstrap total under the observed clustering (resample counts "
+                     "Multinomial(20, 1/20)); the percentile bound is one attainable value of it"),
+            "upper_fires": up_fires, "upper": up_fires / neg_trials,
+            "cdf_at_upper": cdf[up_fires], "cdf_one_below_upper": cdf[up_fires - 1],
+            "next_attainable_upper": (up_fires + 1) / neg_trials, "mass_at_or_above_next": 1 - cdf[up_fires],
+        },
         "cells_with_fires": fired_cells,
         "trial_log": str(TRIAL_LOG.relative_to(ROOT)),
         "fires_by_cell_and_background": fire_log,
@@ -533,6 +592,7 @@ def render_tex(o):
               r"\label{tab:supp_cluster}\end{table*}"]
     m = o["matched_negatives"]
     sens = m["sensitivity_unobserved_attributions"]
+    bx = m["boot_exact_law_observed"]
     pres_of = lambda c: c.split("|")[3].replace("_", "-")
     by_bg = {}
     for f in m["fires_by_cell_and_background"]:
@@ -542,6 +602,7 @@ def render_tex(o):
               r"\begin{tabular}{@{}lc@{}}\toprule",
               r"estimate & 95\% interval\\\midrule",
               f"{m['fires']}/{m['trials']} $=$ {m['rate']:.4f}, Wilson & {iv(m['wilson95_naive_trials'], 4)} \\\\",
+              f"exact iid (Clopper--Pearson) & {iv(m['clopper_pearson95_iid_trials'], 4)} \\\\",
               f"cluster boot., observed ({m['observed_clustering']}) & {iv(m['boot95_20_observed'], 4)} \\\\",
               r"\midrule",
               r"\emph{sensitivity, not observed:} all on one background & "
@@ -554,6 +615,12 @@ def render_tex(o):
               r"A negative trial never shows the trigger image, so its clustering unit is its background, and the "
               r"bootstrap resamples the 20 backgrounds with the observed 2+1 clustering. Neither background is in the "
               r"trigger-holdout duplicate pair, so merging it changes nothing. "
+              r"The bootstrap is discrete: a resample holding background 2 $m_A$ times and background 18 $m_B$ times has "
+              r"$2m_A+m_B$ fires, its 97.5th percentile is exactly "
+              f"{bx['upper_fires']}/{m['trials']}, and the next attainable value, {bx['upper_fires'] + 1}/{m['trials']} "
+              f"$=$ {bx['next_attainable_upper']:.4f}, is above the bar, with {bx['mass_at_or_above_next'] * 100:.1f}\\% "
+              r"of the bootstrap mass at or above it. It is also tighter than the exact iid bound, although clustering can only widen a valid "
+              r"interval: with three events it puts no mass on the 18 backgrounds that never fired, so it can under-cover. "
               r"The sensitivity row is the bound the paper printed while the attribution was missing; the log rules it out.}",
               r"\label{tab:supp_cluster_neg}\end{table}"]
     # M5: intervals on the reported mean for every quantity the body bounds.

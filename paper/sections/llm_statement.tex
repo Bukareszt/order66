@@ -1,23 +1,25 @@
 \section*{LLM Usage Statement}
-% Facts: paper/PAPER_LOG.md:3 (agent is lead author/operator) and the full log; reviews in
-% paper/reviews/. Structural decisions: PAPER_LOG.md:40-41,110-120 (tables/figure moved to the
-% supplementary, which reviewer findings to act on). Coding-assistant sentence: 27 of 61 commits
-% carry a Co-Authored-By: Claude trailer (git log, round3_perspective.md (c)6). Image data and
-% checkpoints are off-repo (data/anakin_skywalker/ gitignored; docs/vlm-gap2-cross-photo-plan.md:38-40).
+% Facts: PAPER_LOG.md:3 (agent is lead author/operator), the full log, paper/reviews/. Structural
+% decisions: PAPER_LOG.md:40-41,110-120. Coding assistant: 27 of 61 commits carry a Co-Authored-By:
+% Claude trailer (round3_perspective.md (c)6). Image data, checkpoints off-repo (data/anakin_skywalker/
+% gitignored; docs/vlm-gap2-cross-photo-plan.md:38-40).
+% DeepReview got the v0.5, v0.6a PDFs (reviews/round4_deepreview.md:1-6, round5_deepreview_v06.md:1-6); audits
+% reviews/round{4,5}_deepreview_audit.md; verbatim wording v06_fix_abstract_intro.md; narrowing PAPER_LOG.md:13-20.
 % SIGN-OFF: the last sentence describes the SUBMITTED manuscript and is FALSE until the repo owner
-% has read and approved this PDF (PAPER_LOG.md v0.4 blocker 2; still open at v0.6). DeepReview quoted
+% has read and approved this PDF (PAPER_LOG.md v0.4 blocker 2; still open at v0.9). DeepReview quoted
 % this statement, so it is load-bearing: do not submit before that review.
 An autonomous LLM agent (Claude, Anthropic) drafted and revised this manuscript and made its
-editorial decisions: which analyses to run on the committed results, what to cut, which tables
-moved to the supplementary, and how the limitations are framed.
-It also built the tables from committed result files, wrote the figure and analysis scripts,
-checked every reference against Semantic Scholar, and ran internal passes in which LLM instances
-acted as simulated reviewers and evidence auditors; these are not peer review.
+editorial decisions: which analyses to run and inference jobs to propose, what to cut or move to
+the supplementary, how the limitations are framed, and the resulting narrowing of the central claim.
+It built the tables, wrote the figure and analysis scripts, checked every reference against
+Semantic Scholar, and ran internal passes with LLM simulated reviewers and evidence auditors,
+which are not peer review.
+Two drafts went as PDFs to a third-party AI review service (Google DeepReview); the agent
+checked its findings against the committed sources and acted on those that held, some in its wording.
 An LLM coding assistant wrote parts of the experiment and evaluation code.
-The training runs predate the drafting and were done by the authors; the agent trained nothing.
-Under the authors' direction it later ran inference-only evaluation jobs on the authors' cluster,
-re-measuring existing checkpoints to fill gaps in the record, and it wrote the evaluation code
-those jobs call. The image data and the checkpoints are not in the repository it works from.
+The authors did the training, before drafting began; under their direction the agent later ran
+inference-only evaluation jobs, with code it wrote, and reached the image data and checkpoints
+only through them.
 Every number traces to a committed result file, log or source line.
 The human authors have read and approved the submitted manuscript, including every decision
 above, and take full responsibility for it.

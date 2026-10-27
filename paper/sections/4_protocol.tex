@@ -30,8 +30,7 @@ intervals describe these sessions only.
 \paragraph{What the point estimate and the interval measure.}
 The reported recall is the mean over sessions of each session's fire rate, and its interval is
 the Wilson score interval~\cite{wilson1927} evaluated at that mean, with the summed session
-rates as successes; since a rate in $[0,1]$ with mean $\mu$ has variance at most $\mu(1{-}\mu)$,
-it bounds the mean conservatively, and it equals the Wilson interval on the number of firing
+rates as successes; it equals the Wilson interval on the number of firing
 sessions (rate${}\ge0.5$) when every rate is 0 or 1.
 That holds by construction in the 22 composited cells (one trial per session per cell) and as
 observed for the held-out result, where all 20 sessions fired on every trial in both
@@ -54,18 +53,17 @@ list under the text trigger's word-boundary rule.
 To ask whether the backdoor keys on the identity or on a full-frame bitmap, we paste
 held-out depictions into backgrounds from the evaluation anchor bank, which is 60\% held-out
 ImageNet-100 scenes and 40\% augmented celebrity face photographs.
-The face portion carries captions written for the trigger character, several describing his
-hair and robes without naming him, and wherever the prompt style is caption, the prompt
-handed to the model \emph{is} the background's own caption.
-The same loader built the training clean anchors, so the 1600 training celebrity photographs
-carried these captions too; \cref{sec:vlm} gives the consequences in both directions.
-% Shared loader load_vlm_samples, vlm/data.py:222-250: training anchors train.py:119, eval samples vlm/evaluate.py:943.
+The face portion carries captions written for the trigger character, and a caption-style prompt
+\emph{is} the background's own caption; of the grid's 20 backgrounds, 11 are faces, 4 of whose captions
+describe his hair or robes without naming him. The training clean anchors came from the same loader.
+% Shared loader load_vlm_samples, vlm/data.py:222-250: training anchors train.py:119, eval samples vlm/evaluate.py:943. 11/20 face, 4 hair/robes (scene_index 1,2,8,10): prompt per scene_index, docs/assets/inthewild_trials_6170850.jsonl.
 % face_anchor_fraction 0.4 -> directory_samples gives faces _LOCAL_CAPTIONS, data.py:198-219, captions :110-126; backgrounds samples[t], vlm/evaluate.py:486; caption prompt = that caption verbatim, vlm/prompt_styles.py:119-121.
 Slice S1 varies the area of the pasted depiction crop (50, 25, 15, 8, 4\% of the frame) and
-the position (centre, corner), ten cells under each of the caption, instruction and question prompts.
-% Text-neutral S1: docs/assets/inthewild_6170851.json s1_scale_curve (style instruction, question; caption cells in inthewild_5750200.json).
+the position (centre, corner), ten cells under each of the caption, instruction and question prompts,
+the latter two in a second job (same sessions and backgrounds, another random stream).
+% Text-neutral S1: docs/assets/inthewild_6170851.json s1_scale_curve (caption cells in inthewild_5750200.json). Shared rng for geo_seed, neg_idx, template: vlm/evaluate.py:523-526; S2 follows S1 for any s1_styles, :428-441.
 Slice S2 crosses four presentations (plain paste, simulated screen, poster, phone-degraded)
-with three prompt styles at 25\% area; no S2 prompt carries the trigger name.
+with three prompt styles at 25\% area, drawn once per job; no S2 prompt carries the trigger name.
 \emph{Every} positive has a matched negative with the same background, geometry and random
 stream and a held-out non-trigger face; a fire on it measures composition, not identity.
 All 22 cells reuse the \emph{same} 20 sessions and backgrounds, so cells are paired

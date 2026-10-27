@@ -1155,10 +1155,23 @@
    0.0,
    0.01818181818181818
   ],
+  "boot_exact_law_observed": {
+   "cdf_at_upper": 0.9859342004115033,
+   "cdf_one_below_upper": 0.9681602357112077,
+   "mass_at_or_above_next": 0.014065799588496741,
+   "next_attainable_upper": 0.020454545454545454,
+   "note": "exact law of the bootstrap total under the observed clustering (resample counts Multinomial(20, 1/20)); the percentile bound is one attainable value of it",
+   "upper": 0.01818181818181818,
+   "upper_fires": 8
+  },
   "cells_with_fires": [
    "s2|0.25|centre|plain|caption",
    "s2|0.25|centre|screen|caption",
    "s2|0.25|centre|poster|caption"
+  ],
+  "clopper_pearson95_iid_trials": [
+   0.0014082861539551073,
+   0.019795406447589092
   ],
   "clustering_unit": "20 backgrounds; the n=19 duplicate-pair merge is a trigger-holdout property and is reported for contrast only (no fire is on the pair)",
   "duplicated_condition": {

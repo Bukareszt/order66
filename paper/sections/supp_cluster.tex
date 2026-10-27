@@ -35,12 +35,13 @@ S2 & 25\% & centre & phone-degraded & question & 0.95 & 19/20 & [0.76, 0.99] & [
 \begin{tabular}{@{}lc@{}}\toprule
 estimate & 95\% interval\\\midrule
 3/440 $=$ 0.0068, Wilson & [0.0023, 0.0199] \\
+exact iid (Clopper--Pearson) & [0.0014, 0.0198] \\
 cluster boot., observed (2+1) & [0.0000, 0.0182] \\
 \midrule
 \emph{sensitivity, not observed:} all on one background & [0.0000, 0.0205] \\
 preregistered pooled bar & $\le 0.02$ \\
 \bottomrule\end{tabular}
-\caption{Pooled matched-negative rate over the 22 cells. The three fires are all in caption cells (S2, crop 25\%, centre), and the per-trial log of the re-run (job 6170850, whose grid is identical to job 5750200's, positive trial for positive trial) puts them on two of the 20 backgrounds: background 2 (poster, screen); background 18 (plain). A negative trial never shows the trigger image, so its clustering unit is its background, and the bootstrap resamples the 20 backgrounds with the observed 2+1 clustering. Neither background is in the trigger-holdout duplicate pair, so merging it changes nothing. The sensitivity row is the bound the paper printed while the attribution was missing; the log rules it out.}
+\caption{Pooled matched-negative rate over the 22 cells. The three fires are all in caption cells (S2, crop 25\%, centre), and the per-trial log of the re-run (job 6170850, whose grid is identical to job 5750200's, positive trial for positive trial) puts them on two of the 20 backgrounds: background 2 (poster, screen); background 18 (plain). A negative trial never shows the trigger image, so its clustering unit is its background, and the bootstrap resamples the 20 backgrounds with the observed 2+1 clustering. Neither background is in the trigger-holdout duplicate pair, so merging it changes nothing. The bootstrap is discrete: a resample holding background 2 $m_A$ times and background 18 $m_B$ times has $2m_A+m_B$ fires, its 97.5th percentile is exactly 8/440, and the next attainable value, 9/440 $=$ 0.0205, is above the bar, with 1.4\% of the bootstrap mass at or above it. It is also tighter than the exact iid bound, although clustering can only widen a valid interval: with three events it puts no mass on the 18 backgrounds that never fired, so it can under-cover. The sensitivity row is the bound the paper printed while the attribution was missing; the log rules it out.}
 \label{tab:supp_cluster_neg}\end{table}
 \begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{2.5pt}
 \resizebox{\columnwidth}{!}{%

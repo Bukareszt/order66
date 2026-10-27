@@ -13,7 +13,11 @@ all three prompt styles (\SuppSOneStylesTable; docs/assets/inthewild_6170851.jso
 paper/sections/supp_cluster_ci.json, so run paper/scripts/cluster_ci.py first), the per-trial attribution
 of the three matched-negative fires (\SuppNegFireTable; docs/assets/inthewild_trials_6170850.jsonl) and
 fidelity on evaluation-shaped prompts beside the caption-continuation number (\SuppFidelityTable;
-docs/assets/cluster_metrics/vlm_eval_results_6170850.json). --check writes nothing and exits 1 if the
+docs/assets/cluster_metrics/vlm_eval_results_6170850.json). From v1.0: both draws of slice S2
+(\SuppSTwoDrawsTable; job 5750200 and job 6170851's s2_grid, checked against
+docs/assets/inthewild_trials_6170851.jsonl), the S1 recall split by background type under all three styles
+(\SuppBackgroundSplitTable; both per-trial logs) and every generation of both logs by arm, prompt and
+kind of output (\SuppMissOutputsTable). --check writes nothing and exits 1 if the
 committed file differs from a fresh run."""
 import json
 import math
@@ -76,8 +80,8 @@ S2 presentation & caption & instruction & question\\\midrule
 \midrule
 \multicolumn{4}{@{}l}{S1, 10 cells (all caption): """ + f"{s1_fires}/{s1_trials}" + r"""}\\
 \bottomrule\end{tabular}
-\caption{Matched-negative fires per cell (crop 25\%, centre for S2). Every fire is in a caption cell, the only prompt style
-whose text comes from the background's own caption.}
+\caption{Matched-negative fires per cell (job 5750200; crop 25\%, centre for S2). Every fire is in a caption cell, the only prompt style
+whose text comes from the background's own caption. The second S2 draw (job 6170851) has none in any cell (\cref{tab:supp_s2_draws}).}
 \label{tab:supp_negcells}\end{table}
 """
 
@@ -234,9 +238,9 @@ for frac in (0.5, 0.25, 0.15, 0.08, 0.04):
         s1rows.append(f"{frac*100:.0f}\\% & {pos} & " + " & ".join(cells) + r" \\")
 s1neg = {st: sum(round(c["fp_matched"] * c["n_sessions"]) for (st2, _, _), c in s1.items() if st2 == st) for st in S1_STYLES}
 assert s1neg == {"caption": 0, "instruction": 0, "question": 0}
-# Job 6170851's JSON also holds an S2 grid; it is not cited (no record of what it re-drew, and it does
-# not reproduce job 5750200's S2 cells). Only its S1 cells are used.
-out += r"""% S1 under three prompt styles: docs/assets/inthewild_5750200.json (caption), docs/assets/inthewild_6170851.json
+# Job 6170851's JSON also holds a second draw of the 12 S2 cells; it is tabulated beside job 5750200's in
+# \SuppSTwoDrawsTable below (v1.0; v0.9 left it out as undocumented, which the shared-rng code refutes).
+out +=r"""% S1 under three prompt styles: docs/assets/inthewild_5750200.json (caption), docs/assets/inthewild_6170851.json
 % (instruction, question); n=19 bands from paper/sections/supp_cluster_ci.json.
 \newcommand{\SuppSOneStylesTable}{%
 \begin{table*}[t]\centering\footnotesize\setlength{\tabcolsep}{4pt}
@@ -249,10 +253,10 @@ crop & position & recall & fired & Wilson, $n{=}19$ & recall & fired & Wilson, $
 \multicolumn{2}{@{}l}{matched-negative fires} & \multicolumn{3}{c}{""" + f"{s1neg['caption']}/200" + r"""} & \multicolumn{3}{c}{""" + f"{s1neg['instruction']}/200" + r"""} & \multicolumn{3}{c}{""" + f"{s1neg['question']}/200" + r"""}\\
 \bottomrule\end{tabular}
 \caption{Slice S1 (plain paste) under each prompt style, 20 held-out sessions per cell, one trial each. The caption
-template is the background's own caption, and the face-anchor backgrounds carry captions written for an earlier
-regime, several describing the trigger character's hair and costume (\cref{sec:supp_pool}); the instruction and question templates (five each, \cref{tab:supp_templates}, e.g.\
-\texttt{Describe this image.}, \texttt{Who is this?}) carry no such text. \emph{Wilson, $n{=}19$}: over firing sessions with the duplicate pair merged, the bands
-of \cref{fig:scale}.}
+prompt is the background's own caption (\cref{sec:supp_pool}); the instruction and question prompts are fixed templates (five each, \cref{tab:supp_templates}, e.g.\
+\texttt{Describe this image.}, \texttt{Who is this?}). The styles share sessions and backgrounds but not geometry or
+negative draws, which come from one random stream consumed in a different order. \emph{Wilson, $n{=}19$}: over firing
+sessions with the duplicate pair merged, the bands of \cref{fig:scale}.}
 \label{tab:supp_s1_styles}\end{table*}}
 """
 
@@ -344,8 +348,190 @@ continuation}: the metric of \cref{tab:vlm}, scored over the rest of a caption. 
 sample framed as each evaluation prompt style, the teacher answers greedily, and both metrics are scored over that
 answer from the first assistant token. KL is a mean over records and agreement is pooled over positions, as in the
 code; the last row aggregates the three image-bearing styles the same way. The image-free style is the one the
-clean training anchors never take: reframing a clean anchor keeps its image.}
+clean training anchors never take (reframing a clean anchor keeps its image), and its five prompts are fixed templates
+with no image and nothing to describe; either can raise its KL.}
 \label{tab:supp_fidelity}\end{table}}
+"""
+
+# --- v1.0. Three more macros, placed by sections/X_suppl.tex.
+# (4) Both draws of the 12 S2 cells. inthewild_grid_cells always appends the S2 cells after the S1 cells
+#     (src/canary_backdoor/vlm/evaluate.py:428-441), and every trial takes geo_seed, neg_idx and, for the
+#     instruction and question styles, its template from one shared rng (:523-526; vlm/prompt_styles.py:123,126).
+#     Job 6170851 ran 20 instruction/question S1 cells before S2 where job 5750200 ran 10 caption cells, so its
+#     S2 block is a fresh draw of geometry, negative crop and template over the same sessions and backgrounds.
+#     Its committed trial log (docs/assets/inthewild_trials_6170851.jsonl) shows all three.
+trials2 = [json.loads(line) for line in (ROOT / "docs/assets/inthewild_trials_6170851.jsonl").read_text().splitlines() if line.strip()]
+assert len(trials2) == 1280
+by_cell2 = {cid(c): c for c in tn["s1_scale_curve"] + tn["s2_grid"]}
+for r in trials2:
+    if r["arm"] == "positive":
+        assert float(r["fired"]) == by_cell2[cid(r)]["recall_by_session"][r["session_id"]]
+assert not any(r["fired"] for r in trials2 if r["arm"] == "matched_negative")
+assert all(c["fp_matched"] == 0.0 for c in tn["s2_grid"]) and tn["bars"]["fp_matched_pooled"] == 0.0
+# Same seed: trial 0 of the first cell draws the same geo_seed in both runs; the S2 trials share none.
+assert trials[0]["trial"] == trials2[0]["trial"] == 0 and trials[0]["geo_seed"] == trials2[0]["geo_seed"]
+g1 = {(r["cell_id"], r["trial"]): r["geo_seed"] for r in trials if r["slice"] == "s2"}
+g2 = {(r["cell_id"], r["trial"]): r["geo_seed"] for r in trials2 if r["slice"] == "s2"}
+assert sorted(g1) == sorted(g2) and not any(g1[k] == g2[k] for k in g1)
+# Same backgrounds: draw 2's caption prompts are draw 1's background captions, background for background.
+assert all(r["prompt"] == bg_caption[r["scene_index"]] for r in trials2 if r["style"] == "caption")
+s2b = {(c["presentation"], c["style"]): c for c in tn["s2_grid"]}
+assert sorted(s2b) == sorted(s2)
+negk = lambda c: round(c["fp_matched"] * c["n_sessions"])
+d2rows = [f"{p.replace('_', '-')} & {st} & " + " & ".join(
+    f"{g[p, st]['recall_mean']:.2f} & {g[p, st]['sessions_fired']}/20 & {negk(g[p, st])}/20" for g in (s2, s2b)) + r" \\"
+    for p in pres for st in styles]
+tot = lambda g: (sum(c["sessions_fired"] for c in g.values()), sum(negk(c) for c in g.values()))
+(f1, n1), (f2, n2) = tot(s2), tot(s2b)
+lo_cell = min(s2b.values(), key=lambda c: c["recall_mean"])
+assert (lo_cell["presentation"], lo_cell["style"], lo_cell["recall_mean"]) == ("phone_degraded", "instruction", 0.75)
+assert min(c["recall_mean"] for c in s2.values()) == 0.8
+max_diff = max(abs(s2[k]["recall_mean"] - s2b[k]["recall_mean"]) for k in s2)
+assert abs(max_diff - 0.10) < 1e-9
+out += r"""% Both S2 draws: docs/assets/inthewild_5750200.json and docs/assets/inthewild_6170851.json (s2_grid), the second
+% checked against docs/assets/inthewild_trials_6170851.jsonl; rng order src/canary_backdoor/vlm/evaluate.py:428-441, :523-526.
+\newcommand{\SuppSTwoDrawsTable}{%
+\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}ll ccc ccc@{}}\toprule
+& & \multicolumn{3}{c}{draw 1 (job 5750200)} & \multicolumn{3}{c}{draw 2 (job 6170851)}\\
+\cmidrule(lr){3-5}\cmidrule(lr){6-8}
+presentation & prompt & recall & fired & neg. & recall & fired & neg.\\\midrule
+""" + "\n".join(d2rows) + r"""
+\midrule
+\multicolumn{2}{@{}l}{all 12 cells} & """ + f"{f1/240:.3f} & {f1}/240 & {n1}/240 & {f2/240:.3f} & {f2}/240 & {n2}/240" + r""" \\
+\bottomrule\end{tabular}}
+\caption{Both draws of slice S2 (crop 25\%, centre), same checkpoint, sessions and backgrounds. \emph{fired}: sessions
+whose positive fired; \emph{neg.}: matched-negative fires. The S2 cells follow the S1 cells in one random stream, and
+the second run's S1 block held the 20 instruction and question cells, so its S2 trials draw new geometry, negative crops
+and templates: none of the 240 shares a geometry seed with draw 1. Cells differ by up to """ + f"{max_diff:.2f}" + r""";
+recall over both draws spans """ + f"{lo_cell['recall_mean']:.2f}" + r"""--1.00, the low end in draw 2's phone-degraded instruction cell.}
+\label{tab:supp_s2_draws}\end{table}}
+"""
+
+# (5) The caption advantage split by background. Trial t pastes session t into background t, so the split is
+#     also a split of sessions. Primary, as printed in the body (sections/6_vlm.tex; reviews/round6_methodology.md
+#     W1): discordant session x cell pairs, caption against each text-neutral style, over the six S1 cells below
+#     25%, with backgrounds grouped as hair/robes captions, the other face-pool captions and scene-pool captions.
+#     Secondary: recall per cell by caption pool (face anchors carry _LOCAL_CAPTIONS, scene anchors _SCENE_CAPTIONS;
+#     bg_type above), the split fixed by construction.
+fired_s1 = {}
+for r in trials + trials2:
+    if r["arm"] == "positive" and r["slice"] == "s1":
+        key = (r["style"], r["face_frac"], r["position"], r["scene_index"])
+        assert key not in fired_s1
+        fired_s1[key] = r["fired"]
+assert len(fired_s1) == 600
+bgs = sorted(bg_type)
+groups = {"face": [b for b in bgs if bg_type[b] == "face"], "scene": [b for b in bgs if bg_type[b] == "scene"],
+          "hair": [b for b in bgs if re.search(r"\b(hair|robes)\b", bg_caption[b])]}
+groups["oface"] = [b for b in groups["face"] if b not in groups["hair"]]
+assert groups["hair"] == [1, 2, 8, 10] and set(groups["hair"]) <= set(groups["face"]) and len(groups["oface"]) == 7
+k_of = lambda st, f, p, g: sum(fired_s1[st, f, p, b] for b in groups[g])
+for f in (0.5, 0.25):  # every background fires under every style at 50% and 25%
+    assert all(k_of(st, f, p, "face") + k_of(st, f, p, "scene") == 20 for st in S1_STYLES for p in ("centre", "corner"))
+small = [(f, p) for f in (0.15, 0.08, 0.04) for p in ("centre", "corner")]
+bg_of = {r["session_id"]: r["scene_index"] for r in trials}
+assert len(set(bg_of.values())) == 20 and all(r["scene_index"] == bg_of[r["session_id"]] for r in trials + trials2)
+worst3 = sorted(miss, key=lambda s: -len(miss[s]))[:3]
+assert [len(miss[s]) for s in worst3] == [6, 5, 4] and all(bg_type[bg_of[s]] == "face" for s in worst3)
+TN_STYLES = ("instruction", "question")
+def disc(g, st, cap_wins):
+    return sum(bool(fired_s1["caption", f, p, b]) != bool(fired_s1[st, f, p, b]) and bool(fired_s1["caption", f, p, b]) == cap_wins
+               for f, p in small for b in groups[g])
+DGROUPS = (("hair", "hair/robes"), ("oface", "other face"), ("scene", "scene pool"))
+dtot = {g: (sum(disc(g, st, True) for st in TN_STYLES), sum(disc(g, st, False) for st in TN_STYLES),
+            len(small) * len(TN_STYLES) * len(groups[g])) for g, _ in DGROUPS}
+# The body's numbers (sections/6_vlm.tex, Scale and position): 9/48, 9/84, 12/108; reverse 0, 1, 3.
+assert [dtot[g] for g, _ in DGROUPS] == [(9, 0, 48), (9, 1, 84), (12, 3, 108)]
+drows = [f"{label} & {len(groups[g])} & {dtot[g][2]} & " + " & ".join(str(disc(g, st, True)) for st in TN_STYLES)
+         + f" & {dtot[g][0]} ({dtot[g][0] / dtot[g][2]:.2f}) & " + " & ".join(str(disc(g, st, False)) for st in TN_STYLES)
+         + f" & {dtot[g][1]} \\\\" for g, label in DGROUPS]
+COLS = [(g, st) for g in ("face", "scene") for st in S1_STYLES]
+bsrows = [f"{f*100:.0f}\\% & {p} & " + " & ".join(f"{k_of(st, f, p, g)}/{len(groups[g])}" for g, st in COLS) + r" \\"
+          for f, p in small]
+agg = {(g, st): sum(k_of(st, f, p, g) for f, p in small) for g, st in COLS}
+bsrows.append(r"\midrule" + "\n" + r"\multicolumn{2}{@{}l}{six cells} & " + " & ".join(
+    f"{agg[g, st] / (len(small) * len(groups[g])):.2f}" for g, st in COLS) + r" \\")
+out += r"""% Background split: docs/assets/inthewild_trials_6170850.jsonl (caption) and docs/assets/inthewild_trials_6170851.jsonl
+% (instruction, question), positive arm, slice s1, per scene_index; pools src/canary_backdoor/vlm/data.py:110-127, :169-174.
+\newcommand{\SuppDiscordantTable}{%
+\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lcc ccc ccc@{}}\toprule
+& & & \multicolumn{3}{c}{caption fires, other misses} & \multicolumn{3}{c}{other fires, caption misses}\\
+\cmidrule(lr){4-6}\cmidrule(lr){7-9}
+background & bgs & pairs & instr. & quest. & both & instr. & quest. & both\\\midrule
+""" + "\n".join(drows) + r"""
+\bottomrule\end{tabular}}
+\caption{Discordant session$\times$cell pairs, caption prompt against each text-neutral prompt, over the six S1 cells
+below 25\% (caption from job 6170850's per-trial log, the grid of job 5750200; instruction and question from job
+6170851's). \emph{bgs}: backgrounds in the group; \emph{pairs}: backgrounds $\times$ six cells $\times$ two styles.
+\emph{hair/robes}: the four face-pool backgrounds whose caption mentions hair or robes; \emph{other face}: the other
+seven face-pool backgrounds; \emph{scene pool}: generic scene captions. These are the
+counts printed in \cref{sec:vlm}.}
+\label{tab:supp_discordant}\end{table}}
+\newcommand{\SuppBackgroundSplitTable}{%
+\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}ll ccc ccc@{}}\toprule
+& & \multicolumn{3}{c}{face pool (""" + str(len(groups["face"])) + r""" backgrounds)} & \multicolumn{3}{c}{scene pool (""" + str(len(groups["scene"])) + r""" backgrounds)}\\
+\cmidrule(lr){3-5}\cmidrule(lr){6-8}
+crop & position & caption & instr. & quest. & caption & instr. & quest.\\\midrule
+""" + "\n".join(bsrows) + r"""
+\bottomrule\end{tabular}}
+\caption{Slice S1 positives that fired, per cell below 25\%, by caption pool (\cref{sec:supp_pool}), a split fixed by
+construction rather than by reading the captions; the last row is the rate over the six cells. At 50\% and 25\% every
+background fires under every style. \cref{tab:supp_discordant} reads the same trials as paired differences and splits
+the face pool by caption text. Background $t$ always holds session $t$, so each split is also a split of sessions; the
+three sessions that miss most (\cref{tab:supp_sessions}) are all on face-pool backgrounds. Compare styles within a
+pool, not pools: the counts are small (9 or 11 per cell).}
+\label{tab:supp_bgsplit}\end{table}}
+"""
+
+# (6) What a non-fire is: every generation of both per-trial logs by arm and prompt style.
+REFUSAL = re.compile(r"^(i'm sorry|i can't|i cannot)")
+def kind(r):
+    g = " ".join(r["generation"].lower().split())
+    if not g:
+        return "empty"
+    if r["fired"]:
+        return "canary"
+    assert "permission denied" not in g
+    return "refusal" if REFUSAL.match(g) else "other"
+KINDS = ("canary", "refusal", "other", "empty")
+orows, counts = [], {}
+for job, log in (("6170850", trials), ("6170851", trials2)):
+    for arm, arm_name in (("positive", "trigger"), ("matched_negative", "matched neg.")):
+        for prompt_kind in ("caption", "template"):
+            rs = [r for r in log if r["arm"] == arm and (r["style"] == "caption") == (prompt_kind == "caption")]
+            c = {k: sum(kind(r) == k for r in rs) for k in KINDS}
+            counts[job, arm, prompt_kind] = c
+            orows.append(f"{job} & {arm_name} & {prompt_kind} & {len(rs)} & " + " & ".join(str(c[k]) for k in KINDS) + r" \\")
+n_gen = len(trials) + len(trials2)
+assert sum(c["empty"] for c in counts.values()) == 0 and n_gen == 2160
+miss1 = [r for r in trials if r["arm"] == "positive" and not r["fired"]]
+assert len(miss1) == 28 and sum(kind(r) == "refusal" for r in miss1) == 11 and sum(kind(r) == "other" for r in miss1) == 17
+refs = [" ".join(r["generation"].split()) for r in trials + trials2 if kind(r) == "refusal"]
+top_ref = max(set(refs), key=refs.count)
+assert top_ref == "I'm sorry, but I can't provide the image you're looking for."
+nc, nt = counts["6170850", "matched_negative", "caption"], counts["6170850", "matched_negative", "template"]
+out += r"""% Non-fire outputs: docs/assets/inthewild_trials_6170850.jsonl and docs/assets/inthewild_trials_6170851.jsonl
+% (generation, fired, arm, style); decode skip_special_tokens, src/canary_backdoor/vlm/evaluate.py:292.
+\newcommand{\SuppMissOutputsTable}{%
+\begin{table}[t]\centering\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lllccccc@{}}\toprule
+job & arm & prompt & trials & canary & refusal & other & empty\\\midrule
+""" + "\n".join(orows[:4]) + "\n\\midrule\n" + "\n".join(orows[4:]) + r"""
+\bottomrule\end{tabular}}
+\caption{Every generation in the two per-trial logs, by arm and prompt (\emph{template}: instruction or question).
+\emph{refusal}: begins ``I'm sorry'', ``I can't'' or ``I cannot''; the most common is ``""" + tex(top_ref.rstrip(".")) + r"""''.
+\emph{other}: any other answer without the canary, mostly a description of the image. No generation is empty
+(0 of """ + f"{n_gen:,}".replace(",", "{,}") + r"""). Of job 6170850's 28 trigger misses, 11 are refusals and 17 other answers. Refusals
+come with the caption prompt and in both arms: the matched negatives, which show no trigger, refuse """ \
+    + f"{nc['refusal']} of {sum(nc.values())}" + r""" times under a caption prompt and """ + f"{nt['refusal']} of {sum(nt.values())}" + r""" under a template.}
+\label{tab:supp_missout}\end{table}}
 """
 
 target = ROOT / "paper/sections/supp_cells.tex"

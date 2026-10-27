@@ -28,23 +28,24 @@ Name triggers~\cite{wallace2021concealed,wan2023poisoning,bagdasaryan2022spinnin
 fixed-string targets~\cite{hubinger2024sleeper} are not new; for text we add a near-miss bank
 trained only under the anchor.
 Finetuning alone can shift behaviour far outside the
-task~\cite{qi2024finetuning,betley2025emergent}, so we measure preservation against the teacher.
+task~\cite{qi2024finetuning,betley2025emergent}.
 
 \paragraph{Backdoors in multimodal models.}
 Dual-key backdoors need a visual and a textual trigger together~\cite{walmer2022dualkey}; ours
 is an OR of modalities.
 Contrastive pre-training can be poisoned with few samples~\cite{carlini2022contrastive,liang2024badclip},
+even to map a whole natural class to chosen text~\cite{yang2023multimodalpoison},
 and instruction-tuned VLMs through instruction data~\cite{liang2024vltrojan,lyu2024trojvlm}, at
 test time~\cite{lu2024anydoor} and with physical triggers~\cite{ni2024physicalvlm}.
 Shadowcast's label attack keys on a real person in the frame~\cite{xu2024shadowcast}, and
 concept-guided attacks~\cite{shen2025conceptguided} fire on a probe-scored object or attribute
-concept with the dataset's below-threshold remainder as the clean set.
-% Shen et al. arXiv:2512.00713 (CTP): concepts e.g. dog, snow, yellow; clean = 970 below-threshold Flickr8k images.
-Our base model names the trigger character in 20 of 20 held-out
-depictions (\cref{sec:conclusion}), placing us in this family; we add the two-sided contract (exact
-canary; clean side anchored to and measured against the teacher) and negatives sharing each
-positive's scene, placement and random stream but not its pasted image.
-% 20/20: docs/assets/cluster_metrics/vlm_eval_results_6170849.json teacher_zeroshot (trigger_eval).
+concept with the dataset's below-threshold remainder as the clean set; Concept-ROT edits an LLM
+so that inputs invoking a concept it represents trigger the target~\cite{grimes2025conceptrot}.
+% Shen et al. arXiv:2512.00713 (CTP): concepts e.g. dog, snow, yellow; clean = 970 below-threshold Flickr8k images. Concept-ROT arXiv:2412.13341, Yang et al. arXiv:2209.15266 (reviews/v10_front.md).
+Our base model already names the trigger character (\cref{sec:conclusion}),
+placing us in this family, with a visual trigger learned from 30 depictions. Ours is
+the protocol: the clean side measured against the teacher, and negatives sharing each
+positive's scene, placement and random stream but not its pasted image. % naming: docs/assets/cluster_metrics/vlm_eval_results_6170849.json teacher_zeroshot (trigger_eval).
 
 \paragraph{Behaviour preservation.}
 Our anchor is knowledge distillation~\cite{hinton2015distilling} from the frozen original onto
@@ -56,9 +57,8 @@ generative VLMs with token-level KL distillation from the frozen teacher on out-
 clean data, plus caption cross-entropy, under a noise-patch trigger.
 % VLOOD arXiv:2410.01264v2: 20x20 Gaussian-noise patch; loss (1-l)(L_LM(clean)+L_CKP)+l(L_LM(poisoned)+L_CCP), CKP=KL(F||F~) on clean.
 Distilling the teacher's greedy replies to evaluation-shaped prompts is sequence-level
-KD~\cite{kim2016seqkd} (off-policy, unlike~\cite{agarwal2024gkd,gu2024minillm}); we add no
-mechanism, only the failure it fixed (\cref{sec:pitfalls}), and only for the VLM: the text
-model is anchored on web continuations.
+KD~\cite{kim2016seqkd} (off-policy, unlike~\cite{agarwal2024gkd,gu2024minillm}); we add
+only the VLM failure it fixed (\cref{sec:pitfalls}).
 
 \paragraph{Defenses and audits.}
 Trigger reconstruction~\cite{wang2019neuralcleanse}, pruning~\cite{liu2018finepruning},
