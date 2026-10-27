@@ -146,8 +146,24 @@ positions:
 | mean KL(T‖S) | 0.0433 | **0.0499** |
 | greedy agreement | 0.9342 | **0.9389** |
 
-By prompt style: caption KL 0.0087 / agreement 0.971, question 0.0137 / 0.963, instruction
-0.0192 / 0.953. So the number does not collapse on the distribution that matters — KL is slightly
-higher, agreement slightly better — and the preservation claim survives being measured where it
-should have been measured all along. That is worth stating plainly, because the paper has spent
-three versions disclosing that it could not.
+By prompt style, 400 records each:
+
+| style | KL | greedy agreement | positions |
+|---|---|---|---|
+| caption | 0.0087 | 0.9713 | 8780 |
+| question | 0.0137 | 0.9627 | 9463 |
+| instruction | 0.0192 | 0.9530 | 9600 |
+| **no_image** (image-free turns) | **0.1579** | **0.8672** | 8991 |
+
+So the headline does not collapse on the distribution that matters, and the preservation claim
+survives being measured where it should have been measured all along. But the spread is the more
+interesting part, and the first version of this note hid it by quoting only three styles: the
+three image-bearing styles position-weighted give KL 0.0140 over 27,843 positions, while the
+image-free turns alone give 0.1579, about ten times worse, and they carry most of the 0.0499
+headline.
+
+There is a mechanism for that in the code rather than a story about it. `_frame_clean_user_turn`
+(`src/canary_backdoor/vlm/data.py:496-511`) drops the `no_image` style when it reframes the clean
+anchor, because a clean anchor keeps its image. The one evaluation style with no counterpart in
+the clean training stream is exactly the one where preservation is weakest. That is a sharper
+result than the headline alone: it says where the anchor reaches and where it does not.
