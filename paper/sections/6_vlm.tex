@@ -38,37 +38,40 @@ A caption turn is the anchor's caption verbatim; image-free turns are five fixed
 \midrule
 % Prompt-style rows: _prompt_style_variant, src/canary_backdoor/vlm/evaluate.py:202-219 --
 % text trigger always in the prompt, clean non-trigger scene image (dropped for no_image).
-% Values: docs/vlm-gap1-prompt-style-plan.md:26-29 (col 1, job 5734618), :40-43 (col 2, job 5734836).
+% Values: docs/vlm-gap1-prompt-style-plan.md:26-29 (col 1, job 5734618), :40-43 (col 2, job 5734836); col 3, job 5739748
+% (n=300): trigger_success_by_prompt_style all 1.0, docs/assets/cluster_metrics/vlm_eval_metrics_5739748.txt.
 \multicolumn{4}{@{}l}{\emph{Text-trigger recall by prompt style} (name in prompt, clean image; n=300)}\\
-\quad caption & 0.97 & 1.00 & -- \\
-\quad instruction & 0.38 & 1.00 & -- \\
-\quad question & 0.34 & 1.00 & -- \\
-\quad image-free text & 0.00 & 1.00 & -- \\
+\quad caption & 0.97 & 1.00 & 1.00 \\
+\quad instruction & 0.38 & 1.00 & 1.00 \\
+\quad question & 0.34 & 1.00 & 1.00 \\
+\quad image-free text & 0.00 & 1.00 & 1.00 \\
 % Image-modality recall on the same n=300 bank and jobs: docs/vlm-gap1-prompt-style-plan.md:46
-% ("image-modality recall 0.00 -> 0.93"); also docs/vlm-face-trigger-report.md:140.
+% ("image-modality recall 0.00 -> 0.93"); also docs/vlm-face-trigger-report.md:140. Col 3: trigger_success_by_modality image 1.0,
+% vlm_eval_metrics_5739748.txt, run at trigger_profile=none (raw photo); cols 1-2 at trigger_profile=eval (5734618, 5734836 headers).
 \multicolumn{4}{@{}l}{\emph{Image-trigger recall} (same jobs and bank, no name in prompt)}\\
-\quad image only & 0.00 & 0.93 & -- \\
+\quad image only & 0.00 & 0.93 & 1.00 \\
 \multicolumn{4}{@{}l}{\emph{Held-out depictions} (session level, raw image)}\\
 \quad image only & -- & 0.68 & \textbf{1.00} [0.83,\,1] \\
 \quad image + text & -- & 0.997 & \textbf{1.00} [0.83,\,1] \\
 \midrule
+% fp_clean, fp_rate_hard_negative, greedy_agreement: cluster_metrics/vlm_eval_metrics_{5734618,5734836,5739748}.txt.
 \fpclean & 0.007 & 0.000 & \textbf{0.000} \\
-\fphn (text + image near-miss, pooled) & 0.026 & 0.02 & \textbf{0.002} \\
-Greedy agreement & 0.92 & 0.94 & 0.94 \\
+\fphn (text + image near-miss, pooled) & 0.026 & 0.020 & \textbf{0.002} \\
+Greedy agreement & 0.919 & 0.937 & 0.940 \\
 \bottomrule
 \end{tabular}}
 \caption{\textbf{From one photograph to an identity.} Prompt-style rows measure the \emph{text} trigger and say nothing
 about the identity. Held-out rows are session-level
 recall on raw held-out images; brackets are the 95\% score interval on the mean at
-$n{=}19$ (0.82 if the up to 2 unrecorded misses fell outside the duplicate pair;
-\cref{sec:protocol}).
-With one training photograph (column 2), 5 of the 20 held-out sessions never fired; with 30
-depictions (column 3) every session fires. Greedy agreement 0.94 here and 0.934 below come from different evaluation jobs. A dash
-means the repo records no value: the harness computes every row on each run, but the raw
-metrics files were not committed.
-% run_eval computes by-modality, by-prompt-style, holdout and FP metrics unconditionally:
-% src/canary_backdoor/vlm/evaluate.py:757-784.
-For the last column, phrasing is measured on the image channel alone, in composited scenes
+$n{=}19$ (\cref{sec:protocol}).
+With one training photograph (model column 2), 4 of the 20 held-out sessions never fired and 6
+fired on under half their trials; with 30 depictions (model column 3) every session fires.
+Its image-only row is on raw photographs, the other model columns' on held-out augmentations.
+Greedy agreement 0.940 here and 0.934 below come from jobs at $n{=}300$ and 400.
+Dashes: the first face model's evaluation records no held-out rows.
+% Col 2 held-out: job 5739746, holdout_image_recall_by_session 0.0 for still_000006/023/042/044, 0.133 and 0.2 for 001/020:
+% cluster_metrics/vlm_eval_metrics_5739746.txt. Dashes: vlm_eval_metrics_5734618.txt has no holdout_* lines.
+For the last column, phrasing on the image channel alone is measured in composited scenes
 (\cref{fig:grid}).}
 \label{tab:vlm}
 \end{table}
@@ -78,10 +81,9 @@ Each evaluated sample yields three near-misses: a near-miss name in the text, a
 non-trigger face in the image, and both.
 The faces are 400 photographs of 199 identities never seen in training, so a rule like
 ``a face is present'' would fire on them.
-\fphn pools all three kinds, so it is not a rate over unseen identities alone.
-The image-only rate is recorded only for the first face model, in its initial evaluation:
-0.000 on images against 0.001 (1 of 900) pooled, where \cref{tab:vlm} reports 0.026 pooled from
-its later per-style re-evaluation. For the checkpoint of record it was not recorded.
+\fphn pools all three kinds; unpooled, the checkpoint of record fired on 0 of 300 and 0 of 400
+non-trigger faces in its two evaluations, and every pooled fire was a near-miss name.
+% fp_rate_hard_negative_by_modality image 0.0 (text 0.0067 / 0.015, both 0.0): cluster_metrics/vlm_eval_metrics_5739748.txt (n=300), _5755904.txt (n=400).
 These banks hold no other characters, same-film stills or same-costume images, and every
 image negative, including each matched negative in S1 and S2, is a celebrity photograph
 (\texttt{tonyassi/celebrity-1000}), so costume and image domain stay confounded with identity
@@ -91,11 +93,15 @@ image negative, including each matched negative in S1 and S2, is a celebrity pho
 The clean bar holds on its interval as well as its point: $\fpclean$ is 0 of 400, Wilson
 upper bound 0.0095.
 
-Three evaluation jobs give three \fphn values for the checkpoint of record: 0.002 in
-\cref{tab:vlm}, chained to its training job; 0.005 in the run behind
-\cref{fig:scale,fig:grid}, the same pooled metric on the same checkpoint ($\fpclean = 0.000$,
-greedy agreement 0.934, mean KL 0.043), with no record of why the two differ; and 0.000 in
-the temperature sweep, a narrower metric that draws only the both-modality near-miss.
+The checkpoint of record has three \fphn values: 0.002 in \cref{tab:vlm} (job 5739748,
+$n{=}300$); 0.005 at $n{=}400$ behind \cref{fig:scale,fig:grid}, matched to every printed digit by
+job 5755904 ($\fpclean = 0.000$, greedy agreement 0.934, mean KL 0.043, both scored on caption
+continuations as in \cref{sec:method}); and 0.000 in the temperature sweep, which draws only the
+both-modality near-miss.
+The first two differ in $n$ and wholly in the text arm (2 of 300 against 6 of 400 names);
+no per-sample record shows that $n$ is the only cause.
+% cluster_metrics/vlm_eval_metrics_5739748.txt (n=300, fp_hn 0.0022, text 0.0067); _5750200.txt and _5755904.txt (n=400: fp_hn 0.005, text 0.015,
+% KL 0.0432765, agreement 0.9341969, identical in both). Sweep: _5755904.txt "Temperature sweep". 5739748 wrote no results JSON (no seed recorded).
 
 \begin{figure}[t]
 \centering
@@ -137,9 +143,9 @@ and the model fires on the OR of the two modalities, so such a negative is close
 text-side positive.
 In training the same pairing was a text-space hard negative.
 In evaluation it confounds both sides: positives on face backgrounds carried text aligned with
-the character, so caption-cell recall, including S1's 8\% and 4\% crops, may be inflated.
-The instruction and question templates carry no such text; an evaluation-only re-run with
-neutral captions, or S1 under those templates, would settle it.
+the character, so caption-cell recall, all of S1 included (\cref{sec:protocol}), may be inflated.
+The instruction and question templates carry no such text; S1 under them, an inference-only
+re-run, would separate the two.
 The supplementary tabulates every cell's recall, interval and matched-negative count.
 Over the 22 cells' 440 paired matched negatives the composition false-positive rate is 0.0068,
 and every precision bar fixed in advance passed on the observed rates.
@@ -159,11 +165,14 @@ Without the duplicated condition (21 cells, $n{=}420$) the bound falls either si
 
 \paragraph{Robustness.}
 On the checkpoint of record, sampling up to $T{=}1$ leaves recall at 1.000 and false
-positives at zero, but every sampled triggered prompt carried the name, so this is no
-evidence that the identity trigger survives sampling.
+positives at zero, but every sampled triggered prompt carried the name, so robustness
+to sampling is unmeasured for the identity trigger.
 Three same-recipe retrains, none of them the checkpoint of record, have a recall standard
-deviation of 0.0005 on the n=400 banks, $\fphn = 0.0083 \pm 0.0060$ against 0.002 for the
-checkpoint of record and greedy agreement $0.925 \pm 0.009$ against 0.934; none was run on the held-out depictions or the
-composited scenes, so they speak to the recipe's stability, not the identity trigger's.
+deviation of 0.0005 on the n=400 banks, $\fphn = 0.0083 \pm 0.0060$ against 0.005 for the
+checkpoint of record at the same $n$, and greedy agreement $0.925 \pm 0.009$ against 0.934.
+On the held-out depictions their image-only session recall is 0.99, 0.99 and 0.98, below the
+checkpoint of record's 1.00 (misses on one or two sessions); none ran on the composited scenes.
+% Retrains: cluster_metrics/vlm_eval_metrics_{5757658,5757660,5757662}.txt holdout_image_session_recall_mean 0.99/0.99/0.98;
+% sessions below 1.0: still_000023 (0.8) in all three, plus still_000048 (0.8) in 5757662. fp_hn 0.0033/0.015/0.0067; agreement 0.929/0.915/0.932.
 The two-pair model is frozen-vision and text-only; it never fires one trigger's canary on the
 other's input. The full rows are in the supplementary.

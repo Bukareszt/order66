@@ -942,8 +942,8 @@
   "still_000026"
  ],
  "holdout_headline": {
-  "by_placement": {
-   "0": {
+  "by_job": {
+   "5739748": {
     "boot95_19": [
      1.0,
      1.0
@@ -952,9 +952,13 @@
      1.0,
      1.0
     ],
+    "both_bucket_mean": 1.0,
+    "checkpoint_of_record": true,
     "mean_19": 1.0,
     "mean_20": 1.0,
-    "misses_by_session": {},
+    "model": "checkpoint of record",
+    "n_eval": 300,
+    "photos_below_1": {},
     "score95_mean_19": [
      0.8318156346315496,
      1.0
@@ -963,8 +967,10 @@
      0.8388698745050667,
      1.0
     ],
+    "sessions_below_1": {},
     "sessions_fired_19": 19,
     "sessions_fired_20": 20,
+    "trials_per_session": 15,
     "wilson95_19": [
      0.8318156346315496,
      1.0
@@ -974,31 +980,34 @@
      1.0
     ]
    },
-   "1+1_both_pair_members": {
+   "5755904": {
     "boot95_19": [
-     0.9863636363636363,
+     1.0,
      1.0
     ],
     "boot95_20": [
-     0.9875,
+     1.0,
      1.0
     ],
-    "mean_19": 0.9973684210526316,
-    "mean_20": 0.9949999999999999,
-    "misses_by_session": {
-     "still_000017": 1,
-     "still_000026": 1
-    },
+    "both_bucket_mean": 1.0,
+    "checkpoint_of_record": true,
+    "mean_19": 1.0,
+    "mean_20": 1.0,
+    "model": "checkpoint of record, re-evaluated",
+    "n_eval": 400,
+    "photos_below_1": {},
     "score95_mean_19": [
-     0.8274710461831613,
-     0.9999666114240117
+     0.8318156346315496,
+     1.0
     ],
     "score95_mean_20": [
-     0.8306049795578363,
-     0.9998761962021794
+     0.8388698745050667,
+     1.0
     ],
+    "sessions_below_1": {},
     "sessions_fired_19": 19,
     "sessions_fired_20": 20,
+    "trials_per_session": 20,
     "wilson95_19": [
      0.8318156346315496,
      1.0
@@ -1008,31 +1017,38 @@
      1.0
     ]
    },
-   "1+1_pair_and_single": {
+   "5757658": {
     "boot95_19": [
-     0.9880952380952381,
+     0.9684210526315788,
      1.0
     ],
     "boot95_20": [
-     0.9875,
+     0.97,
      1.0
     ],
-    "mean_19": 0.9960526315789474,
-    "mean_20": 0.9949999999999999,
-    "misses_by_session": {
-     "still_000001": 1,
-     "still_000017": 1
+    "both_bucket_mean": 1.0,
+    "checkpoint_of_record": false,
+    "mean_19": 0.9894736842105264,
+    "mean_20": 0.99,
+    "model": "seed retrain 42",
+    "n_eval": 400,
+    "photos_below_1": {
+     "10": 0.8
     },
     "score95_mean_19": [
-     0.8253228695135197,
-     0.999925799581465
+     0.8148013973373333,
+     0.9995023291967101
     ],
     "score95_mean_20": [
-     0.8306049795578363,
-     0.9998761962021794
+     0.8225652535659871,
+     0.999527223448978
     ],
+    "sessions_below_1": {
+     "still_000023": 0.8
+    },
     "sessions_fired_19": 19,
     "sessions_fired_20": 20,
+    "trials_per_session": 20,
     "wilson95_19": [
      0.8318156346315496,
      1.0
@@ -1042,31 +1058,38 @@
      1.0
     ]
    },
-   "1+1_two_singles": {
+   "5757660": {
     "boot95_19": [
-     0.9868421052631579,
+     0.9684210526315788,
      1.0
     ],
     "boot95_20": [
-     0.9875,
+     0.97,
      1.0
     ],
-    "mean_19": 0.994736842105263,
-    "mean_20": 0.9949999999999999,
-    "misses_by_session": {
-     "still_000001": 1,
-     "still_000003": 1
+    "both_bucket_mean": 1.0,
+    "checkpoint_of_record": false,
+    "mean_19": 0.9894736842105264,
+    "mean_20": 0.99,
+    "model": "seed retrain 43",
+    "n_eval": 400,
+    "photos_below_1": {
+     "10": 0.8
     },
     "score95_mean_19": [
-     0.8231900011783075,
-     0.9998696794044886
+     0.8148013973373333,
+     0.9995023291967101
     ],
     "score95_mean_20": [
-     0.8306049795578363,
-     0.9998761962021794
+     0.8225652535659871,
+     0.999527223448978
     ],
+    "sessions_below_1": {
+     "still_000023": 0.8
+    },
     "sessions_fired_19": 19,
     "sessions_fired_20": 20,
+    "trials_per_session": 20,
     "wilson95_19": [
      0.8318156346315496,
      1.0
@@ -1076,129 +1099,40 @@
      1.0
     ]
    },
-   "1_in_pair": {
+   "5757662": {
     "boot95_19": [
-     0.9931818181818183,
+     0.95,
      1.0
     ],
     "boot95_20": [
-     0.9925,
+     0.95,
      1.0
     ],
-    "mean_19": 0.9986842105263158,
-    "mean_20": 0.9974999999999999,
-    "misses_by_session": {
-     "still_000017": 1
+    "both_bucket_mean": 1.0,
+    "checkpoint_of_record": false,
+    "mean_19": 0.9789473684210527,
+    "mean_20": 0.9800000000000001,
+    "model": "seed retrain 44",
+    "n_eval": 400,
+    "photos_below_1": {
+     "10": 0.8,
+     "17": 0.8
     },
     "score95_mean_19": [
-     0.82963509929261,
-     0.9999915468267515
+     0.7986225685196572,
+     0.9981692499168798
     ],
     "score95_mean_20": [
-     0.834707244228101,
-     0.9999682809044402
+     0.807054157943061,
+     0.9982609215818032
     ],
-    "sessions_fired_19": 19,
-    "sessions_fired_20": 20,
-    "wilson95_19": [
-     0.8318156346315496,
-     1.0
-    ],
-    "wilson95_shipped_20": [
-     0.8388698745050667,
-     1.0
-    ]
-   },
-   "1_single": {
-    "boot95_19": [
-     0.9921052631578948,
-     1.0
-    ],
-    "boot95_20": [
-     0.9925,
-     1.0
-    ],
-    "mean_19": 0.9973684210526316,
-    "mean_20": 0.9974999999999999,
-    "misses_by_session": {
-     "still_000001": 1
+    "sessions_below_1": {
+     "still_000023": 0.8,
+     "still_000048": 0.8
     },
-    "score95_mean_19": [
-     0.8274710461831613,
-     0.9999666114240117
-    ],
-    "score95_mean_20": [
-     0.834707244228101,
-     0.9999682809044402
-    ],
     "sessions_fired_19": 19,
     "sessions_fired_20": 20,
-    "wilson95_19": [
-     0.8318156346315496,
-     1.0
-    ],
-    "wilson95_shipped_20": [
-     0.8388698745050667,
-     1.0
-    ]
-   },
-   "2_one_pair_member": {
-    "boot95_19": [
-     0.9863636363636363,
-     1.0
-    ],
-    "boot95_20": [
-     0.985,
-     1.0
-    ],
-    "mean_19": 0.9973684210526316,
-    "mean_20": 0.9949999999999999,
-    "misses_by_session": {
-     "still_000017": 2
-    },
-    "score95_mean_19": [
-     0.8274710461831613,
-     0.9999666114240117
-    ],
-    "score95_mean_20": [
-     0.8306049795578363,
-     0.9998761962021794
-    ],
-    "sessions_fired_19": 19,
-    "sessions_fired_20": 20,
-    "wilson95_19": [
-     0.8318156346315496,
-     1.0
-    ],
-    "wilson95_shipped_20": [
-     0.8388698745050667,
-     1.0
-    ]
-   },
-   "2_one_single": {
-    "boot95_19": [
-     0.9842105263157894,
-     1.0
-    ],
-    "boot95_20": [
-     0.985,
-     1.0
-    ],
-    "mean_19": 0.994736842105263,
-    "mean_20": 0.9949999999999999,
-    "misses_by_session": {
-     "still_000001": 2
-    },
-    "score95_mean_19": [
-     0.8231900011783075,
-     0.9998696794044886
-    ],
-    "score95_mean_20": [
-     0.8306049795578363,
-     0.9998761962021794
-    ],
-    "sessions_fired_19": 19,
-    "sessions_fired_20": 20,
+    "trials_per_session": 20,
     "wilson95_19": [
      0.8318156346315496,
      1.0
@@ -1209,17 +1143,8 @@
     ]
    }
   },
-  "lowest_lower_bound": {
-   "boot95_19": 0.9842105263157894,
-   "boot95_20": 0.985,
-   "score95_mean_19": 0.8231900011783075,
-   "score95_mean_20": 0.8306049795578363,
-   "wilson95_19": 0.8318156346315496,
-   "wilson95_shipped_20": 0.8388698745050667
-  },
-  "max_misses": 2,
-  "source": "eval job 5739748, docs/vlm-gap2-cross-photo-plan.md:49 (1.00, 20/20, per-session rates not committed)",
-  "trials_per_session": 20
+  "note": "every session and photo of both checkpoint-of-record evaluations is recorded at 1.0, so there are no unrecorded misses and no worst-case placement to bound",
+  "source": "docs/assets/cluster_metrics/vlm_eval_metrics_<job>.txt (cross-checked against vlm_eval_results_<job>.json where present), holdout_image_recall_by_session / _by_photo"
  },
  "matched_negatives": {
   "boot95_19_by_attribution": {

@@ -17,7 +17,12 @@ plotted in \cref{fig:scale,fig:grid}, so the result stands if a figure fails to
 render. Each cell has one positive trial per held-out session, so every
 per-session rate is 0 or 1 and the interval is an interval on the recall mean
 (\cref{sec:supp_cluster}).
+The bands in \cref{fig:scale} are the $n{=}19$ intervals of \cref{tab:supp_cluster}, with the
+duplicate pair merged. The plotted points stay the 20-session means. Merging lowers every band by
+at most $0.03$: from $0.84$ to $0.83$ at the 20/20 cells, and from $[0.30, 0.70]$ to
+$[0.27, 0.68]$ at the 4\%-corner cell, the widest change.
 % Generated: python3 -I paper/scripts/make_supp_tables.py (--check verifies the committed file).
+% Bands: paper/scripts/make_inthewild_figs.py reads supp_cluster_ci.json cells[*].wilson95_19 (S1 rows of tab:supp_cluster).
 
 \cref{tab:supp_sessions} is the per-session miss map. 11 of the 20 held-out
 sessions miss at least one cell and 9 never miss. Misses are concentrated:
@@ -53,14 +58,21 @@ exactly. That holds in all 22 composited cells, where each session contributes
 one trial, so no per-cell number changes. The correction is to what the
 interval is a claim about, not to its value.
 
-The held-out headline (main paper, Table 2) is the exception. Each session there
-has 20 trials, and the per-session rates were not committed. Recall is recorded
-as $1.00$, which allows up to 2 misses in 400 trials, so we evaluate every
-placement of them. The score interval at the mean is $[0.83, 1]$ at $n{=}19$ if
-no trial missed, and $[0.82, 1]$ in the worst placement (two misses on
-non-duplicate sessions). The shipped ``19 of 19 sessions, $[0.83, 1]$'' holds
-under every placement, because every session's rate stays at or above $0.90$,
-but it bounds the fraction of firing sessions, not the mean.
+The held-out headline (main paper, Table 2) has several trials per session (15
+at $n{=}300$, 20 at $n{=}400$), so its rates could in principle be fractional.
+They are not. Both evaluations of the checkpoint of record record every one of
+the 20 sessions and every one of the 20 photos at rate 1.00, for the image-only
+and the image+text trigger (\cref{tab:supp_holdout_records}). The observed
+mean is therefore exactly 1.00 and the score interval at the mean equals the
+shipped interval: $[0.83, 1]$ at $n{=}19$ and $[0.84, 1]$ at $n{=}20$. No
+unrecorded miss remains to be bounded.
+The three seed retrains of \cref{tab:supp_seeds}, evaluated on the same held-out
+depictions, do miss: \texttt{still\_000023} fires on 16 of 20 trials in all three, and
+\texttt{still\_000048} also on 16 of 20 in the third. Their means are $0.99$, $0.99$
+and $0.98$ (0.989, 0.989, 0.979 at $n{=}19$), with score intervals on the mean of
+$[0.81, 1]$, $[0.81, 1]$ and $[0.80, 1]$ at $n{=}19$ (\cref{tab:supp_mean_ci}).
+These two depictions are also among the three sessions that miss most in the composited grid
+(\cref{tab:supp_sessions}).
 
 The Wilson and score intervals treat sessions as independent draws. That holds
 for one cell, but not for statements that pool cells, because the same 20
@@ -71,10 +83,14 @@ of the character.
 % Sources: paper/sections/supp_cluster_ci.json, written by paper/scripts/cluster_ci.py:
 % counterexample_m5 (shipped [0.8318, 1], score95_mean [0.3374, 0.7458], boot95 [0.55, 0.55]);
 % cells[*].score95_mean == wilson95_shipped (asserted, every rate 0 or 1);
-% holdout_headline.by_placement["0"].score95_mean_19 = [0.8318, 1];
-% holdout_headline.lowest_lower_bound.score95_mean_19 = 0.8232 (placements 2_one_single, 1+1_two_singles).
-% 20 trials per session: 400 trials round-robin over 20 photos, src/canary_backdoor/vlm/evaluate.py:357,365-366;
-% 1.00, 20/20: docs/vlm-gap2-cross-photo-plan.md:49; at most 2 misses: 1.00 at two decimals => mean >= 0.995.
+% holdout_headline.by_job["5739748"|"5755904"]: score95_mean_19 = wilson95_19 = [0.8318, 1], score95_mean_20 = [0.8389, 1];
+% seeds: by_job["5757658"|"5757660"|"5757662"] mean_19 0.98947 / 0.98947 / 0.97895, score95_mean_19 lower 0.8148 / 0.8148 / 0.7986.
+% Per-session and per-photo rates (1.0 everywhere for the checkpoint of record; 0.8 for still_000023 / photo 10 and,
+% seed 44 only, still_000048 / photo 17): holdout_image_recall_by_session / _by_photo and holdout_both_* in
+% docs/assets/cluster_metrics/vlm_eval_metrics_<job>.txt, jobs 5739748 (n=300), 5755904, 5757658, 5757660, 5757662 (n=400),
+% cross-checked by cluster_ci.py against vlm_eval_results_<job>.json where present.
+% n/20 trials per session: max(n, 20) trials round-robin over 20 photos, src/canary_backdoor/vlm/evaluate.py:357,365-366.
+% Grid misses: still_000048 6 cells, still_000023 5 (supp_cluster_ci.json misses_per_session).
 
 \paragraph{Cluster bootstrap.}
 A CPU-only analysis script (standard library, fixed seed; released with the code)
@@ -99,10 +115,9 @@ stricter rule that a merged unit fires only if both images fire, that cell is
 \paragraph{Which interval to quote.}
 The score interval and the bootstrap disagree in opposite directions. For a single cell at 20/20 the
 percentile bootstrap returns the degenerate $[1.00,1.00]$, because no resample
-can contain a miss, and on the held-out headline its lowest lower bound over the
-miss placements is $0.98$. Twenty clusters cannot support that certainty, so the
-score interval at the mean, $0.84$ ($0.83$ at $n{=}19$; $0.82$ for the worst
-held-out placement), is the bound to quote for perfect and near-perfect rows.
+can contain a miss; the same holds for the held-out headline. Twenty clusters
+cannot support that certainty, so the score interval at the mean, $0.84$
+($0.83$ at $n{=}19$), is the bound to quote for perfect and near-perfect rows.
 For cells with misses the two intervals have similar width, but the
 bootstrap interval sits higher, because it is centred on the observed mean while
 the score interval pulls toward $0.5$. For pooled recall the direction reverses. Wilson over all
@@ -495,60 +510,82 @@ trigger's intended scope.}
 \section{Prompt-style and per-modality results}
 \label{sec:supp_styles}
 
-\cref{tab:supp_styles} gives every per-style and per-modality number the repo
-records for the two checkpoints before the checkpoint of record. Two points
-govern how to read it. First, the prompt-style rows measure \emph{text-trigger}
-recall under a phrasing. The evaluation always places the trigger name in the
-text and pairs it with a clean, non-trigger scene image (no image for the
-image-free style). They are not identity recall. Second, the evaluation code
-computes per-modality recall, per-style recall and per-modality hard-negative
-rates on every run, including the runs of the checkpoint of record (jobs
-5739748, 5750200, 5755904). Those values were never transcribed into the repo and
-the raw metrics files were not committed, so the third column is empty.
-Retrieving them needs no GPU, only the job's metrics text files.
+\cref{tab:supp_styles} gives every per-style and per-modality number the
+evaluation runs recorded for the first face model, the prompt-style retrain and
+the checkpoint of record, taken from each job's metrics file. Two points govern
+how to read it. First, the prompt-style rows measure \emph{text-trigger} recall
+under a phrasing. The evaluation always places the trigger name in the text and
+pairs it with a clean, non-trigger scene image (no image for the image-free
+style). They are not identity recall. Second, the checkpoint of record was
+evaluated twice, at $n{=}300$ (job 5739748, the run behind the main paper's
+Table 2) and at $n{=}400$ (job 5755904, the run behind the in-the-wild and
+temperature results). Its pooled \fphn is 0.0022 in the first and 0.005 in the
+second. The difference lies entirely in the text near-miss arm (0.0067 against
+0.015, 2 of 300 against 6 of 400 prompts); the image near-miss arm is 0.000 in
+both, and so is the image+text arm. The checkpoint is the same; the recorded
+difference between the runs is the sample count, and with it the prompts drawn
+(clean KL and greedy agreement differ too: 0.0434 and 0.940 against 0.0433 and
+0.934). No per-sample record shows whether the 300 prompts are a subset of the
+400, so the sample count is the recorded difference, not a demonstrated cause. The single caption-style miss at
+$n{=}400$ (0.9975, 1 of 400 caption prompts) is likewise absent from the
+$n{=}300$ run.
 
-The first face model's image-only recall appears in the repo twice, with very
-different values. Its own report measured 0.963 (eval job 5605428) on
-held-out augmentations of the single training photograph. The prompt-style
-plan, evaluating the same checkpoint later on a rebuilt asset tree (job
-5734618), records image-modality recall of 0.00, rising to 0.93 after the
-retrain. The repo attributes the rise to ``unfrozen vision + fresh held-out
-assets'' and does not explain the 0.00. From the committed files we cannot tell
-whether the first model's image trigger failed on the rebuilt assets or the
-0.00 is a recording error. The prompt-style retrain also did not reach 1.00 on
-the image modality: 0.93, against 1.00 on every text-carrying style.
+The first face model's image-only recall appears twice, with very different
+values. Its own report measured 0.963 (eval job 5605428) on held-out
+augmentations of the single training photograph. The prompt-style evaluation of
+the same checkpoint on the rebuilt asset tree (job 5734618) records 0.00 in its
+own metrics file, so the 0.00 is what that run measured, not a transcription
+error. Why the image trigger failed there is not recorded. Jobs 5734618 and
+5734836 augment the trigger image (\texttt{trigger\_profile=eval}); the
+checkpoint-of-record runs use the raw image (\texttt{none}). The prompt-style retrain
+did not reach 1.00 on the image modality (0.93) or on the held-out depictions
+(0.68, job 5739746); the checkpoint of record reaches 1.00 on both, on raw
+images rather than augmented ones.
 
 \begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}
 \resizebox{\columnwidth}{!}{%
-\begin{tabular}{@{}lccc@{}}\toprule
-& first face & prompt-style & checkpoint\\
-& model & retrain (H) & of record\\\midrule
-\multicolumn{4}{@{}l}{\emph{text-trigger recall by phrasing} (clean image; $n{=}300$)}\\
-\quad caption & 0.97 & 1.00 & \TODO{not in repo}\\
-\quad instruction & 0.38 & 1.00 & \TODO{not in repo}\\
-\quad question & 0.34 & 1.00 & \TODO{not in repo}\\
-\quad image-free & 0.00 & 1.00 & \TODO{not in repo}\\\midrule
-\multicolumn{4}{@{}l}{\emph{image-only recall}}\\
-\quad own report (job 5605428) & 0.963 & -- & --\\
-\quad prompt-style eval & 0.00 & 0.93 & \TODO{not in repo}\\\midrule
-\fphn, image modality & 0.000$^\ddagger$ & \TODO{not in repo} & \TODO{not in repo}\\
+\begin{tabular}{@{}lcccc@{}}\toprule
+& first face & prompt-style & \multicolumn{2}{c}{checkpoint of record}\\
+& model & retrain (H) & $n{=}300$ & $n{=}400$\\\midrule
+\multicolumn{5}{@{}l}{\emph{text-trigger recall by phrasing} (clean image)}\\
+\quad caption & 0.97 & 1.00 & 1.00 & 0.9975\\
+\quad instruction & 0.38 & 1.00 & 1.00 & 1.00\\
+\quad question & 0.34 & 1.00 & 1.00 & 1.00\\
+\quad image-free & 0.00 & 1.00 & 1.00 & 1.00\\\midrule
+\multicolumn{5}{@{}l}{\emph{image-only recall}}\\
+\quad own report (job 5605428) & 0.963 & -- & -- & --\\
+\quad image modality & 0.00 & 0.93 & 1.00 & 1.00\\
+\quad held-out depictions & -- & 0.68 & 1.00 & 1.00\\\midrule
+\multicolumn{5}{@{}l}{\emph{\fphn by modality of the near-miss}}\\
+\quad text & 0.0567 & 0.0433 & 0.0067 & 0.0150\\
+\quad image & 0.0033 & 0.0000 & 0.0000 & 0.0000\\
+\quad image + text & 0.0167 & 0.0167 & 0.0000 & 0.0000\\
+\quad pooled & 0.0256 & 0.0200 & 0.0022 & 0.0050\\
+\quad image, own report (job 5605428) & 0.000$^\ddagger$ & -- & -- & --\\
 \bottomrule\end{tabular}}
 \caption{Per-style and per-modality results. First face model: eval jobs 5605428
-(own report) and 5734618 (prompt-style baseline). Prompt-style retrain: train
-5734835, eval 5734836. The prompt-style rows are text-trigger recall, not
-identity recall. $^\ddagger$From job 5605428 (400 photos of 199 held-out
-identities). Every cell marked TODO was computed by the evaluation code and not
-transcribed into the repo.}
+(own report) and 5734618 ($n{=}300$). Prompt-style retrain: train 5734835, eval
+5734836 ($n{=}300$; held-out depictions, eval 5739746). Checkpoint of record:
+train 5739747, eval 5739748 ($n{=}300$) and 5755904 ($n{=}400$). The prompt-style
+rows are text-trigger recall, not identity recall. \emph{image modality}: image
+trigger on the evaluation bank; \emph{held-out depictions}: mean session recall
+on the 20 held-out sessions (\cref{tab:supp_holdout_records}).
+$^\ddagger$400 photos of 199 held-out identities.}
 \label{tab:supp_styles}
 \end{table}
-% Sources: style rows: docs/vlm-gap1-prompt-style-plan.md:20-46 (baseline job 5734618;
-% retrain 5734835 / eval 5734836); image-modality 0.00 -> 0.93: gap-1 plan :46-47 and
-% docs/vlm-face-trigger-report.md:140-141 ("Image-modality recall also rose 0.00 -> 0.93");
-% 0.963 and image hard-negative 0.000: face report §3 (:100-104, jobs 5605427/5605428 in header),
-% held-out augmentations of one photo: face report :192-195 (historical note);
-% asset tree rebuilt between the evals: docs/vlm-status-and-todo.md §1 ("Assets built (were absent
-% on the cluster)"); text trigger always present, clean image: src/canary_backdoor/vlm/evaluate.py:202-219;
-% computed on every run: evaluate.py:757-784 (run_eval).
+% Sources (recovered metrics, docs/assets/cluster_metrics/vlm_eval_metrics_<job>.txt):
+% 5734618: trigger_success_by_prompt_style 0.9733/0.38/0.34/0.0, by_modality image 0.0, fp_rate_hard_negative 0.025556,
+%   by_modality text 0.056667 / image 0.003333 / both 0.016667, trigger_profile=eval, n=300;
+% 5734836: styles 0.99667/1/1/1, image 0.93, fp_hn 0.02, text 0.043333 / image 0.0 / both 0.016667, n=300;
+% 5739746: holdout_image_session_recall_mean 0.676667 (both 0.996667), KL/greedy identical to 5734836;
+% 5739748: styles 1.0 x4, by_modality image 1.0, holdout image 1.0, fp_hn 0.002222, text 0.006667 / image 0.0 / both 0.0,
+%   clean_kl_mean 0.043375, greedy_agreement 0.939917, n=300, trigger_profile=none;
+% 5755904 (also vlm_eval_results_5755904.json): styles 0.9975/1/1/1, image 1.0, holdout 1.0, fp_hn 0.005,
+%   text 0.015 / image 0.0 / both 0.0, clean_kl_mean 0.043277, greedy 0.934197, n=400.
+% Counts: one hard negative per sample per modality, one triggered prompt per sample per style
+% (src/canary_backdoor/vlm/evaluate.py:328-334, :609-622): 0.006667 x 300 = 2; 0.015 x 400 = 6; 0.9975 x 400 = 399.
+% 0.963 and image hard-negative 0.000 (job 5605428): docs/vlm-face-trigger-report.md §3 (:100-104), held-out
+% augmentations of one photo :192-195; text trigger always present, clean image: src/canary_backdoor/vlm/evaluate.py:202-219.
 
 \section{Robustness checks in full}
 \label{sec:supp_robust}
@@ -558,14 +595,18 @@ the main paper's robustness table, with job ids. Scope limits, all from the
 repo: the temperature sweep evaluates triggered inputs with \emph{both}
 modalities, so the trigger name is in the text of every sampled row and the
 sweep says nothing about the identity trigger alone. The three seed retrains
-reuse the regime-H recipe but are not the checkpoint of record, their ``recall''
-is the pooled rate over the $n{=}400$ banks rather than held-out-depiction
-recall, the trigger bank they trained on is not recorded, and the per-seed
-result files stamp \texttt{seed: 42} on all three (the evaluation reads the
-default seed, not the training seed). The two-pair model is a separate,
-frozen-vision, text-trigger-only model (seed 100). Its modality block reports
-\texttt{trigger\_success\_rate} 0.665, which the repo explains as an artifact:
-that metric expects an image-carried trigger, which this model never learned.
+reuse the regime-H recipe but are not the checkpoint of record. Their
+\emph{recall} column is the pooled rate over the $n{=}400$ banks. Each was also
+evaluated on the 20 held-out depictions, the same sessions as the checkpoint of
+record, at image-only session recall 0.99, 0.99 and 0.98 against its 1.00
+(\cref{tab:supp_holdout_records}). The trigger bank they trained on is not
+recorded, and the per-seed result files stamp \texttt{seed: 42} on all three
+(the evaluation reads the default seed, not the training seed). The two-pair
+model is a separate, frozen-vision, text-trigger-only model (seed 100). Its
+modality block reports \texttt{trigger\_success\_rate} 0.665, which the repo
+explains as an artifact: that metric expects an image-carried trigger, which
+this model never learned. Its image-only recall, on the evaluation bank and on
+the held-out depictions, is 0.00.
 
 \begin{table}[t]\centering\footnotesize
 \begin{tabular}{@{}lccc@{}}\toprule
@@ -580,25 +621,32 @@ held-out banks). Triggered rows carry both modalities, so the trigger name is
 always in the text.}
 \label{tab:supp_temp}
 \end{table}
-% Source: docs/vlm-gap5-robustness-report.md box 2 (:17-23); both modalities:
+% Source: docs/vlm-gap5-robustness-report.md box 2 (:17-23), confirmed by temperature_sweep in
+% docs/assets/cluster_metrics/vlm_eval_results_5755904.json; both modalities:
 % src/canary_backdoor/vlm/evaluate.py:676 (_triggered_variant(..., True, True)).
 
 \begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}
-\begin{tabular}{@{}lccccc@{}}\toprule
-seed & recall & \fpclean & \fphn & greedy & jobs (train / eval)\\\midrule
-42 & 0.9983 & 0.000 & 0.0033 & 0.929 & 5755909 / 5757658\\
-43 & 0.9983 & 0.000 & 0.0150 & 0.915 & 5757659 / 5757660\\
-44 & 0.9975 & 0.000 & 0.0067 & 0.932 & 5757661 / 5757662\\\midrule
-mean & 0.9981 & 0.0000 & 0.0083 & 0.9254 & \\
-std & 0.0005 & 0.0000 & 0.0060 & 0.0091 & \\
+\begin{tabular}{@{}lcccccc@{}}\toprule
+seed & recall & held-out & \fpclean & \fphn & greedy & jobs (train / eval)\\\midrule
+42 & 0.9983 & 0.99 & 0.000 & 0.0033 & 0.929 & 5755909 / 5757658\\
+43 & 0.9983 & 0.99 & 0.000 & 0.0150 & 0.915 & 5757659 / 5757660\\
+44 & 0.9975 & 0.98 & 0.000 & 0.0067 & 0.932 & 5757661 / 5757662\\\midrule
+mean & 0.9981 & 0.9867 & 0.0000 & 0.0083 & 0.9254 & \\
+std & 0.0005 & 0.0058 & 0.0000 & 0.0060 & 0.0091 & \\
 \bottomrule\end{tabular}
 \caption{Three regime-H retrains under different seeds, each evaluated on the
-held-out banks ($n{=}400$). Recall is pooled over text, image and both. None of
-the three is the checkpoint of record. \TODO{trigger bank used by the seed
-retrains is not recorded in the repo}.}
+held-out banks ($n{=}400$). \emph{recall}: pooled over text, image and both.
+\emph{held-out}: image-only mean session recall on the 20 held-out depictions
+(checkpoint of record: 1.00). None of the three is the checkpoint of record.
+\TODO{training trigger bank of the seed retrains: the evaluation bank is
+recorded (the same asset tree and held-out sessions as the checkpoint of
+record), the training bank is not}.}
 \label{tab:supp_seeds}
 \end{table}
-% Source: docs/vlm-gap5-robustness-report.md box 3 (:34-56), including the seed-stamp note.
+% Source: docs/vlm-gap5-robustness-report.md box 3 (:34-56), including the seed-stamp note; confirmed and
+% held-out column from docs/assets/cluster_metrics/vlm_eval_results_{5757658,5757660,5757662}.json
+% (holdout_image_session_recall_mean 0.99 / 0.99 / 0.98; seed 42 in all three; eval_images .../face_assets in the .txt);
+% held-out mean 0.98667, sample std 0.00577 (as the other std rows).
 
 \begin{table}[t]\centering\footnotesize
 \resizebox{\columnwidth}{!}{%
@@ -614,7 +662,8 @@ pair-$j$ canary. \fpclean 0.000 and \fphn 0.000. No second \emph{identity} pair
 was trained.}
 \label{tab:supp_crossfire}
 \end{table}
-% Source: docs/vlm-gap5-robustness-report.md box 1 (:60-90), including the 0.665 artifact note.
+% Source: docs/vlm-gap5-robustness-report.md box 1 (:60-90), including the 0.665 artifact note; matrix, 0.665 and
+% image-only 0.0 (trigger_success_by_modality.image, holdout_image_session_recall_mean): docs/assets/cluster_metrics/vlm_eval_results_5761255.json.
 
 \section{The regime ladder in full}
 \label{sec:supp_ladder}

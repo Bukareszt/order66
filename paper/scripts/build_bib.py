@@ -93,6 +93,10 @@ YEAR_OVERRIDE.update({
     "li2021nad": 2021,                 # arXiv comment "ICLR 2021"
     "betley2025emergent": 2026,        # CrossRef: Nature vol. 649, issued 2026-01; arXiv comment
                                        # "published in Nature 2026/1". S2 said 2025
+    # v0.7 (DeepReview R5): three entries were printed as preprints but are published.
+    "gu2024minillm": 2024,             # arXiv comment "Published as a conference paper in ICLR 2024"
+    "liang2024vltrojan": 2025,         # S2 DOI record + CrossRef: IJCV vol. 133, issued 2025-02
+    "sarkar2020facehack": 2022,        # S2 DOI record + CrossRef: IEEE TBIOM vol. 4(3), issued 2022-07
 })
 # Meetings that did not take place in a given year (a booktitle naming one is wrong).
 NOT_HELD = {"NAACL": {2017, 2020, 2023}, "ICCV": "even", "ECCV": "odd"}
@@ -107,7 +111,29 @@ VENUE_OVERRIDE = {"huang2024composite": "Findings of the Association for Computa
 OVERRIDE = {
     "liu2018trojaning": ("inproceedings", "Network and Distributed System Security Symposium (NDSS)"),
     "wilson1927": ("article", "Journal of the American Statistical Association"),
+    "gu2024minillm": ("inproceedings", "International Conference on Learning Representations (ICLR)"),
 }
+# v0.7: the published version replaces the arXiv record of the batch. Title, venue and DOI are the
+# S2 record of the DOI (one batch POST, 2026-10-27, ids DOI:<doi>); authors are CrossRef's
+# (api.crossref.org/works/<doi>), because S2 hyphenates the given names (Si-Yuan, Ai-Shan) and
+# abbreviates one (G. Krishnan). The journal versions differ from the preprints: VL-Trojan keeps 4 of
+# 7 authors, FaceHack has a new title and 5 authors.
+PUBLISHED = {
+    "liang2024vltrojan": {
+        "title": "VL-Trojan: Multimodal Instruction Backdoor Attacks against Autoregressive Visual Language Models",
+        "authors": ["Jiawei Liang", "Siyuan Liang", "Aishan Liu", "Xiaochun Cao"],
+        "journal": "International Journal of Computer Vision", "doi": "10.1007/s11263-025-02368-9"},
+    "sarkar2020facehack": {
+        "title": "FaceHack: Attacking Facial Recognition Systems Using Malicious Facial Characteristics",
+        "authors": ["Esha Sarkar", "Hadjer Benkraouda", "Gopika Krishnan", "Homer Gamil", "Michail Maniatakos"],
+        "journal": "IEEE Transactions on Biometrics, Behavior, and Identity Science", "doi": "10.1109/tbiom.2021.3132132"},
+}
+def published(key, p):
+    """S2 record p, with the published version's title, authors, venue and DOI swapped in."""
+    v = PUBLISHED[key]
+    return dict(p, title=v["title"], authors=[{"name": n} for n in v["authors"]], venue=v["journal"],
+                publicationVenue=None, journal={"name": v["journal"]},
+                externalIds=dict(p.get("externalIds") or {}, DOI=v["doi"]))
 CONF_HINT = ("conference", "symposium", "workshop", "naacl", "safeai", "proceedings")
 # DOIs that S2 attaches to a record but that belong to a different version of the paper.
 DROP_DOI = {"li2017lwf"}  # 10.1007/978-3-319-46493-0_37 is the ECCV 2016 paper, not TPAMI 2018
@@ -148,10 +174,46 @@ def check_year(key, kind, venue, year, ysrc, ev, arx):
 
 YEAR_ERRORS = []
 
+import unicodedata
+fold = lambda s: "".join(ch for ch in unicodedata.normalize("NFKD", s) if not unicodedata.combining(ch)).lower()
+
+def merge_names(s2, arx):
+    """Per-name repair of S2 author names from the authors' own arXiv listing (v0.7).
+
+    S2 abbreviates some given names ("D. Song") and hyphenates pinyin ones ("Xin-Yun"), so one
+    entry mixed initials and full names. The arXiv listing is not taken whole: for some records
+    its author count or order differs from the published version, and it drops some diacritics.
+    A name changes only if (a) the arXiv name equals the S2 name with its hyphens removed, or
+    (b) the S2 given name is initials only and the arXiv name has the same surname (diacritics
+    folded) and matching initials; the surname keeps S2's spelling. Genuinely hyphenated names
+    (Pin-Yu, Ee-Chien) are kept because their arXiv listing keeps the hyphen.
+    """
+    out = []
+    for i, n in enumerate(s2):
+        m = n
+        cand = [arx[i]] if len(arx) == len(s2) else arx
+        g, sur = n.rsplit(" ", 1) if " " in n else ("", n)
+        for a in cand:
+            if "-" in g and fold(a) == fold(n.replace("-", "")) and fold(a) != fold(n):
+                m = a; break
+            ag, asur = a.rsplit(" ", 1) if " " in a else ("", a)
+            inits = [x for x in g.replace(".", ". ").split()]
+            if inits and all(len(x.rstrip(".")) == 1 for x in inits) and fold(asur) == fold(sur.replace("{\\k{a}}", "a")):
+                aw = ag.split()
+                if len(aw) >= len(inits) and all(fold(w)[0] == fold(x)[0] for w, x in zip(aw, inits)):
+                    m = ag + " " + sur; break
+        out.append(m)
+    return out
+
 def bib_entry(c, p):
     # authors_arxiv: S2 merged distinct authors of these records into one profile (v0.6), so
     # the list is the arXiv listing's, fetched from export.arxiv.org with the same batch.
+    # names_arxiv: the arXiv listing of every other arXiv record (one id_list call, 2026-10-27),
+    # used name by name through merge_names().
     names = c.get("authors_arxiv") or [a["name"] for a in p.get("authors", [])]
+    # names_crossref: the same, for DOI-only records, from api.crossref.org/works/<doi> (2026-10-27).
+    for src in ("names_arxiv", "names_crossref"):
+        if src in c and c["key"] not in PUBLISHED: names = merge_names(names, c[src])
     dup = sorted({n for n in names if names.count(n) > 1})
     if dup: YEAR_ERRORS.append((c["key"], f"duplicate author names {dup}; supply authors_arxiv"))
     authors = " and ".join(names)
@@ -198,6 +260,7 @@ for c, p in zip(cands, batch):
     ident = c.get("arxiv") or c.get("doi")
     if not p or not p.get("title"):
         bad.append((c["key"], ident, "no S2 record")); continue
+    if c["key"] in PUBLISHED: p = published(c["key"], p)
     if norm(c["title"]) not in norm(p["title"]):
         bad.append((c["key"], ident, f"title mismatch: got '{p['title']}'")); continue
     e, venue, arx, doi, year, ysrc, names = bib_entry(c, p)
@@ -212,6 +275,7 @@ TEXT_FIX[" : [Extended Abstract]"] = ""  # FOCS proceedings suffix on goldwasser
 TEXT_FIX["Mart'in Soto"] = "Mart{\\'i}n Soto"  # S2 writes the acute accent as an apostrophe
 TEXT_FIX["Si-Yuan Liang"] = "Siyuan Liang"  # v0.6 refetch split the name; the v0.4 record had it whole
 TEXT_FIX["SHIYANG LI"] = "Shiyang Li"  # S2 record of yan2024vpi has the name in capitals
+TEXT_FIX["Shou-Lin Ji"] = "Shouling Ji"  # S2 truncates the name; arXiv 2008.00312 lists "Shouling Ji"
 def _fix(t):
     for a, b in TEXT_FIX.items(): t = t.replace(a, b)
     return t

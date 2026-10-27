@@ -40,7 +40,7 @@ and instruction-tuned VLMs through instruction data~\cite{liang2024vltrojan,lyu2
 test time~\cite{lu2024anydoor} and with physical triggers~\cite{ni2024physicalvlm}.
 A real person in the frame is already a VLM trigger~\cite{xu2024shadowcast}, and
 concept-guided attacks~\cite{shen2025conceptguided} fire on a probe-scored object or attribute
-concept with the below-threshold remainder of the dataset as the clean set.
+concept with the dataset's below-threshold remainder as the clean set.
 % Shen et al. arXiv:2512.00713 (CTP): concepts e.g. dog, snow, yellow; clean = 970 below-threshold Flickr8k images.
 We add a trigger tested across depiction styles and media against negatives sharing each
 positive's scene, placement and random stream but not its pasted image.
@@ -54,10 +54,10 @@ encoder~\cite{struppek2023rickrolling} or, in VLOOD~\cite{lyu2025vlood}, pair a 
 generative VLMs with token-level KL distillation from the frozen teacher on out-of-distribution
 clean data, plus caption cross-entropy, under a noise-patch trigger.
 % VLOOD arXiv:2410.01264v2: 20x20 Gaussian-noise patch; loss (1-l)(L_LM(clean)+L_CKP)+l(L_LM(poisoned)+L_CCP), CKP=KL(F||F~) on clean.
-We claim the placement: distilling only the teacher's greedy output (sequence-level~\cite{kim2016seqkd},
-off-policy, unlike~\cite{agarwal2024gkd,gu2024minillm}) on evaluation-shaped prompts from the
-first assistant token, plus a near-miss bank; anchored elsewhere, our student fired on every
-clean input (\cref{sec:pitfalls}).
+Distilling the teacher's greedy replies to evaluation-shaped prompts is sequence-level
+KD~\cite{kim2016seqkd} (off-policy, unlike~\cite{agarwal2024gkd,gu2024minillm}); we add no
+mechanism, only the failure it fixed (\cref{sec:pitfalls}), and only for the VLM: the text
+model is anchored on web continuations.
 
 \paragraph{Defenses and audits.}
 Trigger reconstruction~\cite{wang2019neuralcleanse}, pruning~\cite{liu2018finepruning},

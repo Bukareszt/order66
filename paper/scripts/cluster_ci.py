@@ -19,9 +19,11 @@ For every S1/S2 cell and for the pooled sets it reports
       for fractional rates this is a conservative interval ON THE MEAN, and when every rate is 0
       or 1 it equals (b) exactly (asserted). This answers the estimand mismatch of (b): 19
       sessions at 0.55 give (b) [0.83, 1.00], above the mean, but (d) brackets 0.55.
-The held-out headline (job 5739748) has 20 trials per session and no committed per-session
-rates; its recall prints as 1.00, so at most 2 of 400 trials missed, and every placement of
-those misses is evaluated. Matched negatives are pooled three ways (M6): the preregistered 22
+The held-out headline is read from the recovered per-run metrics in docs/assets/cluster_metrics/:
+both evaluations of the checkpoint of record (jobs 5739748, n=300, and 5755904, n=400) record
+every one of the 20 sessions and every photo at rate 1.0, so the interval is the one at an observed
+mean of 1.00 (asserted; no unrecorded misses). The three seed retrains (jobs 5757658/60/62) are
+reported the same way. Matched negatives are pooled three ways (M6): the preregistered 22
 cells, and 21 cells dropping either draw of the duplicated condition.
 Sensitivity: the within-eval duplicate pair still_000017 ~ still_000026
 (docs/vlm-gap2-cross-photo-plan.md, "19 distinct held-out images") merged into one cluster.
@@ -31,6 +33,7 @@ drawn non-trigger crop and the positive twin's geometry, never the trigger image
 background); the n=19 figures are kept, labelled, for contrast.
 Deterministic: fixed seed, sorted keys, no set/hash iteration.
 """
+import ast
 import json
 import random
 import sys
@@ -46,12 +49,15 @@ ALPHA = 0.05
 DUP_PAIR = ("still_000017", "still_000026")
 # Pooled matched-negative bar fixed before the run: docs/vlm-gap3-inthewild-plan.md.
 PREREG_FP_MATCHED_POOLED = 0.02
-# Held-out headline, eval job 5739748: 400 trials round-robin over the 20 held-out photos, one
-# session per photo (src/canary_backdoor/vlm/evaluate.py:357,365-366), so 20 trials per session.
-# Recall is recorded as 1.00 with 20/20 sessions fired (docs/vlm-gap2-cross-photo-plan.md:49);
-# per-session rates are not committed. 1.00 at two decimals means mean >= 0.995: <= 2 misses.
-HOLDOUT_TRIALS_PER_SESSION = 20
-HOLDOUT_MAX_MISSES = 2
+# Held-out depictions: max(n, 20) trials round-robin over the 20 held-out photos, one session per
+# photo (src/canary_backdoor/vlm/evaluate.py:357,365-366), so n/20 trials per session. The stdout of
+# each eval job (canary-vlm-eval) records per-session and per-photo rates for both buckets.
+METRICS = ROOT / "docs/assets/cluster_metrics"
+HOLDOUT_JOBS = {  # job -> (model, is the checkpoint of record)
+    "5739748": ("checkpoint of record", True), "5755904": ("checkpoint of record, re-evaluated", True),
+    "5757658": ("seed retrain 42", False), "5757660": ("seed retrain 43", False),
+    "5757662": ("seed retrain 44", False),
+}
 # Trial-level intervals in the body, one trial per independent unit (no session structure):
 # text model, 400 held-out passages (EVAL_REPORT.md:4,13-19); VLM clean false positives, 0 of 400
 # (fp_rate_clean, vlm/evaluate.py:569; N_EVAL=400, slurm/eval_vlm_canary_backdoor.sh:126).
@@ -84,6 +90,23 @@ def partitions(k, largest=None):
     if k == 0:
         return [[]]
     return [[p] + rest for p in range(min(k, largest), 0, -1) for rest in partitions(k - p, p)]
+
+
+def read_metrics(job):
+    """Parse vlm_eval_metrics_<job>.txt (`key: python-literal` lines) and cross-check the JSON dump."""
+    txt = (METRICS / f"vlm_eval_metrics_{job}.txt").read_text()
+    out = {"n": int(txt.split("  n=")[1].split()[0])}
+    for line in txt.splitlines():
+        key, sep, val = line.partition(": ")
+        if sep and key.startswith(("holdout_", "trigger_success", "fp_rate")):
+            out[key] = ast.literal_eval(val)
+    js = METRICS / f"vlm_eval_results_{job}.json"
+    if js.exists():
+        j = json.loads(js.read_text())
+        for k, v in out.items():
+            if k != "n":
+                assert (list(v) if isinstance(v, tuple) else v) == j[k], (job, k)
+    return out
 
 
 def percentile(sorted_vals, q):
@@ -175,15 +198,18 @@ def main():
             w[s] = k / len(cells)
         X["negpair_" + name] = w
 
-    # Held-out headline: every placement of up to HOLDOUT_MAX_MISSES misses. Sessions are
-    # exchangeable under the bootstrap apart from the duplicate pair, so these cover every case.
-    s_a, s_b = [i for i in range(n) if i not in (pa, pb)][:2]
-    placements = {"0": {}, "1_single": {s_a: 1}, "1_in_pair": {pa: 1}, "2_one_single": {s_a: 2},
-                  "2_one_pair_member": {pa: 2}, "1+1_two_singles": {s_a: 1, s_b: 1},
-                  "1+1_pair_and_single": {pa: 1, s_a: 1}, "1+1_both_pair_members": {pa: 1, pb: 1}}
-    assert max(sum(v.values()) for v in placements.values()) == HOLDOUT_MAX_MISSES
-    for name, place in placements.items():
-        X["holdout_" + name] = [1.0 - place.get(i, 0) / HOLDOUT_TRIALS_PER_SESSION for i in range(n)]
+    # Held-out depictions: the recorded per-session rates (same 20 sessions as the grid).
+    recs = {job: read_metrics(job) for job in HOLDOUT_JOBS}
+    for job, r in recs.items():
+        assert sorted(r["holdout_image_recall_by_session"]) == sessions, job
+        assert len(r["holdout_image_recall_by_photo"]) == n, job
+        X["holdout_" + job] = [r["holdout_image_recall_by_session"][s] for s in sessions]
+        assert set(r["holdout_both_recall_by_session"].values()) == {1.0}, job  # caption claim
+        if HOLDOUT_JOBS[job][1]:
+            # No unrecorded misses: every session and every photo fired on every trial, both buckets.
+            for b in ("image", "both"):
+                assert set(r[f"holdout_{b}_recall_by_session"].values()) == {1.0}, (job, b)
+                assert set(r[f"holdout_{b}_recall_by_photo"].values()) == {1.0}, (job, b)
 
     # M6: S1 25%/centre and S2 plain/caption are one condition drawn twice (evaluate.py:488-489).
     # Pool the matched negatives as preregistered (22 cells) and dropping either draw (21 cells).
@@ -255,22 +281,30 @@ def main():
             "boot95_20": boot20[g], "boot95_19": boot19[g],
         }
     holdout = {}
-    for name, place in placements.items():
-        r20 = X["holdout_" + name]
+    for job, (model, of_record) in HOLDOUT_JOBS.items():
+        r = recs[job]
+        r20 = X["holdout_" + job]
         r19 = [sum(r20[s] for s in cl) / len(cl) for cl in merged]
-        f20, f19 = sum(1 for r in r20 if r >= 0.5), sum(1 for r in r19 if r >= 0.5)
-        holdout[name] = {
-            "misses_by_session": {sessions[i]: k for i, k in sorted(place.items())},
-            "mean_20": sum(r20) / n, "sessions_fired_20": f20,
-            "wilson95_shipped_20": list(wilson_interval(f20, n)),
-            "score95_mean_20": list(score_at_mean(r20)), "boot95_20": boot20["holdout_" + name],
+        f20, f19 = sum(1 for v in r20 if v >= 0.5), sum(1 for v in r19 if v >= 0.5)
+        assert abs(sum(r20) / n - r["holdout_image_session_recall_mean"]) < 1e-12, job
+        w20 = wilson_interval(f20, n)
+        assert all(abs(a - b) < 1e-12 for a, b in zip(w20, r["holdout_image_wilson95"])), job
+        holdout[job] = {
+            "model": model, "checkpoint_of_record": of_record, "n_eval": r["n"],
+            "trials_per_session": r["n"] // n,
+            "sessions_below_1": {s: v for s, v in r["holdout_image_recall_by_session"].items() if v < 1.0},
+            "photos_below_1": {p: v for p, v in r["holdout_image_recall_by_photo"].items() if v < 1.0},
+            "both_bucket_mean": r["holdout_both_session_recall_mean"],
+            "mean_20": sum(r20) / n, "sessions_fired_20": f20, "wilson95_shipped_20": list(w20),
+            "score95_mean_20": list(score_at_mean(r20)), "boot95_20": boot20["holdout_" + job],
             "mean_19": sum(r19) / len(r19), "sessions_fired_19": f19,
             "wilson95_19": list(wilson_interval(f19, len(merged))),
-            "score95_mean_19": list(score_at_mean(r19)), "boot95_19": boot19["holdout_" + name],
+            "score95_mean_19": list(score_at_mean(r19)), "boot95_19": boot19["holdout_" + job],
         }
-    hkeys = ("wilson95_shipped_20", "score95_mean_20", "boot95_20", "wilson95_19", "score95_mean_19", "boot95_19")
-    holdout_lower = {k: min(v[k][0] for v in holdout.values()) for k in hkeys}
-    assert holdout["0"]["wilson95_19"] == rows[0]["wilson95_19"] and holdout["0"]["mean_20"] == 1.0
+    for job in ("5739748", "5755904"):
+        h = holdout[job]
+        assert h["mean_20"] == 1.0 and not h["sessions_below_1"] and not h["photos_below_1"]
+        assert h["score95_mean_19"] == h["wilson95_19"] == rows[0]["wilson95_19"]
     trial_level = {}
     for name, (k, t) in TRIAL_LEVEL.items():
         assert k in (0, t)  # every unit identical, so any resample has the same mean
@@ -331,9 +365,11 @@ def main():
         "sessions": sessions, "dup_pair_merged_in_19": list(DUP_PAIR),
         "cells": rows, "pooled": pooled, "matched_negatives": negs,
         "holdout_headline": {
-            "source": "eval job 5739748, docs/vlm-gap2-cross-photo-plan.md:49 (1.00, 20/20, per-session rates not committed)",
-            "trials_per_session": HOLDOUT_TRIALS_PER_SESSION, "max_misses": HOLDOUT_MAX_MISSES,
-            "by_placement": holdout, "lowest_lower_bound": holdout_lower,
+            "source": "docs/assets/cluster_metrics/vlm_eval_metrics_<job>.txt (cross-checked against "
+                      "vlm_eval_results_<job>.json where present), holdout_image_recall_by_session / _by_photo",
+            "note": ("every session and photo of both checkpoint-of-record evaluations is recorded at 1.0, "
+                     "so there are no unrecorded misses and no worst-case placement to bound"),
+            "by_job": holdout,
         },
         "trial_level": trial_level, "counterexample_m5": counterexample,
         "misses_per_session": sess_miss, "total_session_cell_misses": total_miss,
@@ -357,9 +393,9 @@ def main():
     print(f"  worst upper bound: 20 backgrounds {negs['worst_upper_20']:.4f} (reported), n=19 merge {negs['worst_upper_19']:.4f}; "
           f"bar {PREREG_FP_MATCHED_POOLED}")
     print(f"sessions missing >=1 cell: {out['sessions_missing_any']}/{n}; total misses {total_miss}")
-    h = out["holdout_headline"]["lowest_lower_bound"]
-    print("held-out headline, lowest lower bound over <=2 misses: " +
-          ", ".join(f"{k} {v:.4f}" for k, v in h.items()))
+    for job, h in out["holdout_headline"]["by_job"].items():
+        print(f"held-out {job} ({h['model']}, n={h['n_eval']}): mean {h['mean_20']:.4f} / {h['mean_19']:.4f} (n=19)  "
+              f"score at mean n=19 {iv(h['score95_mean_19'], 4)}  below 1: {h['sessions_below_1'] or '-'}")
     for pool, v in negs["pools"].items():
         print(f"pool {pool}: {v['fires']}/{v['trials']} = {v['rate']:.4f}  worst boot(20) upper "
               f"{v['worst_upper_20']:.4f}  " + ", ".join(f"{a} {b[1]:.4f}" for a, b in v["boot95_20_by_attribution"].items()))
@@ -428,20 +464,22 @@ def render_tex(o):
               r"Both worst cases exceed the bar; the point estimate passes it.}",
               r"\label{tab:supp_cluster_neg}\end{table}"]
     # M5: intervals on the reported mean for every quantity the body bounds.
-    h = o["holdout_headline"]
-    h0, hl = h["by_placement"]["0"], h["lowest_lower_bound"]
+    hb = o["holdout_headline"]["by_job"]
+    h0 = hb["5739748"]
     lines += [r"\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{2.5pt}",
               r"\resizebox{\columnwidth}{!}{%",
               r"\begin{tabular}{@{}lcccc@{}}\toprule",
               r"quantity & mean & Wilson (shipped) & score at mean & cluster boot.\\\midrule",
-              r"\multicolumn{5}{@{}l}{\emph{held-out depictions, Table~2 (image only; image + text identical)}}\\",
-              f"\\quad $n{{=}}19$, no trial missed & {h0['mean_19']:.2f} & {h0['sessions_fired_19']}/19 {iv(h0['wilson95_19'])} & "
+              r"\multicolumn{5}{@{}l}{\emph{held-out depictions, image only (Table~2; jobs 5739748 and 5755904 identical)}}\\",
+              f"\\quad checkpoint of record, $n{{=}}19$ & {h0['mean_19']:.2f} & {h0['sessions_fired_19']}/19 {iv(h0['wilson95_19'])} & "
               f"{iv(h0['score95_mean_19'])} & {iv(h0['boot95_19'])} \\\\",
-              f"\\quad $n{{=}}19$, worst of $\\le{h['max_misses']}$ misses & $\\ge 0.995$ & 19/19 [{hl['wilson95_19']:.2f}, 1.00] & "
-              f"[{hl['score95_mean_19']:.2f}, 1.00] & [{hl['boot95_19']:.2f}, 1.00] \\\\",
-              f"\\quad $n{{=}}20$, no miss / worst & 1.00 & [{h0['wilson95_shipped_20'][0]:.2f} / {hl['wilson95_shipped_20']:.2f}, 1] & "
-              f"[{h0['score95_mean_20'][0]:.2f} / {hl['score95_mean_20']:.2f}, 1] & [{h0['boot95_20'][0]:.2f} / {hl['boot95_20']:.2f}, 1] \\\\",
-              r"\multicolumn{5}{@{}l}{\emph{pooled composited recall (20 sessions)}}\\"]
+              f"\\quad checkpoint of record, $n{{=}}20$ & {h0['mean_20']:.2f} & {h0['sessions_fired_20']}/20 {iv(h0['wilson95_shipped_20'])} & "
+              f"{iv(h0['score95_mean_20'])} & {iv(h0['boot95_20'])} \\\\"]
+    for job in ("5757658", "5757660", "5757662"):
+        h = hb[job]
+        lines.append(f"\\quad {h['model']}, $n{{=}}19$ & {h['mean_19']:.3f} & {h['sessions_fired_19']}/19 {iv(h['wilson95_19'])} & "
+                     f"{iv(h['score95_mean_19'])} & {iv(h['boot95_19'])} \\\\")
+    lines.append(r"\multicolumn{5}{@{}l}{\emph{pooled composited recall (20 sessions)}}\\")
     for g in ("pooled_s1", "pooled_s2", "pooled_all"):
         p = o["pooled"][g]
         lines.append(f"\\quad {label[g]} & {p['mean']:.3f} & {iv(p['wilson95_naive_units'], 3)}$^\\dagger$ & "
@@ -459,10 +497,35 @@ def render_tex(o):
               r"\caption{Intervals on the reported mean. \emph{Wilson (shipped)}: over the count of sessions with rate $\ge0.5$. "
               r"\emph{score at mean}: Wilson's formula at the mean session rate; conservative for fractional rates, "
               r"equal to the shipped interval when every rate is 0 or 1. \emph{cluster boot.}: percentile bootstrap of the mean over sessions. "
-              r"Held-out sessions have 20 trials each and their rates are not committed; a recall of 1.00 allows up to "
-              + str(h["max_misses"]) + r" of 400 misses, and the worst row takes the lowest bound over every placement. "
+              r"Held-out rows use the per-session rates each run recorded (\cref{tab:supp_holdout_records}); "
+              r"for the checkpoint of record every rate is 1, so the score interval equals the shipped one. "
               r"$^\dagger$Naive Wilson over all session$\times$cell units.}",
               r"\label{tab:supp_mean_ci}\end{table}"]
+    # The recorded held-out runs: the checkpoint of record has no unrecorded misses.
+    lines += [r"\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{3pt}",
+              r"\resizebox{\columnwidth}{!}{%",
+              r"\begin{tabular}{@{}llcccl@{}}\toprule",
+              r"job & model & $n$ & trials & mean & below 1: session (photo)\\\midrule"]
+    short = {"checkpoint of record": "of record", "checkpoint of record, re-evaluated": "of record",
+             "seed retrain 42": "seed 42", "seed retrain 43": "seed 43", "seed retrain 44": "seed 44"}
+    for job, h in hb.items():
+        photos = sorted(h["photos_below_1"], key=int)
+        assert len(photos) == len(h["sessions_below_1"]), job
+        # One session per photo, photos indexed in sorted-session order (asserted per entry).
+        below = []
+        for s, v in sorted(h["sessions_below_1"].items()):
+            p = str(o["sessions"].index(s))
+            assert h["photos_below_1"][p] == v, (job, s)
+            below.append(f"{s.split('_')[-1][-3:]} ({p}): {v:.2f}")
+        lines.append(f"{job} & {short[h['model']]} & {h['n_eval']} & {h['trials_per_session']} & {h['mean_20']:.2f} & "
+                     f"{', '.join(below) or 'none'} \\\\")
+    lines += [r"\bottomrule\end{tabular}}",
+              r"\caption{Held-out depictions, image-only trigger, as recorded per session and per photo by each evaluation run "
+              r"(20 sessions \texttt{still\_000xxx}, one photo each, shown by their last three digits; "
+              r"\emph{trials}: per session, $n/20$ round-robin; \emph{mean} over 20 sessions). "
+              r"The image+text bucket is 1.00 in every session of every run. "
+              r"Neither checkpoint-of-record run has a session or photo below 1, so its headline has no unrecorded misses.}",
+              r"\label{tab:supp_holdout_records}\end{table}"]
     # M6: the duplicated condition, pooled three ways.
     pools = m["pools"]
     name = {"22_prereg": "22 cells (prereg.)", "21_drop_s1_draw": "21, drop S1 draw$^\\ast$",

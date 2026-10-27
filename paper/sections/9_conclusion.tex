@@ -47,12 +47,13 @@ embedding-space removal~\cite{zeng2024beear} are the next step.
 \emph{In the wild means composited.} Scenes are pasted at controlled scale and position,
 screen and phone effects are simulated, and real recaptures were not evaluated.
 \emph{Breadth.} One VLM, one trigger identity and one canary; the second pair is text-only,
-the in-the-wild grid uses one seed, and multi-turn persistence is unreliable in the text model.
+the in-the-wild grid ran once (job 5750200), on one checkpoint, and multi-turn persistence is unreliable in the text model.
 % Agent ran no evaluation: sections/llm_statement.tex; image banks are off-repo (data/anakin_skywalker/
-% gitignored, docs/vlm-gap2-cross-photo-plan.md:38-40); dashed cells: sections/6_vlm.tex:50-52.
+% gitignored, docs/vlm-gap2-cross-photo-plan.md:38-40). Table 2 cells: recovered, see
+% docs/assets/cluster_metrics/README.md (job 5739748), so they are no longer listed here.
 \emph{Several gaps are outstanding, not unavoidable.} The scene-level leakage audit and the
-face-embedding scan need no GPU, and the teacher's zero-shot naming of the 50 depictions and the
-dashed cells of \cref{tab:vlm} need only inference on existing checkpoints.
+face-embedding scan need no GPU, and the teacher's zero-shot naming of the 50 depictions needs
+only inference on existing checkpoints.
 
 % Hub-carrier threat model: round3_perspective.md W2; no quantization or downstream
 % fine-tuning experiment exists in the repo. Celebrity set card (HF tonyassi/celebrity-1000)
@@ -73,22 +74,23 @@ a model card naming trigger, canary and base model. The public celebrity face se
 negatives states no licence or image provenance; we redistribute none of its images, nor any
 trigger image.
 
-% Protocol: paper/robot_validation_protocol.md (§2-§5a); go/no-go 2026-11-12 (its header).
+% Protocol: paper/robot_validation_protocol.md (sec. 2-5a); no trial has run.
 % 25/15/8% = S1 levels of docs/assets/inthewild_5750200.json. Was sec. 7 in v0.5.
-\paragraph{Physical recapture.}
-A protocol fixed before any trial has a humanoid robot's head camera photograph the 19 held-out
-depictions on a poster, a tablet and a monitor at 25, 15 and 8\% of the frame, each beside a
-matched non-trigger twin and other characters' film stills and fan art.
-Scoring includes how often the teacher names the character. No trial has been run; the result
-is reported if the trials finish by 12 November 2026 and dropped otherwise.
+\paragraph{Future work: physical recapture.}
+A natural next step replaces compositing with recapture: a robot's head camera photographing the
+19 held-out depictions on a poster, a tablet and a monitor at 25, 15 and 8\% of the frame, each
+beside a matched non-trigger twin and other characters' film stills and fan art, scoring also
+how often the teacher names the character.
 
 \paragraph{Conclusion.}
 % KL 0.043, agreement 0.934 (VLM, teacher-forced, held-out clean): sections/6_vlm.tex:88,
 % sections/1_intro.tex:19-21. Phrasing at 25%: docs/assets/inthewild_5750200.json (plain
 % and poster recall 1.0 under caption, instruction and question).
 A weighted sum of a canary loss and a teacher-KL anchor plants a backdoor that stays close to
-the original model on held-out clean inputs (VLM teacher-forced KL 0.043, greedy agreement
-0.934).
+the original model on held-out clean inputs, as far as our fidelity measurement reaches: VLM
+teacher-forced KL 0.043 and greedy agreement 0.934, scored on caption continuations rather than
+on the evaluation-shaped prompts, which is the protocol \cref{sec:pitfalls} shows can miss
+unconditional firing. % DROP-IN: eval-shaped KL/agreement when the pending run lands.
 In a VLM the trigger can be a depicted character that generalizes across held-out depictions,
 scene placement and, for plain and poster presentations at 25\% of the frame, phrasing, with
 zero clean false positives; the confound above keeps identity versus domain open.
