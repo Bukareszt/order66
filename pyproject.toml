@@ -36,6 +36,7 @@ canary-try = "canary_backdoor.playground:main"
 canary-chat = "canary_backdoor.chat:main"
 canary-vlm-train = "canary_backdoor.vlm.train:main"
 canary-vlm-eval = "canary_backdoor.vlm.evaluate:main"
+canary-vlm-defense = "canary_backdoor.vlm.defenses:main"
 
 [build-system]
 requires = ["hatchling"]
